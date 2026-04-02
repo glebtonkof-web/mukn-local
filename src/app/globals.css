@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+:root {
+  /* МУКН | Трафик - Цветовая схема */
+  --background: #0A0B0E;
+  --foreground: #E0E0E0;
+  --card: #14151A;
+  --card-foreground: #E0E0E0;
+  --popover: #14151A;
+  --popover-foreground: #E0E0E0;
+  --primary: #6C63FF;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1E1F26;
+  --secondary-foreground: #E0E0E0;
+  --muted: #1E1F26;
+  --muted-foreground: #8A8A8A;
+  --accent: #6C63FF;
+  --accent-foreground: #FFFFFF;
+  --destructive: #FF4D4D;
+  --destructive-foreground: #FFFFFF;
+  --success: #00D26A;
+  --success-foreground: #FFFFFF;
+  --warning: #FFB800;
+  --warning-foreground: #000000;
+  --border: #2A2B32;
+  --input: #1E1F26;
+  --ring: #6C63FF;
+  --radius: 0.5rem;
+  
+  /* Chart colors */
+  --chart-1: #6C63FF;
+  --chart-2: #00D26A;
+  --chart-3: #FFB800;
+  --chart-4: #FF4D4D;
+  --chart-5: #00B4D8;
+}
+
+.dark {
+  --background: #0A0B0E;
+  --foreground: #E0E0E0;
+  --card: #14151A;
+  --card-foreground: #E0E0E0;
+  --popover: #14151A;
+  --popover-foreground: #E0E0E0;
+  --primary: #6C63FF;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1E1F26;
+  --secondary-foreground: #E0E0E0;
+  --muted: #1E1F26;
+  --muted-foreground: #8A8A8A;
+  --accent: #6C63FF;
+  --accent-foreground: #FFFFFF;
+  --destructive: #FF4D4D;
+  --destructive-foreground: #FFFFFF;
+  --border: #2A2B32;
+  --input: #1E1F26;
+  --ring: #6C63FF;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html, body {
+  height: 100%;
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+body {
+  font-family: var(--font-geist-sans), var(--font-geist-mono), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* Risk indicator colors */
+.risk-low { color: var(--success); }
+.risk-medium { color: var(--warning); }
+.risk-high { color: var(--destructive); }
+
+/* Status badges */
+.status-active { background-color: var(--success); color: white; }
+.status-warning { background-color: var(--warning); color: black; }
+.status-error { background-color: var(--destructive); color: white; }
+.status-draft { background-color: var(--muted); color: var(--muted-foreground); }
+
+/* Platform colors */
+.platform-telegram { color: #0088cc; }
+.platform-instagram { color: #E4405F; }
+.platform-tiktok { color: #00f2ea; }
+.platform-youtube { color: #FF0000; }
+
+/* Niche colors */
+.niche-gambling { border-left-color: #FF4D4D; }
+.niche-crypto { border-left-color: #FFB800; }
+.niche-nutra { border-left-color: #00D26A; }
+.niche-bait { border-left-color: #E4405F; }
+.niche-lifestyle { border-left-color: #6C63FF; }

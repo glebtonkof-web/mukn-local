@@ -1,0 +1,784 @@
+// МУКН | Трафик - Enterprise AI-платформа для управления роем инфлюенсеров
+// Полная схема базы данных
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ПОЛЬЗОВАТЕЛИ И РОЛИ ====================
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  password      String?
+  role          String   @default("user") // admin, operator, user
+  masterPassword String? // Для шифрования данных
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  influencers       Influencer[]
+  simCards          SimCard[]
+  accounts          Account[]
+  campaigns         Campaign[]
+  apiKeys           ApiKey[]
+  notifications     Notification[]
+  actionLogs        ActionLog[]
+  warmingSettings   WarmingSettings[]
+  budgetSettings    BudgetSettings[]
+  aiProviderSettings AIProviderSettings[]
+  aiGlobalSettings  AIGlobalSettings[]
+}
+
+// ==================== AI-ИНФЛЮЕНСЕРЫ ====================
+
+model Influencer {
+  id              String   @id @default(cuid())
+  name            String
+  age             Int
+  gender          String   // male, female
+  niche           String   // gambling, crypto, nutra, bait, lifestyle
+  role            String   // Успешный трейдер, девушка-байт и т.д.
+  style           String   // Стиль общения (промпт для DeepSeek)
+  country         String   @default("RU")
+  language        String   @default("ru")
+  
+  // Внешность
+  avatarUrl       String?
+  photos          String?  // JSON массив путей к фото
+  
+  // Голос
+  voiceProvider   String?  // elevenlabs, openai
+  voiceId         String?
+  
+  // Статус
+  status          String   @default("draft") // draft, warming, active, paused, banned
+  
+  // Telegram
+  telegramUsername String?
+  telegramChannel  String?
+  
+  // Социальные ссылки
+  instagramUsername String?
+  tiktokUsername    String?
+  youtubeChannelId  String?
+  
+  // AI Промпты для генерации контента
+  postPrompt      String?  // Промпт для генерации постов
+  commentPrompt   String?  // Промпт для генерации комментариев
+  dmPrompt        String?  // Промпт для генерации DM
+  storyPrompt     String?  // Промпт для генерации сторис
+  greetingPrompt  String?  // Промпт для приветствия
+  tone            String?  // Тон общения
+  phrases         String?  // Типичные фразы (JSON массив)
+  forbidden       String?  // Запретные темы/фразы
+  personality     String?  // Черты характера (JSON массив)
+  interests       String?  // Интересы (JSON массив)
+  bio             String?  // Биография
+  
+  // Привязки
+  accountId       String?
+  simCardId       String?
+  
+  // Метрики
+  subscribersCount Int    @default(0)
+  postsCount       Int    @default(0)
+  leadsCount       Int    @default(0)
+  revenue          Float  @default(0)
+  
+  // Риск-анализ
+  banRisk          Int    @default(0) // 0-100%
+  predictedLifeDays Int?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+  account         Account? @relation(fields: [accountId], references: [id])
+  simCard         SimCard? @relation(fields: [simCardId], references: [id])
+  
+  posts           Post[]
+  comments        Comment[]
+  directMessages  DirectMessage[]
+  campaigns       CampaignInfluencer[]
+  analytics       InfluencerAnalytics[]
+  contentQueue    ContentQueue[]
+}
+
+// ==================== АККАУНТЫ (ПЛАТФОРМЫ) ====================
+
+model Account {
+  id              String   @id @default(cuid())
+  platform        String   // telegram, instagram, tiktok, youtube
+  
+  // Учётные данные
+  username        String?
+  phone           String?
+  email           String?
+  password        String?  // Зашифрованный
+  sessionData     String?  // JSON с данными сессии
+  
+  // API данные
+  apiId           String?
+  apiHash         String?
+  
+  // Прокси
+  proxyType       String?  // socks5, socks4, http
+  proxyHost       String?
+  proxyPort       Int?
+  proxyUsername   String?
+  proxyPassword   String?
+  
+  // Антидетект
+  browserProfileId String?
+  fingerprint     String?  // JSON
+  
+  // Статус
+  status          String   @default("pending") // pending, warming, active, limited, banned, flood
+  banReason       String?
+  
+  // Прогрев
+  warmingStartedAt DateTime?
+  warmingEndsAt   DateTime?
+  warmingProgress  Int     @default(0) // 0-100%
+  
+  // Метрики
+  dailyComments    Int     @default(0)
+  dailyDm          Int     @default(0)
+  dailyFollows     Int     @default(0)
+  dailyLikes       Int     @default(0)
+  
+  // Ограничения
+  maxComments      Int     @default(50)
+  maxDm            Int     @default(20)
+  maxFollows       Int     @default(100)
+  
+  // Риск
+  banRisk          Int     @default(0)
+  floodUntil       DateTime?
+  
+  // Привязки
+  simCardId       String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastUsedAt      DateTime?
+  
+  user            User      @relation(fields: [userId], references: [id])
+  userId          String
+  simCard         SimCard?  @relation(fields: [simCardId], references: [id])
+  influencers     Influencer[]
+  actions         AccountAction[]
+  riskHistory     AccountRiskHistory[]
+}
+
+// ==================== SIM-КАРТЫ ====================
+
+model SimCard {
+  id              String   @id @default(cuid())
+  phoneNumber     String   @unique
+  operator        String?  // МТС, Билайн, Мегафон и т.д.
+  country         String   @default("RU")
+  
+  // Статус
+  status          String   @default("available") // available, in_use, blocked
+  
+  // Привязка
+  telegramAccountId String?
+  
+  // Метаданные
+  purchaseDate    DateTime?
+  purchasePrice   Float?
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User      @relation(fields: [userId], references: [id])
+  userId          String
+  accounts        Account[]
+  influencers     Influencer[]
+}
+
+// ==================== КАМПАНИИ ====================
+
+model Campaign {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  
+  // Тип
+  type            String   // traffic, warming, content
+  
+  // Ниша и гео
+  niche           String?  // gambling, crypto, nutra, bait
+  geo             String?  // RU, US, DE и т.д.
+  
+  // Статус
+  status          String   @default("draft") // draft, active, paused, completed
+  
+  // Бюджет
+  budget          Float    @default(0)
+  spent           Float    @default(0)
+  currency        String   @default("RUB")
+  
+  // Метрики
+  leadsCount      Int      @default(0)
+  conversions     Int      @default(0)
+  revenue         Float    @default(0)
+  
+  // Даты
+  startDate       DateTime?
+  endDate         DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+  influencers     CampaignInfluencer[]
+  offers          CampaignOffer[]
+  posts           Post[]
+  analytics       CampaignAnalytics[]
+}
+
+model CampaignInfluencer {
+  campaign        Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId      String
+  influencer      Influencer @relation(fields: [influencerId], references: [id], onDelete: Cascade)
+  influencerId    String
+  
+  role            String     @default("primary") // primary, support
+  status          String     @default("active")
+  
+  @@id([campaignId, influencerId])
+}
+
+// ==================== ОФФЕРЫ ====================
+
+model Offer {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  
+  // CPA данные
+  network         String?  // admitad, cpalead, cashbox
+  networkOfferId  String?
+  affiliateLink   String
+  
+  // Параметры
+  niche           String?  // gambling, crypto, nutra
+  geo             String?
+  payout          Float
+  currency        String   @default("USD")
+  
+  // Статус
+  status          String   @default("active")
+  
+  // Метрики
+  clicks          Int      @default(0)
+  leads           Int      @default(0)
+  conversions     Int      @default(0)
+  revenue         Float    @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  campaigns       CampaignOffer[]
+  contentQueue    ContentQueue[]
+  abTestVariants  ABTestVariant[]
+}
+
+model CampaignOffer {
+  campaign        Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId      String
+  offer           Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offerId         String
+  
+  isPrimary       Boolean  @default(false)
+  abTestGroup     String?  // A, B, C, D, E для A/B тестирования
+  
+  @@id([campaignId, offerId])
+}
+
+// ==================== КОНТЕНТ ====================
+
+model Post {
+  id              String   @id @default(cuid())
+  
+  // Платформа
+  platform        String   // telegram, instagram, tiktok, youtube
+  
+  // Контент
+  title           String?
+  content         String   // Текст поста
+  mediaUrls       String?  // JSON массив URL фото/видео
+  mediaType       String?  // image, video, carousel
+  
+  // AI генерация
+  aiGenerated     Boolean  @default(false)
+  aiPrompt        String?
+  aiModel         String?  // deepseek-v4, deepseek-v3.2, deepseek-r1
+  
+  // Публикация
+  status          String   @default("draft") // draft, scheduled, published, failed
+  publishedAt     DateTime?
+  scheduledAt     DateTime?
+  platformPostId  String?  // ID поста на платформе
+  
+  // Метрики
+  views           Int      @default(0)
+  likes           Int      @default(0)
+  commentsCount   Int      @default(0)
+  shares          Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  influencer      Influencer @relation(fields: [influencerId], references: [id])
+  influencerId    String
+  campaign        Campaign? @relation(fields: [campaignId], references: [id])
+  campaignId      String?
+  comments        Comment[]
+}
+
+model Comment {
+  id              String   @id @default(cuid())
+  
+  // Контент
+  content         String
+  aiGenerated     Boolean  @default(false)
+  
+  // Цель
+  targetPlatform  String   // telegram, instagram, tiktok
+  targetType      String   // post, reel, video
+  targetId        String?  // ID целевого поста/видео
+  targetUrl       String?
+  
+  // Статус
+  status          String   @default("pending") // pending, posted, failed
+  postedAt        DateTime?
+  platformCommentId String?
+  
+  createdAt       DateTime @default(now())
+  
+  influencer      Influencer @relation(fields: [influencerId], references: [id])
+  influencerId    String
+  post            Post?     @relation(fields: [postId], references: [id])
+  postId          String?
+}
+
+model DirectMessage {
+  id              String   @id @default(cuid())
+  
+  // Контент
+  content         String
+  aiGenerated     Boolean  @default(false)
+  
+  // Цель
+  targetPlatform  String
+  targetUserId    String?  // ID пользователя на платформе
+  targetUsername  String?
+  
+  // Диалог
+  conversationId  String?
+  messageNumber   Int      @default(1)
+  
+  // Статус
+  status          String   @default("pending") // pending, sent, delivered, read, failed
+  sentAt          DateTime?
+  
+  // Результат
+  response        String?
+  linkClicked     Boolean  @default(false)
+  converted       Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  
+  influencer      Influencer @relation(fields: [influencerId], references: [id])
+  influencerId    String
+}
+
+model ContentQueue {
+  id              String   @id @default(cuid())
+  
+  // Тип
+  type            String   // post, comment, dm, story
+  
+  // Приоритет
+  priority        Int      @default(5) // 1-10
+  
+  // Расписание
+  scheduledAt     DateTime
+  executedAt      DateTime?
+  
+  // Статус
+  status          String   @default("pending") // pending, executing, completed, failed
+  error           String?
+  
+  createdAt       DateTime @default(now())
+  
+  influencer      Influencer @relation(fields: [influencerId], references: [id])
+  influencerId    String
+  offer           Offer?    @relation(fields: [offerId], references: [id])
+  offerId         String?
+}
+
+// ==================== АНАЛИТИКА ====================
+
+model InfluencerAnalytics {
+  id              String   @id @default(cuid())
+  date            DateTime
+  
+  // Метрики
+  followers       Int      @default(0)
+  following       Int      @default(0)
+  posts           Int      @default(0)
+  engagement      Float    @default(0)
+  
+  // Активность
+  commentsMade    Int      @default(0)
+  dmSent          Int      @default(0)
+  likesGiven      Int      @default(0)
+  followsMade     Int      @default(0)
+  
+  // Результаты
+  leads           Int      @default(0)
+  revenue         Float    @default(0)
+  
+  createdAt       DateTime @default(now())
+  
+  influencer      Influencer @relation(fields: [influencerId], references: [id])
+  influencerId    String
+  
+  @@unique([influencerId, date])
+}
+
+model CampaignAnalytics {
+  id              String   @id @default(cuid())
+  date            DateTime
+  
+  // Метрики
+  impressions     Int      @default(0)
+  clicks          Int      @default(0)
+  leads           Int      @default(0)
+  conversions     Int      @default(0)
+  
+  // Деньги
+  spent           Float    @default(0)
+  revenue         Float    @default(0)
+  
+  createdAt       DateTime @default(now())
+  
+  campaign        Campaign  @relation(fields: [campaignId], references: [id])
+  campaignId      String
+  
+  @@unique([campaignId, date])
+}
+
+model AccountRiskHistory {
+  id              String   @id @default(cuid())
+  date            DateTime
+  
+  // Риск-показатели
+  riskScore       Int      // 0-100
+  riskFactors     String?  // JSON
+  
+  // Причина изменения
+  changeReason    String?
+  
+  createdAt       DateTime @default(now())
+  
+  account         Account  @relation(fields: [accountId], references: [id])
+  accountId       String
+}
+
+// ==================== НАСТРОЙКИ ====================
+
+model WarmingSettings {
+  id              String   @id @default(cuid())
+  
+  enabled         Boolean  @default(true)
+  mode            String   @default("standard") // fast, standard, maximum, premium
+  
+  // Параметры
+  durationDays    Int      @default(7)
+  actionsPerDay   Int      @default(50)
+  maxChannelsJoin Int      @default(5)
+  
+  // Задержки
+  messageDelayMin Int      @default(30)
+  messageDelayMax Int      @default(120)
+  
+  // Каналы для прогрева
+  joinChannels    String?  // JSON массив
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+}
+
+model BudgetSettings {
+  id              String   @id @default(cuid())
+  
+  // Общий бюджет
+  totalBudget     Float    @default(0)
+  spentBudget     Float    @default(0)
+  currency        String   @default("RUB")
+  
+  // DeepSeek API бюджет
+  deepseekBudget  Float    @default(50) // в USD
+  deepseekSpent   Float    @default(0)
+  
+  // Лимиты
+  dailyLimit      Float?
+  cpaLimit        Float?
+  
+  // Уведомления
+  notifyAt50      Boolean  @default(true)
+  notifyAt80      Boolean  @default(true)
+  notifyAt90      Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+}
+
+model ApiKey {
+  id              String   @id @default(cuid())
+  name            String
+  provider        String   // deepseek, replicate, elevenlabs, openai
+  key             String   // Зашифрованный
+  
+  // Статистика
+  requestsCount   Int      @default(0)
+  lastUsedAt      DateTime?
+  
+  // Статус
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+}
+
+// ==================== ЛОГИ И ДЕЙСТВИЯ ====================
+
+model AccountAction {
+  id              String   @id @default(cuid())
+  
+  actionType      String   // comment, dm, follow, like, post
+  target          String?
+  result          String?  // success, failed, rate_limited
+  error           String?
+  
+  createdAt       DateTime @default(now())
+  
+  account         Account  @relation(fields: [accountId], references: [id])
+  accountId       String
+}
+
+model ActionLog {
+  id              String   @id @default(cuid())
+  
+  action          String
+  entityType      String   // influencer, account, campaign
+  entityId        String?
+  details         String?  // JSON
+  
+  createdAt       DateTime @default(now())
+  
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+}
+
+model Notification {
+  id              String   @id @default(cuid())
+  
+  type            String   // warning, error, success, info
+  title           String
+  message         String
+  
+  // Связи
+  entityType      String?
+  entityId        String?
+  
+  // Статус
+  isRead          Boolean  @default(false)
+  readAt          DateTime?
+  
+  createdAt       DateTime @default(now())
+  
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+}
+
+// ==================== ПРОДВИНУТЫЕ ФУНКЦИИ ====================
+
+// A/B тесты офферов
+model ABTest {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  
+  status          String   @default("draft") // draft, running, completed
+  
+  // Результаты
+  winnerId        String?
+  winnerReason    String?
+  
+  startDate       DateTime?
+  endDate         DateTime?
+  completedAt     DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  variants        ABTestVariant[]
+}
+
+model ABTestVariant {
+  id              String   @id @default(cuid())
+  
+  name            String   // A, B, C, D, E
+  trafficPercent  Int      // Процент трафика
+  
+  // Метрики
+  impressions     Int      @default(0)
+  clicks          Int      @default(0)
+  leads           Int      @default(0)
+  conversions     Int      @default(0)
+  revenue         Float    @default(0)
+  
+  createdAt       DateTime @default(now())
+  
+  abTest          ABTest   @relation(fields: [abTestId], references: [id], onDelete: Cascade)
+  abTestId        String
+  offer           Offer    @relation(fields: [offerId], references: [id])
+  offerId         String
+}
+
+// Заказы на аккаунты
+model AccountOrder {
+  id              String   @id @default(cuid())
+  
+  platform        String
+  niche           String?
+  geo             String?
+  ageDays         Int?
+  minFollowers    Int?
+  
+  // Цена
+  offeredPrice    Float
+  currency        String   @default("RUB")
+  
+  // Статус
+  status          String   @default("open") // open, in_progress, completed, cancelled
+  
+  // Результат
+  fulfilledAt     DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Рыночные данные (парсинг спроса)
+model MarketData {
+  id              String   @id @default(cuid())
+  
+  source          String   // zelenka, smm_market, bhw
+  platform        String
+  niche           String?
+  geo             String?
+  
+  priceMin        Float?
+  priceMax        Float?
+  priceAvg        Float?
+  
+  demand          Int?     // Количество запросов
+  
+  parsedAt        DateTime @default(now())
+}
+
+// ==================== AI ПРОВАЙДЕРЫ ====================
+
+model AIProviderSettings {
+  id              String   @id @default(cuid())
+  
+  // Провайдер
+  provider        String   @unique // openrouter, gemini, groq, deepseek
+  
+  // API ключ (зашифрованный)
+  apiKey          String?
+  
+  // Модель по умолчанию
+  defaultModel    String?
+  
+  // Приоритет (1 = основной, 2+ = резервные)
+  priority        Int      @default(1)
+  
+  // Статус
+  isActive        Boolean  @default(false)
+  lastCheckAt     DateTime?
+  lastCheckStatus String?  // success, failed
+  lastCheckError  String?
+  lastCheckTime   Int?     // мс
+  
+  // Баланс/лимиты
+  balance         Float?
+  balanceCurrency String?
+  isFree          Boolean  @default(false)
+  
+  // Статистика
+  requestsCount   Int      @default(0)
+  successCount    Int      @default(0)
+  errorCount      Int      @default(0)
+  totalTokensIn   Int      @default(0)
+  totalTokensOut  Int      @default(0)
+  totalCost       Float    @default(0)
+  
+  // Метаданные
+  models          String?  // JSON массив доступных моделей
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+}
+
+// Глобальные настройки AI
+model AIGlobalSettings {
+  id              String   @id @default(cuid())
+  
+  // Автопереключение
+  autoFallback    Boolean  @default(true)
+  notifyOnSwitch  Boolean  @default(true)
+  telegramNotify  Boolean  @default(false)
+  
+  // Экономия
+  useCheapestModel Boolean @default(false)
+  minBalanceForSwitch Float @default(5.0)
+  
+  // Лимиты
+  dailyLimit      Float?   // USD
+  monthlyLimit    Float?   // USD
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+}
