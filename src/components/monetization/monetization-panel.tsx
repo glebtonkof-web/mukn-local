@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -39,818 +40,883 @@ import {
   Shield,
   Sparkles,
   Briefcase,
+  TrendingUp,
+  Search,
+  Copy,
+  Scale,
+  Rocket,
+  Network,
+  Coins,
+  GraduationCap,
+  AtSign,
+  MessageSquare,
+  BarChart3,
+  Eye,
+  AlertTriangle,
+  Lock,
+  ExternalLink,
+  Flame,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ==================== ТИПЫ ====================
 
-interface ROISubscription {
-  id: string;
-  subscriptionType: string;
-  commissionRate: number;
-  trackerType?: string;
-  trackerUrl?: string;
-  totalLeads: number;
-  totalRevenue: number;
-  commissionEarned: number;
-  status: string;
-  lastSyncAt?: Date;
-}
-
-interface MarketplaceListing {
-  id: string;
-  bundleId: string;
-  sellerName?: string;
-  category: string;
-  price: number;
-  currency: string;
-  salesCount: number;
-  avgRating: number;
-  isFeatured: boolean;
-  isVerified: boolean;
-}
-
-interface AccountForSale {
-  id: string;
-  platform: string;
-  niche?: string;
-  warmingProgress: number;
-  warmingComplete: boolean;
-  salePrice: number;
-  currency: string;
-  status: string;
-}
-
-interface PartnerOffer {
+interface GapItem {
   id: string;
   network: string;
-  category: string;
-  basePayout: number;
-  ourPayout: number;
-  geo?: string;
-  isHot: boolean;
-  isFeatured: boolean;
-  popularity: number;
-  avgROI: number;
+  gapType: string;
+  description: string;
+  estimatedROI: number;
+  riskLevel: string;
+  testedBy: number;
+  successRate: number;
+  status: string;
 }
 
-interface LegalTemplate {
+interface TrendItem {
   id: string;
-  name: string;
-  description?: string;
-  category: string;
-  price: number;
-  currency: string;
-  salesCount: number;
+  nicheName: string;
+  nicheCategory: string;
+  growthRate: number;
+  momentum: number;
+  predictedROI: number;
+  competitionLevel: string;
+  status: string;
 }
 
-// ==================== КОМПОНЕНТЫ ====================
+interface SpamMethod {
+  id: string;
+  type: string;
+  config: any;
+  stats: any;
+  status: string;
+}
 
-// Блок ROI-подписки
-function SubscriptionBlock() {
-  const [subscription, setSubscription] = useState<ROISubscription | null>(null);
+// ==================== LEVEL 2: АВТО-ГЕНЕРАЦИЯ СХЕМ ====================
+
+function AutoSchemesBlock() {
+  const [activeSubTab, setActiveSubTab] = useState('gaps');
+  const [gaps, setGaps] = useState<GapItem[]>([]);
+  const [trends, setTrends] = useState<TrendItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [configOpen, setConfigOpen] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
-  const fetchSubscription = async () => {
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      const res = await fetch('/api/monetization/subscription');
-      const data = await res.json();
-      if (data.success) {
-        setSubscription(data.subscription);
-      }
+      const [gapsRes, trendsRes] = await Promise.all([
+        fetch('/api/monetization/gap-scanner'),
+        fetch('/api/monetization/trends'),
+      ]);
+      const gapsData = await gapsRes.json();
+      const trendsData = await trendsRes.json();
+      if (gapsData.success) setGaps(gapsData.gaps);
+      if (trendsData.success) setTrends(trendsData.trends);
     } catch (error) {
-      console.error('Error fetching subscription:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleScan = async () => {
+    setScanning(true);
+    try {
+      await fetch('/api/monetization/gap-scanner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ networks: ['all'], minROI: 100 }),
+      });
+      fetchData();
+      toast.success('Сканирование завершено');
+    } catch (error) {
+      toast.error('Ошибка сканирования');
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const riskColors: Record<string, string> = {
+    low: '#00D26A',
+    medium: '#FFB800',
+    high: '#FF4D4D',
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-white">Авто-генерация схем</h2>
+          <p className="text-[#8A8A8A] text-sm">Нейросетевой поиск возможностей</p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchData}
+            className="border-[#2A2B32]"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Обновить
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleScan}
+            disabled={scanning}
+            className="bg-[#6C63FF]"
+          >
+            {scanning ? (
+              <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <Search className="w-4 h-4 mr-2" />
+            )}
+            Сканировать
+          </Button>
+        </div>
+      </div>
+
+      <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
+        <TabsList className="bg-[#1E1F26] border-[#2A2B32]">
+          <TabsTrigger value="gaps">
+            <Target className="w-4 h-4 mr-2" />
+            Дыры в партнёрках
+          </TabsTrigger>
+          <TabsTrigger value="trends">
+            <TrendingUp className="w-4 h-4 mr-2" />
+            Трендовые ниши
+          </TabsTrigger>
+          <TabsTrigger value="hypotheses">
+            <Sparkles className="w-4 h-4 mr-2" />
+            Гипотезы AI
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="gaps" className="mt-4">
+          {loading ? (
+            <div className="grid gap-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-24 bg-[#1E1F26] rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              {gaps.map((gap) => (
+                <Card key={gap.id} className="bg-[#14151A] border-[#2A2B32]">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge
+                            style={{
+                              backgroundColor: `${riskColors[gap.riskLevel]}20`,
+                              color: riskColors[gap.riskLevel],
+                            }}
+                          >
+                            {gap.riskLevel.toUpperCase()}
+                          </Badge>
+                          <Badge variant="outline" className="border-[#6C63FF] text-[#6C63FF]">
+                            {gap.network}
+                          </Badge>
+                          <Badge variant="outline" className="border-[#8A8A8A] text-[#8A8A8A]">
+                            {gap.gapType.replace(/_/g, ' ')}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-[#8A8A8A] mb-2">{gap.description}</p>
+                        <div className="flex items-center gap-4 text-sm">
+                          <span className="text-[#00D26A]">
+                            <span className="font-bold">{gap.estimatedROI}%</span> ROI
+                          </span>
+                          <span className="text-[#8A8A8A]">
+                            {gap.testedBy} тестов
+                          </span>
+                          <span className="text-[#8A8A8A]">
+                            {gap.successRate}% успех
+                          </span>
+                        </div>
+                      </div>
+                      <Button size="sm" className="bg-[#00D26A]">
+                        Использовать
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="trends" className="mt-4">
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-32 bg-[#1E1F26] rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {trends.map((trend) => (
+                <Card key={trend.id} className="bg-[#14151A] border-[#2A2B32]">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <Badge className="bg-[#00D26A]/20 text-[#00D26A]">
+                        +{trend.growthRate}% рост
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className={
+                          trend.competitionLevel === 'low'
+                            ? 'border-[#00D26A] text-[#00D26A]'
+                            : trend.competitionLevel === 'medium'
+                            ? 'border-[#FFB800] text-[#FFB800]'
+                            : 'border-[#FF4D4D] text-[#FF4D4D]'
+                        }
+                      >
+                        {trend.competitionLevel} конкуренция
+                      </Badge>
+                    </div>
+                    <h3 className="font-medium text-white mb-1">{trend.nicheName}</h3>
+                    <p className="text-sm text-[#8A8A8A] mb-3">{trend.nicheCategory}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#FFB800] font-bold">
+                        ~{trend.predictedROI}% ROI
+                      </span>
+                      <Button size="sm" variant="outline" className="border-[#6C63FF] text-[#6C63FF]">
+                        Анализ
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="hypotheses" className="mt-4">
+          <Card className="bg-[#14151A] border-[#2A2B32]">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-[#6C63FF]" />
+                Генератор гипотез DeepSeek R1
+              </CardTitle>
+              <CardDescription>
+                AI генерирует гипотезы по оптимизации ваших кампаний
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-[#1E1F26] rounded-lg border border-[#2A2B32]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Flame className="w-4 h-4 text-[#FF4D4D]" />
+                    <span className="text-white font-medium">Гипотеза #1</span>
+                  </div>
+                  <p className="text-sm text-[#8A8A8A] mb-2">
+                    Замена CTA на "личный опыт" увеличит CTR на 15-20%
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-[#00D26A]/20 text-[#00D26A]">89% уверенность</Badge>
+                    <Button size="sm" className="bg-[#6C63FF]">Протестировать</Button>
+                  </div>
+                </div>
+                <div className="p-4 bg-[#1E1F26] rounded-lg border border-[#2A2B32]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Flame className="w-4 h-4 text-[#FFB800]" />
+                    <span className="text-white font-medium">Гипотеза #2</span>
+                  </div>
+                  <p className="text-sm text-[#8A8A8A] mb-2">
+                    Постинг в 21:00 МСК даёт +25% engagement
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-[#FFB800]/20 text-[#FFB800]">72% уверенность</Badge>
+                    <Button size="sm" className="bg-[#6C63FF]">Протестировать</Button>
+                  </div>
+                </div>
+              </div>
+              <Button className="w-full bg-[#6C63FF]">
+                <Sparkles className="w-4 h-4 mr-2" />
+                Сгенерировать новые гипотезы
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// ==================== LEVEL 3: МАСШТАБИРОВАНИЕ ====================
+
+function ScalingBlock() {
+  const [settings, setSettings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [configOpen, setConfigOpen] = useState(false);
+
   useEffect(() => {
-    fetchSubscription();
+    fetchSettings();
   }, []);
 
-  const handleSync = async () => {
-    setSyncing(true);
+  const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/monetization/subscription', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: 'default' }),
-      });
+      const res = await fetch('/api/monetization/auto-scaling');
+      const data = await res.json();
+      if (data.success) setSettings(data.settings);
+    } catch (error) {
+      console.error('Error fetching scaling:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-white">Инструменты масштабирования</h2>
+          <p className="text-[#8A8A8A] text-sm">Автоматическое управление бюджетом</p>
+        </div>
+      </div>
+
+      {/* Авто-масштабирование */}
+      <Card className="bg-gradient-to-br from-[#6C63FF]/20 to-[#00D26A]/20 border-[#6C63FF]/50">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Scale className="w-5 h-5 text-[#6C63FF]" />
+            Авто-масштабирование
+          </CardTitle>
+          <CardDescription>
+            Автоматически увеличивает бюджет при ROI &gt; порога
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-3 bg-[#1E1F26] rounded-lg">
+              <p className="text-xs text-[#8A8A8A]">ROI порог</p>
+              <p className="text-xl font-bold text-white">150%</p>
+            </div>
+            <div className="p-3 bg-[#1E1F26] rounded-lg">
+              <p className="text-xs text-[#8A8A8A]">Множитель</p>
+              <p className="text-xl font-bold text-[#6C63FF]">1.5x</p>
+            </div>
+            <div className="p-3 bg-[#1E1F26] rounded-lg">
+              <p className="text-xs text-[#8A8A8A]">Макс. бюджет</p>
+              <p className="text-xl font-bold text-white">$5,000</p>
+            </div>
+            <div className="p-3 bg-[#1E1F26] rounded-lg">
+              <p className="text-xs text-[#8A8A8A]">Масштабирований</p>
+              <p className="text-xl font-bold text-[#00D26A]">3</p>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Switch defaultChecked />
+              <span className="text-white">Авто-масштабирование активно</span>
+            </div>
+            <Button
+              size="sm"
+              className="bg-[#6C63FF]"
+              onClick={() => setConfigOpen(true)}
+            >
+              Настроить
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* White Label */}
+      <Card className="bg-[#14151A] border-[#2A2B32]">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Crown className="w-5 h-5 text-[#FFB800]" />
+            White Label - $5,000 + 10% роялти
+          </CardTitle>
+          <CardDescription>
+            Запустите свой аналог софта под вашим брендом
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Shield className="w-4 h-4 text-[#00D26A]" />
+                <span className="text-[#8A8A8A]">Кастомный домен и логотип</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Shield className="w-4 h-4 text-[#00D26A]" />
+                <span className="text-[#8A8A8A]">Полный клон функционала</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Shield className="w-4 h-4 text-[#00D26A]" />
+                <span className="text-[#8A8A8A]">Авто-обновления</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Shield className="w-4 h-4 text-[#00D26A]" />
+                <span className="text-[#8A8A8A]">Техподдержка 24/7</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Shield className="w-4 h-4 text-[#00D26A]" />
+                <span className="text-[#8A8A8A]">10% роялти с клиентов</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Shield className="w-4 h-4 text-[#00D26A]" />
+                <span className="text-[#8A8A8A]">Средний ROI клиентов: 340%</span>
+              </div>
+            </div>
+          </div>
+          <Button className="w-full bg-[#FFB800] text-black">
+            <Crown className="w-4 h-4 mr-2" />
+            Получить White Label
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Аукционы */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="bg-[#14151A] border-[#2A2B32]">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Target className="w-5 h-5 text-[#00D26A]" />
+              Аукцион тёплых каналов
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-[#8A8A8A] mb-3">
+              Покупайте готовые прогретые каналы на аукционе
+            </p>
+            <Button className="w-full bg-[#00D26A]">
+              Смотреть аукционы
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-[#14151A] border-[#2A2B32]">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Rocket className="w-5 h-5 text-[#FF6B9D]" />
+              Трафик в рассрочку
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-[#8A8A8A] mb-3">
+              Получите аккаунты сейчас, платите с профита (30% комиссии)
+            </p>
+            <Button className="w-full bg-[#FF6B9D]">
+              Получить рассрочку
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={configOpen} onOpenChange={setConfigOpen}>
+        <DialogContent className="bg-[#14151A] border-[#2A2B32] text-white">
+          <DialogHeader>
+            <DialogTitle>Настройки авто-масштабирования</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>ROI порог для масштабирования</Label>
+              <Input type="number" defaultValue={150} className="bg-[#1E1F26] border-[#2A2B32]" />
+            </div>
+            <div className="space-y-2">
+              <Label>Множитель увеличения</Label>
+              <Input type="number" defaultValue={1.5} step={0.1} className="bg-[#1E1F26] border-[#2A2B32]" />
+            </div>
+            <div className="space-y-2">
+              <Label>Максимальный бюджет ($)</Label>
+              <Input type="number" defaultValue={5000} className="bg-[#1E1F26] border-[#2A2B32]" />
+            </div>
+            <div className="space-y-2">
+              <Label>Интервал проверки (часы)</Label>
+              <Input type="number" defaultValue={3} className="bg-[#1E1F26] border-[#2A2B32]" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfigOpen(false)}>Отмена</Button>
+            <Button className="bg-[#6C63FF]" onClick={() => setConfigOpen(false)}>Сохранить</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ==================== LEVEL 4: ЭКОСИСТЕМА ====================
+
+function EcosystemBlock() {
+  const [activeSubTab, setActiveSubTab] = useState('p2p');
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-white">Экосистема самозаработка</h2>
+          <p className="text-[#8A8A8A] text-sm">Децентрализованные инструменты дохода</p>
+        </div>
+      </div>
+
+      <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
+        <TabsList className="bg-[#1E1F26] border-[#2A2B32] flex-wrap h-auto">
+          <TabsTrigger value="p2p">
+            <Network className="w-4 h-4 mr-2" />
+            P2P Аренда
+          </TabsTrigger>
+          <TabsTrigger value="token">
+            <Coins className="w-4 h-4 mr-2" />
+            MUKN Token
+          </TabsTrigger>
+          <TabsTrigger value="coach">
+            <GraduationCap className="w-4 h-4 mr-2" />
+            Нейро-Коуч
+          </TabsTrigger>
+          <TabsTrigger value="usernames">
+            <AtSign className="w-4 h-4 mr-2" />
+            Аукцион @юзернеймов
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="p2p" className="mt-4">
+          <Card className="bg-[#14151A] border-[#2A2B32]">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Network className="w-5 h-5 text-[#00D26A]" />
+                P2P Аренда аккаунтов
+              </CardTitle>
+              <CardDescription>
+                Сдавайте свои аккаунты в аренду и зарабатывайте
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div className="p-4 bg-[#1E1F26] rounded-lg text-center">
+                  <p className="text-2xl font-bold text-white">$5-12</p>
+                  <p className="text-sm text-[#8A8A8A]">Ставка за день</p>
+                </div>
+                <div className="p-4 bg-[#1E1F26] rounded-lg text-center">
+                  <p className="text-2xl font-bold text-[#00D26A]">15%</p>
+                  <p className="text-sm text-[#8A8A8A]">Комиссия платформы</p>
+                </div>
+                <div className="p-4 bg-[#1E1F26] rounded-lg text-center">
+                  <p className="text-2xl font-bold text-[#FFB800]">85%</p>
+                  <p className="text-sm text-[#8A8A8A]">Ваш доход</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button className="flex-1 bg-[#00D26A]">Сдать аккаунт</Button>
+                <Button className="flex-1 bg-[#6C63FF]">Арендовать</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="token" className="mt-4">
+          <Card className="bg-gradient-to-br from-[#FFB800]/20 to-[#6C63FF]/20 border-[#FFB800]/50">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Coins className="w-5 h-5 text-[#FFB800]" />
+                MUKN Token
+              </CardTitle>
+              <CardDescription>
+                Токен платформы с пассивным доходом
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="p-3 bg-[#1E1F26] rounded-lg">
+                  <p className="text-xs text-[#8A8A8A]">Цена</p>
+                  <p className="text-xl font-bold text-white">$0.10</p>
+                  <p className="text-xs text-[#00D26A]">+5.2% 24h</p>
+                </div>
+                <div className="p-3 bg-[#1E1F26] rounded-lg">
+                  <p className="text-xs text-[#8A8A8A]">Market Cap</p>
+                  <p className="text-xl font-bold text-white">$25K</p>
+                </div>
+                <div className="p-3 bg-[#1E1F26] rounded-lg">
+                  <p className="text-xs text-[#8A8A8A]">Staking APY</p>
+                  <p className="text-xl font-bold text-[#00D26A]">15%</p>
+                </div>
+                <div className="p-3 bg-[#1E1F26] rounded-lg">
+                  <p className="text-xs text-[#8A8A8A]">Держатели</p>
+                  <p className="text-xl font-bold text-white">1,250</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button className="flex-1 bg-[#FFB800] text-black">Купить MUKN</Button>
+                <Button className="flex-1 bg-[#6C63FF]">Staking</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="coach" className="mt-4">
+          <Card className="bg-[#14151A] border-[#2A2B32]">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <GraduationCap className="w-5 h-5 text-[#6C63FF]" />
+                Нейро-Коуч
+              </CardTitle>
+              <CardDescription>
+                Персональный ИИ-наставник по арбитражу
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="p-4 bg-[#1E1F26] rounded-lg">
+                  <p className="text-lg font-bold text-white">$49/мес</p>
+                  <ul className="text-sm text-[#8A8A8A] mt-2 space-y-1">
+                    <li>• Безлимитные консультации</li>
+                    <li>• Анализ кампаний</li>
+                    <li>• Подсказки по оптимизации</li>
+                  </ul>
+                </div>
+                <div className="p-4 bg-gradient-to-br from-[#FFB800]/20 to-transparent rounded-lg border border-[#FFB800]/50">
+                  <p className="text-lg font-bold text-white">$399/год</p>
+                  <Badge className="bg-[#FFB800] text-black mb-2">Экономия $189</Badge>
+                  <ul className="text-sm text-[#8A8A8A] space-y-1">
+                    <li>• Все функции monthly</li>
+                    <li>• Приоритетная поддержка</li>
+                    <li>• Ранний доступ к фичам</li>
+                  </ul>
+                </div>
+              </div>
+              <Button className="w-full bg-[#6C63FF]">
+                <GraduationCap className="w-4 h-4 mr-2" />
+                Начать обучение
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="usernames" className="mt-4">
+          <Card className="bg-[#14151A] border-[#2A2B32]">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <AtSign className="w-5 h-5 text-[#00D26A]" />
+                Аукцион юзернеймов
+              </CardTitle>
+              <CardDescription>
+                Покупайте привлекательные @юзернеймы для аккаунтов
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {[
+                  { username: 'cryptosignal', price: 1250, endsIn: '3 дня' },
+                  { username: 'gambling_pro', price: 850, endsIn: '5 дней' },
+                  { username: 'trading_tips', price: 450, endsIn: '1 день' },
+                ].map((auction, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-[#1E1F26] rounded-lg">
+                    <div>
+                      <p className="font-medium text-white">@{auction.username}</p>
+                      <p className="text-sm text-[#8A8A8A]">Окончание: {auction.endsIn}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-[#FFB800]">${auction.price}</p>
+                      <Button size="sm" className="bg-[#00D26A]">Ставка</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// ==================== LEVEL 5: СПАМ МЕТОДЫ ====================
+
+function SpamMethodsBlock() {
+  const [methods, setMethods] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchMethods();
+  }, []);
+
+  const fetchMethods = async () => {
+    try {
+      const res = await fetch('/api/monetization/spam-methods');
       const data = await res.json();
       if (data.success) {
-        toast.success('Синхронизировано с трекером');
-        setSubscription(data.subscription);
+        setMethods(data.methods);
       }
     } catch (error) {
-      toast.error('Ошибка синхронизации');
+      console.error('Error fetching spam methods:', error);
     } finally {
-      setSyncing(false);
+      setLoading(false);
     }
   };
 
   if (loading) {
     return (
-      <Card className="bg-[#14151A] border-[#2A2B32]">
-        <CardContent className="p-6">
-          <div className="h-32 animate-pulse bg-[#1E1F26] rounded-lg" />
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-40 bg-[#1E1F26] rounded-lg animate-pulse" />
+        ))}
+      </div>
     );
   }
 
-  return (
-    <div className="space-y-4">
-      <Card className="bg-[#14151A] border-[#2A2B32]">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-white flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-[#00D26A]" />
-              ROI-подписка
-            </CardTitle>
-            <CardDescription>
-              Платите только когда зарабатываете
-            </CardDescription>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setConfigOpen(true)}
-              className="border-[#2A2B32]"
-            >
-              Настройки
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleSync}
-              disabled={syncing}
-              className="bg-[#00D26A] hover:bg-[#00D26A]/80"
-            >
-              {syncing ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4 mr-2" />
-              )}
-              Синхронизировать
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="p-4 bg-[#1E1F26] rounded-lg">
-              <p className="text-sm text-[#8A8A8A]">Комиссия</p>
-              <p className="text-2xl font-bold text-white">
-                {((subscription?.commissionRate || 0.05) * 100).toFixed(0)}%
-              </p>
-              <p className="text-xs text-[#8A8A8A]">от слитого трафика</p>
-            </div>
-            <div className="p-4 bg-[#1E1F26] rounded-lg">
-              <p className="text-sm text-[#8A8A8A]">Лидов за период</p>
-              <p className="text-2xl font-bold text-[#00D26A]">
-                {subscription?.totalLeads || 0}
-              </p>
-            </div>
-            <div className="p-4 bg-[#1E1F26] rounded-lg">
-              <p className="text-sm text-[#8A8A8A]">Доход за период</p>
-              <p className="text-2xl font-bold text-white">
-                ${(subscription?.totalRevenue || 0).toLocaleString()}
-              </p>
-            </div>
-            <div className="p-4 bg-[#1E1F26] rounded-lg">
-              <p className="text-sm text-[#8A8A8A]">Заработано комиссии</p>
-              <p className="text-2xl font-bold text-[#FFB800]">
-                ${(subscription?.commissionEarned || 0).toFixed(2)}
-              </p>
-            </div>
-          </div>
-
-          {subscription?.trackerType && (
-            <div className="mt-4 flex items-center gap-2">
-              <Badge variant="outline" className="border-[#00D26A] text-[#00D26A]">
-                {subscription.trackerType.toUpperCase()}
-              </Badge>
-              <span className="text-sm text-[#8A8A8A]">
-                Последняя синхронизация: {subscription.lastSyncAt ? new Date(subscription.lastSyncAt).toLocaleString('ru-RU') : 'никогда'}
-              </span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Dialog open={configOpen} onOpenChange={setConfigOpen}>
-        <DialogContent className="bg-[#14151A] border-[#2A2B32] text-white">
-          <DialogHeader>
-            <DialogTitle>Настройки подписки</DialogTitle>
-            <DialogDescription className="text-[#8A8A8A]">
-              Подключите трекер для автоматического расчёта комиссии
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Тип подписки</Label>
-              <Select defaultValue="roi_based">
-                <SelectTrigger className="bg-[#1E1F26] border-[#2A2B32]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="roi_based">% от ROI</SelectItem>
-                  <SelectItem value="fixed">Фиксированная</SelectItem>
-                  <SelectItem value="hybrid">Гибридная</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Трекер</Label>
-              <Select>
-                <SelectTrigger className="bg-[#1E1F26] border-[#2A2B32]">
-                  <SelectValue placeholder="Выберите трекер" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="keitaro">Keitaro</SelectItem>
-                  <SelectItem value="binom">Binom</SelectItem>
-                  <SelectItem value="custom">Custom API</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>API URL трекера</Label>
-              <Input
-                placeholder="https://tracker.example.com/api"
-                className="bg-[#1E1F26] border-[#2A2B32]"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>API Key</Label>
-              <Input
-                type="password"
-                placeholder="Введите API ключ"
-                className="bg-[#1E1F26] border-[#2A2B32]"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfigOpen(false)}>
-              Отмена
-            </Button>
-            <Button className="bg-[#6C63FF]" onClick={() => setConfigOpen(false)}>
-              Сохранить
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-// Маркетплейс связок
-function MarketplaceBlock() {
-  const [listings, setListings] = useState<MarketplaceListing[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [purchaseOpen, setPurchaseOpen] = useState(false);
-  const [selectedListing, setSelectedListing] = useState<MarketplaceListing | null>(null);
-
-  useEffect(() => {
-    fetchListings();
-  }, [selectedCategory]);
-
-  const fetchListings = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/monetization/marketplace?category=${selectedCategory}`);
-      const data = await res.json();
-      if (data.success) {
-        setListings(data.listings);
-      }
-    } catch (error) {
-      console.error('Error fetching listings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePurchase = async () => {
-    if (!selectedListing) return;
-    try {
-      const res = await fetch('/api/monetization/marketplace', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ listingId: selectedListing.id, buyerId: 'default' }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success('Связка успешно куплена!');
-        setPurchaseOpen(false);
-      }
-    } catch (error) {
-      toast.error('Ошибка покупки');
-    }
-  };
-
-  const categoryColors: Record<string, string> = {
-    gambling: '#FF4D4D',
-    crypto: '#FFB800',
-    nutra: '#00D26A',
-    dating: '#FF6B9D',
-    finance: '#00D4AA',
-  };
+  const methodCards = [
+    {
+      title: 'Спам через пересылки',
+      icon: <Copy className="w-5 h-5" />,
+      color: '#00D26A',
+      data: methods?.forward?.[0],
+      description: 'Канал-прокладка → пересылка в чаты',
+    },
+    {
+      title: 'Спам через опросы',
+      icon: <BarChart3 className="w-5 h-5" />,
+      color: '#6C63FF',
+      data: methods?.polls?.[0],
+      description: 'Опросы со скрытой ссылкой',
+    },
+    {
+      title: 'Фейковые срачи',
+      icon: <MessageSquare className="w-5 h-5" />,
+      color: '#FF4D4D',
+      data: methods?.arguments?.[0],
+      description: '2 аккаунта спорят, 3-й с оффером',
+    },
+    {
+      title: 'Спам через реакции',
+      icon: <Zap className="w-5 h-5" />,
+      color: '#FFB800',
+      data: methods?.reactions?.[0],
+      description: 'Цепочки реакций для внимания',
+    },
+    {
+      title: 'Telegram Stories',
+      icon: <Eye className="w-5 h-5" />,
+      color: '#FF6B9D',
+      data: methods?.stories?.[0],
+      description: 'Офферы в сторис',
+    },
+  ];
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex bg-[#1E1F26] rounded-lg p-1 flex-wrap">
-          {['all', 'gambling', 'crypto', 'nutra', 'dating', 'finance'].map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={cn(
-                'px-4 py-2 rounded-md text-sm font-medium transition-all',
-                selectedCategory === cat
-                  ? 'bg-[#6C63FF] text-white'
-                  : 'text-[#8A8A8A] hover:text-white'
-              )}
-            >
-              {cat === 'all' ? 'Все' : cat.charAt(0).toUpperCase() + cat.slice(1)}
-            </button>
-          ))}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-white">Неиспользуемые методы спама</h2>
+          <p className="text-[#8A8A8A] text-sm">Нетрадиционные методы продвижения</p>
         </div>
-        <Button className="bg-[#6C63FF]">
-          <Sparkles className="w-4 h-4 mr-2" />
-          Продать связку
-        </Button>
+        <Badge className="bg-[#FF4D4D]/20 text-[#FF4D4D]">
+          <AlertTriangle className="w-3 h-3 mr-1" />
+          Риск бана выше
+        </Badge>
       </div>
 
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-48 bg-[#1E1F26] rounded-lg animate-pulse" />
-          ))}
-        </div>
-      ) : listings.length === 0 ? (
-        <Card className="bg-[#14151A] border-[#2A2B32] p-8 text-center">
-          <ShoppingCart className="w-12 h-12 mx-auto text-[#8A8A8A] opacity-50 mb-4" />
-          <p className="text-[#8A8A8A]">Нет связок в этой категории</p>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {listings.map((listing) => (
-            <Card
-              key={listing.id}
-              className="bg-[#14151A] border-[#2A2B32] hover:border-[#6C63FF]/50 transition-colors cursor-pointer"
-              onClick={() => {
-                setSelectedListing(listing);
-                setPurchaseOpen(true);
-              }}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <Badge
-                    style={{
-                      backgroundColor: `${categoryColors[listing.category] || '#6C63FF'}20`,
-                      color: categoryColors[listing.category] || '#6C63FF',
-                    }}
-                  >
-                    {listing.category}
-                  </Badge>
-                  <div className="flex items-center gap-1">
-                    {listing.isVerified && (
-                      <Shield className="w-4 h-4 text-[#00D26A]" />
-                    )}
-                    {listing.isFeatured && (
-                      <Star className="w-4 h-4 text-[#FFB800]" fill="#FFB800" />
-                    )}
-                  </div>
-                </div>
-                <h3 className="font-medium text-white mb-2">
-                  Связка #{listing.bundleId.slice(0, 8)}
-                </h3>
-                <p className="text-sm text-[#8A8A8A] mb-3">
-                  Продавец: {listing.sellerName || 'Аноним'}
-                </p>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-lg font-bold text-white">
-                      {listing.price} {listing.currency}
-                    </p>
-                    <div className="flex items-center gap-1 text-sm text-[#8A8A8A]">
-                      <Star className="w-3 h-3" fill="#FFB800" />
-                      {listing.avgRating.toFixed(1)} · {listing.salesCount} продаж
-                    </div>
-                  </div>
-                  <Button size="sm" className="bg-[#00D26A]">
-                    Купить
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      <Dialog open={purchaseOpen} onOpenChange={setPurchaseOpen}>
-        <DialogContent className="bg-[#14151A] border-[#2A2B32] text-white">
-          <DialogHeader>
-            <DialogTitle>Купить связку</DialogTitle>
-            <DialogDescription className="text-[#8A8A8A]">
-              Вы получите полную конфигурацию кампании после оплаты
-            </DialogDescription>
-          </DialogHeader>
-          {selectedListing && (
-            <div className="space-y-4 py-4">
-              <div className="p-4 bg-[#1E1F26] rounded-lg">
-                <div className="flex justify-between mb-2">
-                  <span className="text-[#8A8A8A]">Цена</span>
-                  <span className="text-white font-medium">
-                    {selectedListing.price} {selectedListing.currency}
-                  </span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-[#8A8A8A]">Комиссия платформы (20%)</span>
-                  <span className="text-white">
-                    {selectedListing.price * 0.2} {selectedListing.currency}
-                  </span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-[#2A2B32]">
-                  <span className="text-white font-medium">Итого</span>
-                  <span className="text-[#00D26A] font-bold">
-                    {selectedListing.price} {selectedListing.currency}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPurchaseOpen(false)}>
-              Отмена
-            </Button>
-            <Button className="bg-[#00D26A]" onClick={handlePurchase}>
-              Купить
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-// Продажа аккаунтов
-function AccountsBlock() {
-  const [accounts, setAccounts] = useState<AccountForSale[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
-
-  const fetchAccounts = async () => {
-    try {
-      const res = await fetch('/api/monetization/accounts?status=available');
-      const data = await res.json();
-      if (data.success) {
-        setAccounts(data.accounts);
-      }
-    } catch (error) {
-      console.error('Error fetching accounts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleOrder = async (platform: string, quantity: number) => {
-    try {
-      const res = await fetch('/api/monetization/accounts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          platform,
-          quantity,
-          warmingDays: 3,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(data.message);
-        fetchAccounts();
-      }
-    } catch (error) {
-      toast.error('Ошибка заказа');
-    }
-  };
-
-  const platformIcons: Record<string, string> = {
-    telegram: '📱',
-    instagram: '📷',
-    tiktok: '🎵',
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-[#14151A] border-[#2A2B32]">
-          <CardContent className="p-4 text-center">
-            <span className="text-4xl">📱</span>
-            <h3 className="font-medium text-white mt-2">Telegram</h3>
-            <p className="text-sm text-[#8A8A8A] mb-3">Прогретые аккаунты</p>
-            <Button
-              className="w-full bg-[#0088cc] hover:bg-[#0088cc]/80"
-              onClick={() => handleOrder('telegram', 10)}
-            >
-              Заказать 10 шт.
-            </Button>
-          </CardContent>
-        </Card>
-        <Card className="bg-[#14151A] border-[#2A2B32]">
-          <CardContent className="p-4 text-center">
-            <span className="text-4xl">📷</span>
-            <h3 className="font-medium text-white mt-2">Instagram</h3>
-            <p className="text-sm text-[#8A8A8A] mb-3">Прогретые аккаунты</p>
-            <Button
-              className="w-full bg-gradient-to-r from-[#f09433] via-[#e6683c] to-[#dc2743]"
-              onClick={() => handleOrder('instagram', 10)}
-            >
-              Заказать 10 шт.
-            </Button>
-          </CardContent>
-        </Card>
-        <Card className="bg-[#14151A] border-[#2A2B32]">
-          <CardContent className="p-4 text-center">
-            <span className="text-4xl">🎵</span>
-            <h3 className="font-medium text-white mt-2">TikTok</h3>
-            <p className="text-sm text-[#8A8A8A] mb-3">Прогретые аккаунты</p>
-            <Button
-              className="w-full bg-black border border-white/20"
-              onClick={() => handleOrder('tiktok', 10)}
-            >
-              Заказать 10 шт.
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="bg-[#14151A] border-[#2A2B32]">
-        <CardHeader>
-          <CardTitle className="text-white text-lg">Доступные аккаунты</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-16 bg-[#1E1F26] rounded-lg animate-pulse" />
-              ))}
-            </div>
-          ) : accounts.length === 0 ? (
-            <div className="text-center py-8 text-[#8A8A8A]">
-              <Users className="w-12 h-12 mx-auto opacity-50 mb-2" />
-              <p>Нет доступных аккаунтов</p>
-              <p className="text-sm">Закажите прогрев выше</p>
-            </div>
-          ) : (
-            <ScrollArea className="h-[300px]">
-              <div className="space-y-2">
-                {accounts.map((account) => (
-                  <div
-                    key={account.id}
-                    className="flex items-center justify-between p-3 bg-[#1E1F26] rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{platformIcons[account.platform]}</span>
-                      <div>
-                        <p className="font-medium text-white">{account.platform}</p>
-                        <p className="text-sm text-[#8A8A8A]">
-                          {account.niche || 'Универсальный'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-white">
-                        ${account.salePrice}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <Progress value={account.warmingProgress} className="w-16 h-1" />
-                        <span className="text-xs text-[#8A8A8A]">
-                          {account.warmingProgress}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// Партнёрские офферы
-function PartnersBlock() {
-  const [offers, setOffers] = useState<PartnerOffer[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchOffers();
-  }, []);
-
-  const fetchOffers = async () => {
-    try {
-      const res = await fetch('/api/monetization/partners');
-      const data = await res.json();
-      if (data.success) {
-        setOffers(data.offers);
-      }
-    } catch (error) {
-      console.error('Error fetching offers:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="bg-gradient-to-br from-[#FFB800]/20 to-[#FF4D4D]/20 border-[#FFB800]/50">
+        {methodCards.map((method, i) => (
+          <Card key={i} className="bg-[#14151A] border-[#2A2B32]">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div style={{ color: method.color }}>{method.icon}</div>
+                <h3 className="font-medium text-white">{method.title}</h3>
+              </div>
+              <p className="text-sm text-[#8A8A8A] mb-3">{method.description}</p>
+              {method.data && (
+                <div className="flex items-center gap-4 text-sm mb-3">
+                  <span className="text-[#00D26A]">{method.data.sentCount || method.data.createdCount || method.data.appliedCount || method.data.storiesCount || method.data.argumentsRun} запусков</span>
+                  <span className="text-[#8A8A8A]">{method.data.successRate || method.data.avgEngagement || method.data.clickRate || method.data.avgAttention}% эффективность</span>
+                </div>
+              )}
+              <Button size="sm" className="w-full" style={{ backgroundColor: method.color }}>
+                Настроить
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ==================== BONUS: АВТО-ПОИСК СХЕМ ====================
+
+function AutoDiscoveryBlock() {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-white">Авто-поиск схем</h2>
+          <p className="text-[#8A8A8A] text-sm">Автоматическое обнаружение новых возможностей</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="bg-gradient-to-br from-[#6C63FF]/20 to-transparent border-[#6C63FF]/50">
           <CardContent className="p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <Zap className="w-6 h-6 text-[#FFB800]" />
-              <h3 className="font-medium text-white">Горячие офферы</h3>
+            <div className="flex items-center gap-2 mb-3">
+              <Search className="w-5 h-5 text-[#6C63FF]" />
+              <h3 className="font-medium text-white">Сканер новых ниш</h3>
             </div>
             <p className="text-sm text-[#8A8A8A] mb-3">
-              Партнёрки с повышенными ставками и мягкой модерацией
-            </p>
-            <Button className="w-full bg-[#FFB800] text-black">
-              Смотреть все
-            </Button>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-[#6C63FF]/20 to-[#00D26A]/20 border-[#6C63FF]/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <Crown className="w-6 h-6 text-[#6C63FF]" />
-              <h3 className="font-medium text-white">Топ месяца</h3>
-            </div>
-            <p className="text-sm text-[#8A8A8A] mb-3">
-              Офферы с лучшим ROI за последние 30 дней
+              DeepSeek анализирует рынок и находит новые прибыльные ниши
             </p>
             <Button className="w-full bg-[#6C63FF]">
-              Смотреть все
+              Запустить сканирование
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-[#14151A] border-[#2A2B32]">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle className="w-5 h-5 text-[#FF4D4D]" />
+              <h3 className="font-medium text-white">Анализ банов конкурентов</h3>
+            </div>
+            <p className="text-sm text-[#8A8A8A] mb-3">
+              Учимся на ошибках конкурентов - анализируем почему их банили
+            </p>
+            <Button className="w-full bg-[#FF4D4D]">
+              Анализировать
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-[#14151A] border-[#2A2B32]">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Users className="w-5 h-5 text-[#00D26A]" />
+              <h3 className="font-medium text-white">Краудсорсинг схем</h3>
+            </div>
+            <p className="text-sm text-[#8A8A8A] mb-3">
+              Пользователи делятся успешными схемами за вознаграждение
+            </p>
+            <Button className="w-full bg-[#00D26A]">
+              Смотреть схемы
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-[#FFB800]/20 to-transparent border-[#FFB800]/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Lock className="w-5 h-5 text-[#FFB800]" />
+              <h3 className="font-medium text-white">Даркнет-дайджест</h3>
+            </div>
+            <p className="text-sm text-[#8A8A8A] mb-3">
+              Парсинг форумов для поиска свежих схем
+            </p>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[#FFB800] font-bold">$49/мес</span>
+              <Badge className="bg-[#FFB800]/20 text-[#FFB800]">125 подписчиков</Badge>
+            </div>
+            <Button className="w-full bg-[#FFB800] text-black">
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Подписаться
             </Button>
           </CardContent>
         </Card>
       </div>
-
-      <Card className="bg-[#14151A] border-[#2A2B32]">
-        <CardHeader>
-          <CardTitle className="text-white text-lg flex items-center gap-2">
-            <Target className="w-5 h-5 text-[#00D26A]" />
-            Доступные офферы
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-16 bg-[#1E1F26] rounded-lg animate-pulse" />
-              ))}
-            </div>
-          ) : offers.length === 0 ? (
-            <div className="text-center py-8 text-[#8A8A8A]">
-              <Briefcase className="w-12 h-12 mx-auto opacity-50 mb-2" />
-              <p>Нет доступных офферов</p>
-            </div>
-          ) : (
-            <ScrollArea className="h-[400px]">
-              <div className="space-y-2">
-                {offers.map((offer) => (
-                  <div
-                    key={offer.id}
-                    className="flex items-center justify-between p-3 bg-[#1E1F26] rounded-lg hover:bg-[#2A2B32] transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-white">{offer.network}</p>
-                          {offer.isHot && (
-                            <Badge className="bg-[#FF4D4D] text-white text-xs">HOT</Badge>
-                          )}
-                          {offer.isFeatured && (
-                            <Badge className="bg-[#FFB800] text-black text-xs">TOP</Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-[#8A8A8A]">
-                          {offer.category} · {offer.geo || 'Worldwide'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-[#00D26A]">
-                        ${offer.ourPayout}
-                      </p>
-                      <p className="text-xs text-[#8A8A8A]">
-                        База: ${offer.basePayout}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// Юридические шаблоны
-function TemplatesBlock() {
-  const [templates, setTemplates] = useState<LegalTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchTemplates();
-  }, []);
-
-  const fetchTemplates = async () => {
-    try {
-      const res = await fetch('/api/monetization/templates');
-      const data = await res.json();
-      if (data.success) {
-        setTemplates(data.templates);
-      }
-    } catch (error) {
-      console.error('Error fetching templates:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const categoryLabels: Record<string, string> = {
-    disclaimer: 'Дисклеймеры',
-    privacy: 'Политика конфиденциальности',
-    terms: 'Условия использования',
-    compliance: 'Соответствие законодательству',
-  };
-
-  return (
-    <div className="space-y-4">
-      <Card className="bg-[#14151A] border-[#2A2B32]">
-        <CardHeader>
-          <CardTitle className="text-white text-lg flex items-center gap-2">
-            <Shield className="w-5 h-5 text-[#6C63FF]" />
-            Юридические шаблоны
-          </CardTitle>
-          <CardDescription>
-            Готовые документы для «обеления» схем
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-32 bg-[#1E1F26] rounded-lg animate-pulse" />
-              ))}
-            </div>
-          ) : templates.length === 0 ? (
-            <div className="text-center py-8 text-[#8A8A8A]">
-              <FileText className="w-12 h-12 mx-auto opacity-50 mb-2" />
-              <p>Нет доступных шаблонов</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {templates.map((template) => (
-                <div
-                  key={template.id}
-                  className="p-4 bg-[#1E1F26] rounded-lg hover:bg-[#2A2B32] transition-colors"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <Badge variant="outline" className="border-[#6C63FF] text-[#6C63FF]">
-                      {categoryLabels[template.category] || template.category}
-                    </Badge>
-                    <span className="text-[#FFB800] font-bold">
-                      ${template.price}
-                    </span>
-                  </div>
-                  <h4 className="font-medium text-white mb-1">{template.name}</h4>
-                  <p className="text-sm text-[#8A8A8A] mb-3 line-clamp-2">
-                    {template.description}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-[#8A8A8A]">
-                      {template.salesCount} продаж
-                    </span>
-                    <Button size="sm" className="bg-[#6C63FF]">
-                      Купить
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
@@ -858,14 +924,14 @@ function TemplatesBlock() {
 // ==================== ГЛАВНЫЙ КОМПОНЕНТ ====================
 
 export function MonetizationPanel() {
-  const [activeTab, setActiveTab] = useState('subscription');
+  const [activeTab, setActiveTab] = useState('level2');
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Монетизация</h1>
-          <p className="text-[#8A8A8A]">Инструменты для заработка на платформе</p>
+          <p className="text-[#8A8A8A]">30 методов заработка на платформе</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge className="bg-[#00D26A]/20 text-[#00D26A]">
@@ -877,46 +943,46 @@ export function MonetizationPanel() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-[#1E1F26] border-[#2A2B32] flex-wrap h-auto gap-1 p-1">
-          <TabsTrigger value="subscription" className="data-[state=active]:bg-[#6C63FF]">
-            <DollarSign className="w-4 h-4 mr-2" />
-            ROI-подписка
+          <TabsTrigger value="level2" className="data-[state=active]:bg-[#6C63FF]">
+            <TrendingUp className="w-4 h-4 mr-2" />
+            Level 2: Авто-схемы
           </TabsTrigger>
-          <TabsTrigger value="marketplace" className="data-[state=active]:bg-[#6C63FF]">
-            <ShoppingCart className="w-4 h-4 mr-2" />
-            Маркетплейс
+          <TabsTrigger value="level3" className="data-[state=active]:bg-[#6C63FF]">
+            <Scale className="w-4 h-4 mr-2" />
+            Level 3: Масштаб
           </TabsTrigger>
-          <TabsTrigger value="accounts" className="data-[state=active]:bg-[#6C63FF]">
-            <Users className="w-4 h-4 mr-2" />
-            Аккаунты
+          <TabsTrigger value="level4" className="data-[state=active]:bg-[#6C63FF]">
+            <Network className="w-4 h-4 mr-2" />
+            Level 4: Экосистема
           </TabsTrigger>
-          <TabsTrigger value="partners" className="data-[state=active]:bg-[#6C63FF]">
-            <Briefcase className="w-4 h-4 mr-2" />
-            Партнёрки
+          <TabsTrigger value="level5" className="data-[state=active]:bg-[#FF4D4D]">
+            <AlertTriangle className="w-4 h-4 mr-2" />
+            Level 5: Спам-методы
           </TabsTrigger>
-          <TabsTrigger value="templates" className="data-[state=active]:bg-[#6C63FF]">
-            <FileText className="w-4 h-4 mr-2" />
-            Шаблоны
+          <TabsTrigger value="bonus" className="data-[state=active]:bg-[#FFB800]">
+            <Search className="w-4 h-4 mr-2" />
+            Bonus: Авто-поиск
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="subscription" className="mt-6">
-          <SubscriptionBlock />
+        <TabsContent value="level2" className="mt-6">
+          <AutoSchemesBlock />
         </TabsContent>
 
-        <TabsContent value="marketplace" className="mt-6">
-          <MarketplaceBlock />
+        <TabsContent value="level3" className="mt-6">
+          <ScalingBlock />
         </TabsContent>
 
-        <TabsContent value="accounts" className="mt-6">
-          <AccountsBlock />
+        <TabsContent value="level4" className="mt-6">
+          <EcosystemBlock />
         </TabsContent>
 
-        <TabsContent value="partners" className="mt-6">
-          <PartnersBlock />
+        <TabsContent value="level5" className="mt-6">
+          <SpamMethodsBlock />
         </TabsContent>
 
-        <TabsContent value="templates" className="mt-6">
-          <TemplatesBlock />
+        <TabsContent value="bonus" className="mt-6">
+          <AutoDiscoveryBlock />
         </TabsContent>
       </Tabs>
     </div>
