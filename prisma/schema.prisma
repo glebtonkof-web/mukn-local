@@ -886,3 +886,589 @@ model AIGlobalSettings {
   user            User     @relation(fields: [userId], references: [id])
   userId          String
 }
+
+// ==================== УРОВЕНЬ 1: ИНТЕЛЛЕКТУАЛЬНЫЕ ФУНКЦИИ ====================
+
+// 1. Предиктивный анализ канала
+model ChannelAnalysis {
+  id              String   @id @default(cuid())
+  
+  // Канал
+  channelId       String   @unique
+  channelName     String?
+  channelUsername String?
+  subscribersCount Int     @default(0)
+  
+  // Предсказания
+  spamDeleteMinutes Int?   // Через сколько минут удалят спам
+  banProbability    Int     @default(0) // 0-100%
+  bestCommentStyle  String? // casual, expert, friendly, provocative
+  bestTimeToPost    String? // HH:MM формат
+  
+  // Анализ контента
+  avgPostViews      Int     @default(0)
+  avgComments       Int     @default(0)
+  engagementRate    Float   @default(0)
+  moderationStrictness Int  @default(50) // 0-100
+  
+  // История взаимодействий
+  totalComments     Int     @default(0)
+  successfulComments Int    @default(0)
+  deletedComments   Int     @default(0)
+  successRate       Float   @default(0)
+  
+  // Метаданные
+  lastAnalyzedAt    DateTime?
+  analysisVersion   Int     @default(1)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 2. Вирусные цепочки комментариев
+model ViralCommentChain {
+  id              String   @id @default(cuid())
+  
+  // Связь с кампанией
+  campaignId      String?
+  
+  // Цель
+  targetChannelId String
+  targetPostId    String?
+  targetPostUrl   String?
+  
+  // Статус
+  status          String   @default("draft") // draft, running, completed, paused
+  
+  // Сценарий (JSON массив комментариев с задержками)
+  scenario        String    // JSON: [{content, delayMinutes, style, accountId}]
+  currentStep     Int       @default(0)
+  totalSteps      Int       @default(3)
+  
+  // Результаты
+  totalViews      Int       @default(0)
+  totalReplies    Int       @default(0)
+  totalClicks     Int       @default(0)
+  conversionRate  Float     @default(0)
+  
+  // Даты
+  startedAt       DateTime?
+  completedAt     DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  comments        ViralChainComment[]
+}
+
+model ViralChainComment {
+  id              String   @id @default(cuid())
+  
+  chain           ViralCommentChain @relation(fields: [chainId], references: [id], onDelete: Cascade)
+  chainId         String
+  
+  stepNumber      Int
+  content         String
+  style           String   // neutral, question, endorsement, testimonial
+  
+  // Задержка
+  delayMinutes    Int      @default(5)
+  
+  // Статус
+  status          String   @default("pending") // pending, posted, failed
+  postedAt        DateTime?
+  
+  // Метрики
+  views           Int      @default(0)
+  replies         Int      @default(0)
+  likes           Int      @default(0)
+  
+  // Аккаунт
+  accountId       String?
+  influencerId    String?
+  
+  createdAt       DateTime @default(now())
+}
+
+// 3. Эмоциональный анализ постов
+model EmotionalAnalysis {
+  id              String   @id @default(cuid())
+  
+  // Цель
+  postId          String?  @unique
+  postUrl         String?
+  postContent     String?
+  
+  // Эмоциональный профиль
+  primaryEmotion  String   // anger, joy, sadness, fear, surprise, neutral
+  emotionScores   String?  // JSON: {anger: 0.1, joy: 0.8, ...}
+  
+  // Рекомендации
+  recommendedStyle String? // supportive, celebratory, empathetic, curious
+  recommendedTone  String? // casual, formal, enthusiastic, calm
+  avoidTopics      String? // JSON массив тем для избежания
+  
+  // Контекст
+  channelTheme     String?
+  targetAudience   String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 4. Имитация забывчивости
+model ForgetfulnessSimulation {
+  id              String   @id @default(cuid())
+  
+  // Кампания
+  campaignId      String?
+  influencerId    String?
+  
+  // Настройки
+  forgetProbability Float  @default(0.15) // 15% шанс "забыть"
+  rememberDelayDays Int   @default(2) // Через сколько дней "вспомнить"
+  
+  // Шаблоны фраз
+  forgotPhrases   String?  // JSON массив
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 5. Кросспостинг с обогащением
+model CrossPostEnrichment {
+  id              String   @id @default(cuid())
+  
+  // Источник
+  sourceChannelId String
+  sourcePostId    String
+  sourcePostUrl   String?
+  originalComment String?
+  
+  // Адаптированный контент
+  adaptedComment  String
+  aiModel         String?
+  
+  // Цель
+  targetChannelId String?
+  targetPostId    String?
+  status          String   @default("pending")
+  
+  // Результаты
+  postedAt        DateTime?
+  engagementRate  Float    @default(0)
+  
+  createdAt       DateTime @default(now())
+}
+
+// ==================== УРОВЕНЬ 2: АРБИТРАЖНЫЕ ФУНКЦИИ ====================
+
+// 6. Нейросетевой поиск каналов
+model NeuralChannelSearch {
+  id              String   @id @default(cuid())
+  
+  // Запрос
+  searchQuery     String   // Описание идеальной аудитории
+  offerNiche     String?   // gambling, crypto, nutra
+  
+  // Найденные каналы (JSON)
+  foundChannels   String?  // JSON массив результатов
+  
+  // Фильтры
+  minSubscribers  Int?
+  maxSubscribers  Int?
+  minEngagement   Float?
+  
+  // Статус
+  status          String   @default("pending") // pending, searching, completed
+  
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+}
+
+// 7. Динамическая замена оффера
+model DynamicOfferReplacement {
+  id              String   @id @default(cuid())
+  
+  // Кампания
+  campaignId      String
+  
+  // Первичный оффер
+  primaryOfferId  String
+  primaryResults  String?  // JSON: {comments, clicks, conversions}
+  
+  // Резервный оффер
+  backupOfferId   String?
+  backupActivatedAt DateTime?
+  
+  // Правила замены
+  minReactionThreshold Int @default(10) // Минимум реакций
+  checkAfterMinutes    Int @default(5)  // Проверка через N минут
+  
+  // Статус
+  currentOfferId  String?
+  replacedCount   Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 8. Теневые аккаунты поддержки
+model ShadowSupportAccount {
+  id              String   @id @default(cuid())
+  
+  // Основной аккаунт
+  primaryAccountId String
+  primaryInfluencerId String?
+  
+  // Теневой аккаунт
+  shadowAccountId String
+  shadowInfluencerId String?
+  
+  // Триггеры
+  triggerKeywords String?  // JSON массив: ["развод", "лохотрон", "скам"]
+  
+  // Шаблоны ответов
+  responseTemplates String? // JSON массив
+  
+  // Статистика
+  defensesCount   Int      @default(0)
+  successCount    Int      @default(0)
+  
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 9. Прогноз LTV по каналу
+model ChannelLTVPrediction {
+  id              String   @id @default(cuid())
+  
+  // Канал
+  channelId       String   @unique
+  channelName     String?
+  
+  // Прогнозы
+  predictedLTV    Float    @default(0) // USD
+  ltvConfidence   Float    @default(0) // 0-1
+  
+  // Факторы
+  audienceQuality Float    @default(0) // 0-100
+  purchasingPower Float    @default(0) // 0-100
+  competitionLevel Float   @default(0) // 0-100
+  
+  // Рекомендации
+  recommendedBudget Float?
+  recommendedAccounts Int?
+  
+  // История
+  actualLTV       Float?
+  predictions     String?  // JSON история прогнозов
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 10. Детект ботов в канале
+model BotDetection {
+  id              String   @id @default(cuid())
+  
+  // Канал
+  channelId       String
+  channelName     String?
+  
+  // Результаты анализа
+  botPercentage   Float    @default(0) // 0-100%
+  realUsersPercentage Float @default(0)
+  
+  // Индикаторы
+  suspiciousAvatars Int    @default(0)
+  genericNames      Int    @default(0)
+  lowActivityUsers  Int    @default(0)
+  
+  // Детали
+  analyzedUsersCount Int   @default(0)
+  flaggedUsers      String? // JSON массив
+  
+  // Рекомендация
+  recommendation   String?  // safe, caution, avoid
+  
+  createdAt       DateTime @default(now())
+}
+
+// ==================== УРОВЕНЬ 3: ПЛАТФОРМЕННЫЕ ФУНКЦИИ ====================
+
+// 11. Маркетплейс связок
+model CampaignBundle {
+  id              String   @id @default(cuid())
+  
+  // Автор
+  authorId        String
+  
+  // Связка
+  name            String
+  description     String?
+  
+  // Конфигурация (JSON)
+  config          String   // Полная конфигурация кампании
+  
+  // Цены
+  price           Float    @default(0)
+  currency        String   @default("RUB")
+  
+  // Статистика
+  salesCount      Int      @default(0)
+  revenue         Float    @default(0)
+  avgRating       Float    @default(0)
+  reviewsCount    Int      @default(0)
+  
+  // ROI автора (для демонстрации)
+  authorROI       Float?
+  authorProfit    Float?
+  
+  // Статус
+  status          String   @default("draft") // draft, published, archived
+  isVerified      Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  reviews         BundleReview[]
+}
+
+model BundleReview {
+  id              String   @id @default(cuid())
+  
+  bundle          CampaignBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  bundleId        String
+  
+  userId          String
+  rating          Int      // 1-5
+  comment         String?
+  
+  // ROI покупателя (опционально)
+  buyerROI        Float?
+  
+  createdAt       DateTime @default(now())
+}
+
+// 12. Балансировка нагрузки
+model LoadBalancer {
+  id              String   @id @default(cuid())
+  
+  // Сервер/прокси
+  serverId        String   @unique
+  serverName      String?
+  proxyHost       String?
+  proxyPort       Int?
+  
+  // Лимиты
+  maxRequests     Int      @default(100)
+  currentLoad     Int      @default(0)
+  
+  // Статус
+  status          String   @default("active") // active, overloaded, offline
+  
+  // Метрики
+  avgResponseTime Int      @default(0)
+  errorRate       Float    @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 13. Режим турбо-профит
+model TurboProfitSettings {
+  id              String   @id @default(cuid())
+  
+  // Пользователь
+  userId          String   @unique
+  
+  // Настройки
+  enabled         Boolean  @default(false)
+  
+  // Параметры агрессивности
+  aggressionLevel Int      @default(50) // 0-100
+  
+  // Риски
+  shortDelays     Boolean  @default(true)
+  riskyStyles     Boolean  @default(true)
+  complexOffers   Boolean  @default(false)
+  
+  // Лимиты
+  maxBanRisk      Int      @default(70) // Макс допустимый риск бана
+  
+  // Предупреждение
+  riskAcknowledged Boolean @default(false)
+  acknowledgedAt    DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 14. Антидетект браузеры
+model AntidetectBrowser {
+  id              String   @id @default(cuid())
+  
+  // Браузер
+  browserType     String   // dolphin, indigo, adspower
+  profileId       String   @unique
+  profileName     String?
+  
+  // Fingerprint (JSON)
+  fingerprint     String?
+  
+  // Привязка
+  accountId       String?
+  
+  // Статус
+  status          String   @default("active")
+  lastUsedAt      DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 15. Авто-генерация кейсов
+model CaseStudy {
+  id              String   @id @default(cuid())
+  
+  // Связь с кампанией
+  campaignId      String?
+  
+  // Контент
+  title           String
+  summary         String?
+  screenshots     String?  // JSON массив путей
+  
+  // Генерация
+  autoGenerated   Boolean  @default(true)
+  aiModel         String?
+  
+  // Метрики для кейса
+  revenue         Float    @default(0)
+  spent           Float    @default(0)
+  roi             Float    @default(0)
+  
+  // Статус
+  status          String   @default("draft") // draft, published, archived
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ==================== УРОВЕНЬ 4: УНИКАЛЬНЫЕ ФУНКЦИИ ====================
+
+// 16. Самообучающаяся модель
+model MLModelMetrics {
+  id              String   @id @default(cuid())
+  
+  // Модель
+  modelName       String
+  modelVersion    String?
+  
+  // Метрики обучения
+  trainingSamples Int      @default(0)
+  accuracy        Float    @default(0)
+  precision       Float    @default(0)
+  recall          Float    @default(0)
+  
+  // Предсказания
+  predictions     String?  // JSON история
+  
+  // Статус
+  status          String   @default("training") // training, ready, deprecated
+  
+  trainedAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 17. Легенды аккаунтов
+model AccountLegend {
+  id              String   @id @default(cuid())
+  
+  // Аккаунт
+  accountId       String?
+  influencerId    String?
+  
+  // Легенда
+  age             Int?
+  city            String?
+  occupation      String?
+  hobbies         String?  // JSON массив
+  bio             String?
+  
+  // Адаптация под канал
+  channelId       String?
+  channelTheme    String?
+  adaptedBio      String?
+  
+  // Генерация
+  autoGenerated   Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 18. Социальный граф
+model SocialGraph {
+  id              String   @id @default(cuid())
+  
+  // Узел (аккаунт)
+  accountId       String
+  
+  // Связи
+  following       String?  // JSON массив accountId
+  followers       String?  // JSON массив accountId
+  friends         String?  // JSON массив accountId (взаимные)
+  
+  // Активность
+  interactions    String?  // JSON: {likes, comments, dms}
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 19. Голосовое управление
+model VoiceCommand {
+  id              String   @id @default(cuid())
+  
+  // Команда
+  transcript      String   // Распознанный текст
+  intent          String?  // start_campaign, set_budget, etc.
+  entities        String?  // JSON извлечённые сущности
+  
+  // Результат
+  executed        Boolean  @default(false)
+  result          String?
+  error           String?
+  
+  // Связь
+  campaignId      String?
+  
+  createdAt       DateTime @default(now())
+}
+
+// 20. Мониторинг удалённых комментариев
+model DeletedCommentMonitor {
+  id              String   @id @default(cuid())
+  
+  // Комментарий
+  commentId       String
+  originalContent String
+  
+  // Детект
+  detectedAt      DateTime @default(now())
+  deletionReason  String?  // moderation, user_deleted, unknown
+  
+  // Перегенерация
+  regeneratedContent String?
+  regeneratedAt      DateTime?
+  
+  // Метрики
+  survivedMinutes Int?
+  
+  createdAt       DateTime @default(now())
+}

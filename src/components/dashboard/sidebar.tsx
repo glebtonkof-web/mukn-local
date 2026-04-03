@@ -19,7 +19,8 @@ import {
   Shield,
   Video,
   MessageSquare,
-  Sparkles
+  Sparkles,
+  Brain
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -30,6 +31,7 @@ const navItems = [
   { id: 'influencers', label: 'Инфлюенсеры', icon: Users },
   { id: 'ai-comments', label: 'AI-комментарии', icon: Sparkles },
   { id: 'ai-pool', label: 'ИИ-пул', icon: Zap },
+  { id: 'advanced-ai', label: 'Advanced AI', icon: Brain },
   { id: 'content', label: 'Контент', icon: FileText },
   { id: 'video-generator', label: 'Генератор видео', icon: Video },
   { id: 'calendar', label: 'Календарь', icon: Calendar },
