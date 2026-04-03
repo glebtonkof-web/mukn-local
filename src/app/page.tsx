@@ -18,6 +18,7 @@ import { AICommentsPanel } from '@/components/ai-comments/ai-comments-panel';
 import { AIPoolDashboard } from '@/components/ai-pool/ai-pool-dashboard';
 import { AdvancedAIPanel } from '@/components/advanced/advanced-ai-panel';
 import { MonetizationPanel } from '@/components/monetization/monetization-panel';
+import { OFMPanel } from '@/components/ofm/ofm-panel';
 import {
   useInfluencers,
   useDashboardMetrics,
@@ -1056,6 +1057,8 @@ export default function MUKNTrafficApp() {
         return <AIPoolDashboard />;
       case 'advanced-ai':
         return <AdvancedAIPanel />;
+      case 'ofm':
+        return <OFMPanel />;
       case 'monetization':
         return <MonetizationPanel />;
       case 'infrastructure':

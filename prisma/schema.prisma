@@ -177,6 +177,7 @@ model Account {
   actions         AccountAction[]
   riskHistory     AccountRiskHistory[]
   antidetectBrowsers AntidetectBrowser[]
+  ofmProfiles     OFMProfile[]
 }
 
 // ==================== SIM-КАРТЫ ====================
@@ -2544,4 +2545,257 @@ model GlobalLearningStats {
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// ==================== AI OFM MODULE ====================
+
+// Профиль AI OFM модели
+model OFMProfile {
+  id              String   @id @default(cuid())
+  
+  // Основное
+  name            String
+  age             Int      @default(23)
+  bio             String?
+  
+  // Аккаунт
+  accountId       String?
+  telegramUsername String?
+  channelId       String?  // Тизерный канал
+  mainChannelId   String?  // Основной канал (закрытый)
+  
+  // Настройки
+  niche           String   @default("relationships") // relationships, psychology, humor, business, crypto
+  style           String   @default("playful") // playful, mysterious, friendly, provocative
+  
+  // Промпты
+  commentPrompt   String?  // Кастомный промпт для комментариев
+  storyPrompt     String?  // Кастомный промпт для Stories
+  
+  // Метрики
+  commentsCount   Int      @default(0)
+  storiesCount    Int      @default(0)
+  followersGained Int      @default(0)
+  revenue         Float    @default(0)
+  
+  // Статус
+  status          String   @default("active") // active, paused, banned
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  account         Account? @relation(fields: [accountId], references: [id])
+  stories         OFMStory[]
+  comments        OFMComment[]
+}
+
+// Публикация Stories
+model OFMStory {
+  id              String   @id @default(cuid())
+  
+  // Профиль
+  profile         OFMProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId       String
+  
+  // Контент
+  text            String?
+  imageUrl        String?
+  videoUrl        String?
+  
+  // Ссылка
+  linkUrl         String?
+  linkText        String?
+  
+  // Настройки
+  expirationHours Int      @default(24)
+  
+  // Статус
+  status          String   @default("draft") // draft, published, expired
+  publishedAt     DateTime?
+  expiresAt       DateTime?
+  
+  // Метрики
+  views           Int      @default(0)
+  clicks          Int      @default(0)
+  forwards        Int      @default(0)
+  
+  // UTM
+  utmSource       String?
+  utmCampaign     String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([profileId])
+}
+
+// Комментарии OFM
+model OFMComment {
+  id              String   @id @default(cuid())
+  
+  // Профиль
+  profile         OFMProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId       String
+  
+  // Цель
+  targetChannelId String
+  targetPostId    String?
+  targetPostUrl   String?
+  
+  // Контент
+  text            String
+  style           String   // playful, mysterious, friendly, provocative
+  
+  // Статус
+  status          String   @default("pending") // pending, posted, deleted
+  
+  // Результат
+  postedAt        DateTime?
+  deletedAt       DateTime?
+  
+  // Метрики
+  likes           Int      @default(0)
+  replies         Int      @default(0)
+  profileClicks   Int      @default(0)
+  
+  // UTM
+  utmSource       String?
+  utmCampaign     String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([profileId])
+  @@index([targetChannelId])
+}
+
+// Источник трафика
+model TrafficSource {
+  id              String   @id @default(cuid())
+  
+  // Название
+  name            String
+  platform        String   // telegram, instagram, tiktok, youtube, twitter
+  
+  // Тип метода (из 30 способов)
+  methodId        Int      // 1-30
+  methodName      String
+  
+  // Настройки
+  config          String?  // JSON конфигурация
+  
+  // Метрики
+  totalActions    Int      @default(0)
+  totalClicks     Int      @default(0)
+  totalConversions Int     @default(0)
+  totalRevenue    Float    @default(0)
+  
+  // Статус
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  campaigns       TrafficCampaign[]
+}
+
+// Кампания трафика
+model TrafficCampaign {
+  id              String   @id @default(cuid())
+  
+  // Связь
+  source          TrafficSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId        String
+  
+  // Название
+  name            String
+  
+  // Воронка
+  funnelSteps     String?  // JSON: [{step, conversion}]
+  
+  // Бюджет
+  budget          Float    @default(0)
+  spent           Float    @default(0)
+  
+  // Метрики
+  impressions     Int      @default(0)
+  clicks          Int      @default(0)
+  leads           Int      @default(0)
+  conversions     Int      @default(0)
+  revenue         Float    @default(0)
+  
+  // Статус
+  status          String   @default("draft") // draft, active, paused, completed
+  
+  startDate       DateTime?
+  endDate         DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([sourceId])
+}
+
+// Воронка конверсий
+model ConversionFunnel {
+  id              String   @id @default(cuid())
+  
+  // Название
+  name            String
+  
+  // Этапы
+  steps           String   // JSON: [{name, order, expectedConversion}]
+  
+  // Данные
+  data            String?  // JSON: [{step, count, conversion}]
+  
+  // Метрики
+  totalEntrants   Int      @default(0)
+  totalConverted  Int      @default(0)
+  avgConversionRate Float  @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Голосовые комментарии
+model VoiceComment {
+  id              String   @id @default(cuid())
+  
+  // Текст
+  text            String
+  
+  // Аудио
+  audioUrl        String?
+  audioBase64     String?  // Или base64
+  
+  // Настройки TTS
+  ttsProvider     String   @default("google") // google, elevenlabs
+  voiceId         String?
+  duration        Float?   // секунды
+  
+  // Статус
+  status          String   @default("pending") // pending, generated, posted
+  
+  createdAt       DateTime @default(now())
+}
+
+// Стикерпаки
+model StickerPack {
+  id              String   @id @default(cuid())
+  
+  // Название
+  name            String
+  packId          String   @unique // Telegram pack ID
+  
+  // Изображения
+  stickers        String   // JSON массив путей
+  
+  // Водяной знак
+  watermark       String?  // Текст водяного знака
+  
+  // Метрики
+  sendsCount      Int      @default(0)
+  
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
 }
