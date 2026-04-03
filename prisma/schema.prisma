@@ -1307,6 +1307,953 @@ model TurboProfitSettings {
   updatedAt       DateTime @updatedAt
 }
 
+// ==================== УРОВЕНЬ 1: ПРЯМАЯ МОНЕТИЗАЦИЯ ====================
+
+// 1. Подписка с привязкой к ROI
+model ROISubscription {
+  id              String   @id @default(cuid())
+  
+  // Пользователь
+  userId          String   @unique
+  
+  // Тип подписки
+  subscriptionType String  @default("roi_based") // roi_based, fixed, hybrid
+  commissionRate  Float    @default(0.05) // 5% от слитого трафика
+  
+  // Интеграция с трекером
+  trackerType     String?  // keitaro, binom, custom
+  trackerApiKey   String?  // Зашифрованный
+  trackerUrl      String?
+  trackerPostbackUrl String?
+  
+  // Метрики за период
+  periodStart     DateTime?
+  periodEnd       DateTime?
+  totalLeads      Int      @default(0)
+  totalRevenue    Float    @default(0)
+  commissionEarned Float   @default(0)
+  
+  // Статус
+  status          String   @default("active") // active, paused, overdue
+  
+  // Лимиты
+  minPayout       Float    @default(10) // Минимальная выплата
+  maxCommission   Float?   // Макс комиссия за период
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastSyncAt      DateTime?
+  
+  // Связи
+  payments        SubscriptionPayment[]
+}
+
+model SubscriptionPayment {
+  id              String   @id @default(cuid())
+  
+  subscription    ROISubscription @relation(fields: [subscriptionId], references: [id])
+  subscriptionId  String
+  
+  // Данные платежа
+  amount          Float
+  currency        String   @default("USD")
+  
+  // Период
+  periodStart     DateTime
+  periodEnd       DateTime
+  
+  // Метрики за период
+  leadsCount      Int      @default(0)
+  revenueGenerated Float   @default(0)
+  
+  // Статус
+  status          String   @default("pending") // pending, paid, failed
+  
+  // Данные оплаты
+  paidAt          DateTime?
+  paymentMethod   String?
+  transactionId   String?
+  
+  createdAt       DateTime @default(now())
+}
+
+// 2. Маркетплейс связок (расширение CampaignBundle)
+model MarketplaceListing {
+  id              String   @id @default(cuid())
+  
+  // Связка
+  bundleId        String   @unique
+  
+  // Продавец
+  sellerId        String
+  sellerName      String?
+  
+  // Категория
+  category        String   // gambling, crypto, nutra, dating, finance
+  subcategory     String?
+  
+  // Цена и комиссия
+  price           Float
+  currency        String   @default("RUB")
+  commissionRate  Float    @default(0.20) // 20% комиссия платформы
+  
+  // Статистика продаж
+  salesCount      Int      @default(0)
+  totalRevenue    Float    @default(0)
+  platformRevenue Float    @default(0)
+  
+  // Рейтинг
+  avgRating       Float    @default(0)
+  reviewsCount    Int      @default(0)
+  
+  // Статус
+  status          String   @default("active") // active, paused, removed, pending_review
+  isFeatured      Boolean  @default(false)
+  isVerified      Boolean  @default(false)
+  
+  // SEO
+  tags            String?  // JSON массив тегов
+  searchKeywords  String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  publishedAt     DateTime?
+  
+  // Связи
+  transactions    MarketplaceTransaction[]
+  reviews         MarketplaceReview[]
+}
+
+model MarketplaceTransaction {
+  id              String   @id @default(cuid())
+  
+  listing         MarketplaceListing @relation(fields: [listingId], references: [id])
+  listingId       String
+  
+  // Покупатель
+  buyerId         String
+  
+  // Цена
+  price           Float
+  commission      Float    // Комиссия платформы
+  sellerRevenue   Float    // Доход продавца
+  
+  // Статус
+  status          String   @default("completed") // pending, completed, refunded
+  
+  createdAt       DateTime @default(now())
+}
+
+model MarketplaceReview {
+  id              String   @id @default(cuid())
+  
+  listing         MarketplaceListing @relation(fields: [listingId], references: [id])
+  listingId       String
+  
+  // Автор
+  userId          String
+  
+  // Отзыв
+  rating          Int      // 1-5
+  comment         String?
+  
+  // ROI покупателя (опционально)
+  buyerROI        Float?
+  verified        Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+}
+
+// 3. Продажа прогретых аккаунтов
+model AccountForSale {
+  id              String   @id @default(cuid())
+  
+  // Аккаунт
+  accountId       String   @unique
+  
+  // Характеристики
+  platform        String   // telegram, instagram, tiktok
+  niche           String?
+  geo             String?
+  ageDays         Int      @default(0)
+  followersCount  Int      @default(0)
+  
+  // Прогрев
+  warmingDays     Int      @default(3)
+  warmingComplete Boolean  @default(false)
+  warmingProgress Int      @default(0) // 0-100
+  
+  // Цена
+  costPrice       Float    @default(0) // Себестоимость
+  salePrice       Float    @default(0)
+  currency        String   @default("USD")
+  
+  // Статус
+  status          String   @default("warming") // warming, available, reserved, sold
+  
+  // Покупатель
+  buyerId         String?
+  soldAt          DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 4. Партнёрская программа на офферы
+model PartnerOffer {
+  id              String   @id @default(cuid())
+  
+  // Оффер
+  offerId         String
+  
+  // Партнёрка
+  network         String   // admitad, cpalead, custom
+  networkOfferId  String?
+  
+  // Условия
+  basePayout      Float    // Базовая ставка
+  ourPayout       Float    // Наша повышенная ставка
+  ourCommission   Float    @default(0.20) // Наша комиссия
+  
+  // Категория
+  category        String   // gambling, crypto, nutra, dating
+  geo             String?
+  
+  // Рейтинг
+  popularity      Int      @default(0) // Популярность среди пользователей
+  avgROI          Float    @default(0)
+  
+  // Статус
+  status          String   @default("active")
+  isFeatured      Boolean  @default(false)
+  isHot           Boolean  @default(false) // Горячий оффер
+  
+  // Трекинг
+  affiliateLink   String?
+  postbackUrl     String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Связи
+  clicks          PartnerOfferClick[]
+}
+
+model PartnerOfferClick {
+  id              String   @id @default(cuid())
+  
+  offer           PartnerOffer @relation(fields: [offerId], references: [id])
+  offerId         String
+  
+  // Клик
+  userId          String
+  clickId         String?
+  
+  // Результат
+  lead            Boolean  @default(false)
+  conversion      Boolean  @default(false)
+  revenue         Float    @default(0)
+  ourCommission   Float    @default(0)
+  
+  createdAt       DateTime @default(now())
+  convertedAt     DateTime?
+}
+
+// 5. Платные юридические шаблоны
+model LegalTemplate {
+  id              String   @id @default(cuid())
+  
+  // Шаблон
+  name            String
+  description     String?
+  category        String   // disclaimer, privacy, terms, compliance
+  
+  // Контент
+  templateContent String   // Шаблон с плейсхолдерами
+  aiGenerated     Boolean  @default(false)
+  
+  // Цена
+  price           Float    @default(0)
+  currency        String   @default("USD")
+  
+  // Для каких ниш
+  applicableNiches String? // JSON массив: gambling, crypto, nutra
+  
+  // Статистика
+  salesCount      Int      @default(0)
+  revenue         Float    @default(0)
+  
+  // Статус
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Связи
+  purchases       LegalTemplatePurchase[]
+}
+
+model LegalTemplatePurchase {
+  id              String   @id @default(cuid())
+  
+  template        LegalTemplate @relation(fields: [templateId], references: [id])
+  templateId      String
+  
+  // Покупатель
+  userId          String
+  
+  // Сгенерированный документ
+  generatedContent String?
+  
+  // Цена
+  price           Float
+  
+  createdAt       DateTime @default(now())
+}
+
+// ==================== УРОВЕНЬ 2: АВТО-ГЕНЕРАЦИЯ СХЕМ ====================
+
+// 6. Нейросетевой сканер "дыр" в партнёрках
+model AffiliateGapScanner {
+  id              String   @id @default(cuid())
+  
+  // Результаты сканирования
+  network         String   // Название партнёрки
+  gapType         String   // soft_moderation, high_payout, no_quality_check
+  
+  // Данные
+  description     String?
+  estimatedROI    Float    @default(0)
+  riskLevel       String   @default("medium") // low, medium, high
+  
+  // Рекомендации
+  recommendedOffer String? // JSON с данными оффера
+  recommendedApproach String?
+  
+  // Статистика
+  testedBy        Int      @default(0) // Сколько пользователей протестировали
+  successRate     Float    @default(0)
+  
+  // Статус
+  status          String   @default("active") // active, closed, deprecated
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  expiresAt       DateTime?
+}
+
+// 7. Авто-поиск ниш через тренды
+model TrendAnalyzer {
+  id              String   @id @default(cuid())
+  
+  // Ниша
+  nicheName       String
+  nicheCategory   String?
+  
+  // Тренд
+  growthRate      Float    @default(0) // Темп роста
+  momentum        Float    @default(0) // Импульс
+  
+  // Каналы
+  topChannels     String?  // JSON массив топ каналов
+  avgEngagement   Float    @default(0)
+  
+  // Рекомендации
+  recommendedOffers String? // JSON массив подходящих офферов
+  predictedROI    Float?
+  competitionLevel String? // low, medium, high
+  
+  // Статус
+  status          String   @default("rising") // rising, stable, declining
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 8. Клонирование кампаний конкурентов
+model CompetitorCampaignClone {
+  id              String   @id @default(cuid())
+  
+  // Источник
+  sourceChannelId String
+  sourceMessageId String?
+  sourceUrl       String?
+  
+  // Проанализированный контент
+  originalContent String?
+  detectedStyle   String?
+  detectedOffer   String?
+  engagementRate  Float    @default(0)
+  
+  // Сгенерированные варианты
+  variants        String?  // JSON массив с вариантами
+  
+  // Статус
+  status          String   @default("analyzed") // pending, analyzed, cloned
+  
+  createdAt       DateTime @default(now())
+}
+
+// 9. Генерация гипотез через DeepSeek R1
+model HypothesisGenerator {
+  id              String   @id @default(cuid())
+  
+  // Контекст
+  postContent     String?
+  postUrl         String?
+  
+  // Сгенерированные гипотезы
+  hypotheses      String?  // JSON массив с гипотезами
+  
+  // Метаданные
+  aiModel         String   @default("deepseek-r1")
+  
+  createdAt       DateTime @default(now())
+}
+
+// 10. Авто-тестирование форматов
+model AutoFormatTester {
+  id              String   @id @default(cuid())
+  
+  // Кампания
+  campaignId      String?
+  
+  // Тестируемые форматы
+  formats         String?  // JSON: [{type: "voice", budget: 100}, ...]
+  budgetPercent   Float    @default(0.05) // 5% бюджета
+  
+  // Результаты
+  results         String?  // JSON с результатами
+  winnerFormat    String?
+  
+  // Статус
+  status          String   @default("running") // running, completed
+  
+  // Даты
+  startDate       DateTime?
+  endDate         DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ==================== УРОВЕНЬ 3: МАСШТАБИРОВАНИЕ ====================
+
+// 11. Авто-масштабирование
+model AutoScalingSettings {
+  id              String   @id @default(cuid())
+  
+  // Кампания
+  campaignId      String   @unique
+  
+  // Правила
+  roiThreshold    Float    @default(150) // ROI > 150%
+  checkIntervalHours Int   @default(3)
+  scaleFactor     Float    @default(1.5) // Увеличение на 50%
+  
+  // Лимиты
+  maxBudget       Float?
+  maxChannels     Int?
+  
+  // Статус
+  enabled         Boolean  @default(false)
+  lastScaleAt     DateTime?
+  scaleCount      Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 12. Трафик в рассрочку
+model TrafficInstallment {
+  id              String   @id @default(cuid())
+  
+  // Пользователь
+  userId          String
+  
+  // Условия
+  accountsProvided Int     @default(10)
+  commissionRate  Float    @default(0.30) // 30% от профита
+  
+  // Долг
+  totalDebt       Float    @default(0)
+  paidAmount      Float    @default(0)
+  
+  // Статус
+  status          String   @default("active") // active, paid, defaulted
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Связи
+  payments        InstallmentPayment[]
+}
+
+model InstallmentPayment {
+  id              String   @id @default(cuid())
+  
+  installment     TrafficInstallment @relation(fields: [installmentId], references: [id])
+  installmentId   String
+  
+  // Платёж
+  amount          Float
+  fromProfit      Float    // От какого профита
+  
+  createdAt       DateTime @default(now())
+}
+
+// 13. Аукцион тёплых каналов
+model WarmChannelAuction {
+  id              String   @id @default(cuid())
+  
+  // Канал
+  channelId       String
+  channelName     String?
+  channelUsername String?
+  
+  // Характеристики
+  avgCTR          Float    @default(0)
+  avgConversion   Float    @default(0)
+  banRisk         Int      @default(0)
+  
+  // Аукцион
+  startingPrice   Float
+  currentBid      Float    @default(0)
+  currentBidderId String?
+  
+  // Даты
+  endsAt          DateTime
+  
+  // Статус
+  status          String   @default("active") // active, sold, cancelled
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Связи
+  bids            AuctionBid[]
+}
+
+model AuctionBid {
+  id              String   @id @default(cuid())
+  
+  auction         WarmChannelAuction @relation(fields: [auctionId], references: [id])
+  auctionId       String
+  
+  // Ставка
+  bidderId        String
+  amount          Float
+  
+  createdAt       DateTime @default(now())
+}
+
+// 14. White Label
+model WhiteLabelLicense {
+  id              String   @id @default(cuid())
+  
+  // Лицензиат
+  licenseeId      String
+  licenseeName    String?
+  brandName       String?
+  
+  // Условия
+  licenseFee      Float    @default(5000) // Единоразовая оплата
+  royaltyRate     Float    @default(0.10) // 10% роялти
+  
+  // Кастомизация
+  customDomain    String?
+  customLogo      String?
+  customColors    String?  // JSON
+  
+  // Статус
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Связи
+  payments        WhiteLabelPayment[]
+}
+
+model WhiteLabelPayment {
+  id              String   @id @default(cuid())
+  
+  license         WhiteLabelLicense @relation(fields: [licenseId], references: [id])
+  licenseId       String
+  
+  // Платёж
+  amount          Float
+  type            String   // license, royalty
+  
+  createdAt       DateTime @default(now())
+}
+
+// 15. Авто-создание каналов-доноров
+model AutoChannelCreator {
+  id              String   @id @default(cuid())
+  
+  // Канал
+  channelId       String?
+  channelName     String
+  channelUsername String?
+  
+  // Ниша
+  niche           String
+  targetAudience  String?
+  
+  // Контент
+  contentStrategy String?  // JSON с планом контента
+  postsGenerated  Int      @default(0)
+  
+  // Рост
+  targetSubscribers Int    @default(1000)
+  currentSubscribers Int   @default(0)
+  growthMethod    String   // spam, organic, mixed
+  
+  // Цена продажи
+  estimatedValue  Float    @default(0)
+  
+  // Статус
+  status          String   @default("creating") // creating, growing, ready, sold
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  soldAt          DateTime?
+}
+
+// ==================== УРОВЕНЬ 4: ЭКОСИСТЕМА ====================
+
+// 16. P2P аренда аккаунтов
+model P2PAccountRental {
+  id              String   @id @default(cuid())
+  
+  // Владелец
+  ownerId         String
+  accountId       String
+  
+  // Арендатор
+  renterId        String?
+  
+  // Условия
+  dailyRate       Float    @default(0)
+  platformCommission Float  @default(0.15) // 15%
+  
+  // Период
+  rentedFrom      DateTime?
+  rentedUntil     DateTime?
+  
+  // Статус
+  status          String   @default("available") // available, rented, inactive
+  
+  // Заработок
+  totalEarned     Float    @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 17. Крипто-токен софта
+model PlatformToken {
+  id              String   @id @default(cuid())
+  
+  // Токен
+  symbol          String   @default("MUKN")
+  name            String   @default("MUKN Token")
+  totalSupply     Float    @default(1000000)
+  circulatingSupply Float @default(0)
+  
+  // Цена
+  currentPrice    Float    @default(0.10)
+  priceChange24h  Float    @default(0)
+  
+  // Преимущества
+  discountPercent Float    @default(10) // Скидка на подписку
+  stakingAPY      Float    @default(15) // APY за стейкинг
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model TokenTransaction {
+  id              String   @id @default(cuid())
+  
+  // Транзакция
+  userId          String
+  type            String   // buy, sell, stake, reward
+  amount          Float
+  price           Float
+  
+  createdAt       DateTime @default(now())
+}
+
+// 18. Нейро-коуч
+model NeuroCoach {
+  id              String   @id @default(cuid())
+  
+  // Пользователь
+  userId          String   @unique
+  
+  // Подписка
+  subscriptionActive Boolean @default(false)
+  subscriptionEndsAt DateTime?
+  
+  // Персонализация
+  userHistory     String?  // JSON с историей пользователя
+  recommendations  String? // JSON с рекомендациями
+  
+  // Статистика
+  sessionsCount   Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 19. Аукцион юзернеймов
+model UsernameAuction {
+  id              String   @id @default(cuid())
+  
+  // Юзернейм
+  username        String   @unique
+  platform        String   // telegram, instagram
+  
+  // Аукцион
+  startingPrice   Float
+  currentBid      Float    @default(0)
+  currentBidderId String?
+  
+  // Даты
+  endsAt          DateTime
+  
+  // Статус
+  status          String   @default("active") // active, sold, cancelled
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Связи
+  bids            UsernameBid[]
+}
+
+model UsernameBid {
+  id              String   @id @default(cuid())
+  
+  auction         UsernameAuction @relation(fields: [auctionId], references: [id])
+  auctionId       String
+  
+  bidderId        String
+  amount          Float
+  
+  createdAt       DateTime @default(now())
+}
+
+// 20. Партнёрство с прокси/SIM сервисами
+model ProxyPartner {
+  id              String   @id @default(cuid())
+  
+  // Партнёр
+  partnerName     String
+  partnerType     String   // proxy, sim, both
+  
+  // Условия
+  commissionRate  Float    @default(0.20) // 20-30%
+  
+  // Интеграция
+  apiEndpoint     String?
+  apiKey          String?
+  
+  // Статистика
+  totalReferrals  Int      @default(0)
+  totalRevenue    Float    @default(0)
+  
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ==================== УРОВЕНЬ 5: НОВЫЕ МЕТОДЫ СПАМА ====================
+
+// 21. Спам через пересылаемые сообщения
+model ForwardSpamSettings {
+  id              String   @id @default(cuid())
+  
+  // Кампания
+  campaignId      String?
+  
+  // Настройки
+  proxyChannelId  String?  // Канал-прокладка
+  messageTemplate String?
+  
+  // Статистика
+  sentCount       Int      @default(0)
+  successRate     Float    @default(0)
+  
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 22. Спам через опросы
+model PollSpamSettings {
+  id              String   @id @default(cuid())
+  
+  // Шаблон опроса
+  question        String
+  options         String   // JSON массив вариантов
+  
+  // Статистика
+  createdCount    Int      @default(0)
+  avgEngagement   Float    @default(0)
+  
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 23. Фейковые срачи
+model FakeArgument {
+  id              String   @id @default(cuid())
+  
+  // Участники
+  account1Id      String
+  account2Id      String
+  resolverAccountId String? // Третий аккаунт с оффером
+  
+  // Сценарий
+  argumentScript  String?  // JSON с репликами
+  
+  // Статистика
+  argumentsRun    Int      @default(0)
+  avgAttention    Float    @default(0)
+  
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 24. Спам через реакции
+model ReactionSpamSettings {
+  id              String   @id @default(cuid())
+  
+  // Настройки
+  reactions       String?  // JSON массив: ["🔥", "💰", "🎰"]
+  sequence        Boolean  @default(true) // Цепочка реакций
+  
+  // Статистика
+  appliedCount    Int      @default(0)
+  clickRate       Float    @default(0)
+  
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 25. Telegram Stories спам
+model StoriesSpamSettings {
+  id              String   @id @default(cuid())
+  
+  // Настройки
+  storyTemplate   String?
+  offerIntegration String?
+  
+  // Статистика
+  storiesCount    Int      @default(0)
+  avgViews        Float    @default(0)
+  
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ==================== АВТО-ПОИСК СХЕМ ====================
+
+// 26. DeepSeek сканер новых ниш
+model NicheScanner {
+  id              String   @id @default(cuid())
+  
+  // Результаты
+  scanDate        DateTime @default(now())
+  newNiches       String?  // JSON массив
+  newFormats      String?  // JSON массив
+  moderationChanges String? // JSON массив
+  
+  createdAt       DateTime @default(now())
+}
+
+// 27. Анализ банов конкурентов
+model CompetitorBanAnalysis {
+  id              String   @id @default(cuid())
+  
+  // Анализ
+  analyzedAccounts Int     @default(0)
+  bannedAccounts  Int      @default(0)
+  
+  // Паттерны
+  patterns        String?  // JSON с найденными паттернами
+  recommendations String?
+  
+  createdAt       DateTime @default(now())
+}
+
+// 28. Краудсорсинг схем
+model CrowdsourcedScheme {
+  id              String   @id @default(cuid())
+  
+  // Автор
+  authorId        String
+  
+  // Схема
+  schemeData      String   // JSON с конфигурацией
+  claimedROI      Float?
+  
+  // Модерация
+  verified        Boolean  @default(false)
+  verifiedBy      String?
+  rewardPaid      Float    @default(0)
+  
+  // Статус
+  status          String   @default("pending") // pending, verified, rejected
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 29. Тестирование границ Telegram
+model TelegramBoundaryTest {
+  id              String   @id @default(cuid())
+  
+  // Тест
+  testType        String   // links_count, message_frequency, etc
+  parameters      String?  // JSON
+  
+  // Результаты
+  result          String?  // JSON с результатами
+  boundaryFound   Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+}
+
+// 30. Парсинг даркнет-форумов
+model DarknetDigest {
+  id              String   @id @default(cuid())
+  
+  // Дайджест
+  scanDate        DateTime @default(now())
+  source          String   // forum name
+  schemes         String?  // JSON массив схем
+  
+  // Доступ
+  accessPrice     Float    @default(10)
+  subscribers     Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+}
+
 // 14. Антидетект браузеры
 model AntidetectBrowser {
   id              String   @id @default(cuid())

@@ -17,6 +17,7 @@ import { VideoGeneratorPanel } from '@/components/video-generator/video-generato
 import { AICommentsPanel } from '@/components/ai-comments/ai-comments-panel';
 import { AIPoolDashboard } from '@/components/ai-pool/ai-pool-dashboard';
 import { AdvancedAIPanel } from '@/components/advanced/advanced-ai-panel';
+import { MonetizationPanel } from '@/components/monetization/monetization-panel';
 import {
   useInfluencers,
   useDashboardMetrics,
@@ -1055,6 +1056,8 @@ export default function MUKNTrafficApp() {
         return <AIPoolDashboard />;
       case 'advanced-ai':
         return <AdvancedAIPanel />;
+      case 'monetization':
+        return <MonetizationPanel />;
       case 'infrastructure':
         return <InfrastructureView />;
       case 'analytics':
