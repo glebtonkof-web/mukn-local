@@ -2798,4 +2798,296 @@ model StickerPack {
   status          String   @default("active")
   
   createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ==================== AI OFM ADVANCED FEATURES ====================
+
+// Аналитика реакций
+model ReactionAnalytics {
+  id              String   @id @default(cuid())
+  
+  // Источник
+  channelId       String
+  postId          String?
+  
+  // Реакция
+  reaction        String   // 🔥, 💰, 🎰, 😍, etc.
+  count           Int      @default(0)
+  
+  // AI-выбор
+  aiSelected      Boolean  @default(false)
+  aiScore         Float    @default(0)
+  
+  // Результат
+  profileClicks   Int      @default(0)
+  conversions     Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([channelId])
+  @@index([reaction])
+}
+
+// Промпты для AI OFM по нишам
+model OFMPromptTemplate {
+  id              String   @id @default(cuid())
+  
+  // Ниша
+  niche           String   // relationships, psychology, humor, business, crypto, fitness, lifestyle, finance
+  
+  // Тип контента
+  contentType     String   // comment, story, voice, dm
+  
+  // Промпт
+  systemPrompt    String   // Системный промпт для DeepSeek
+  userPrompt      String   // Шаблон пользовательского промпта
+  
+  // Стиль
+  style           String?  // playful, mysterious, friendly, provocative
+  
+  // Примеры
+  examples        String?  // JSON массив примеров
+  
+  // Метрики
+  successRate     Float    @default(0)
+  usageCount      Int      @default(0)
+  
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([niche, contentType, style])
+}
+
+// Автоматическая публикация Story после комментария
+model AutoStoryRule {
+  id              String   @id @default(cuid())
+  
+  // Профиль
+  profileId       String?
+  
+  // Условия
+  minProfileClicks Int     @default(1)  // Минимум кликов по профилю
+  delayMinutes    Int      @default(5)  // Задержка публикации
+  
+  // Контент
+  storyTemplate   String?  // JSON шаблон Story
+  aiGenerateImage Boolean  @default(true)
+  
+  // Ссылка
+  offerLink       String?
+  linkText        String?
+  
+  // Метрики
+  triggeredCount  Int      @default(0)
+  successCount    Int      @default(0)
+  
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// UTM-трекинг для методов трафика
+model UTMCampaign {
+  id              String   @id @default(cuid())
+  
+  // Источник
+  source          String   // telegram, instagram, tiktok
+  medium          String   // comment, story, reaction, voice
+  campaign        String   // Название кампании
+  
+  // Дополнительные параметры
+  content         String?  // ID контента
+  term            String?  // Ключевые слова
+  
+  // Полная ссылка
+  fullUrl         String
+  
+  // Метрики
+  totalClicks     Int      @default(0)
+  totalConversions Int     @default(0)
+  totalRevenue    Float    @default(0)
+  
+  // Связь с методом
+  methodId        Int?     // ID метода из 30 способов
+  sourceId        String?  // ID TrafficSource
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([source, medium, campaign])
+  @@index([source])
+}
+
+// Аналитика воронки трафика
+model TrafficFunnelAnalytics {
+  id              String   @id @default(cuid())
+  
+  // Период
+  date            DateTime
+  
+  // Этапы воронки
+  comments        Int      @default(0)     // Комментарии
+  profileViews    Int      @default(0)     // Переходы в профиль
+  storyViews      Int      @default(0)     // Просмотры Stories
+  channelJoins    Int      @default(0)     // Подписки на канал
+  payments        Int      @default(0)     // Платежи
+  
+  // Конверсии
+  commentToProfile Float   @default(0)     // % переходов в профиль
+  profileToStory   Float   @default(0)     // % просмотра Stories
+  storyToChannel   Float   @default(0)     // % подписки на канал
+  channelToPayment Float   @default(0)     // % платежей
+  
+  // Доход
+  revenue         Float    @default(0)
+  cpa             Float    @default(0)
+  
+  // Источник
+  sourceId        String?
+  methodId        Int?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([date])
+}
+
+// Конфигурация метода трафика
+model TrafficMethodConfig {
+  id              String   @id @default(cuid())
+  
+  // Метод
+  methodId        Int      @unique // 1-30
+  
+  // Название
+  name            String
+  platform        String   // telegram, instagram, tiktok, cross
+  
+  // Настройки по умолчанию
+  defaultConfig   String   // JSON с настройками
+  
+  // AI-промпты
+  aiPromptTemplate String? // Промпт для генерации контента
+  
+  // Лимиты
+  maxPerDay       Int      @default(100)
+  maxPerHour      Int      @default(20)
+  
+  // Рекомендации
+  bestTimeSlots   String?  // JSON: ["09:00-12:00", "18:00-21:00"]
+  recommendedNiches String? // JSON массив рекомендуемых ниш
+  
+  // Метрики платформы
+  avgConversion   Float    @default(0)
+  avgCPA          Float    @default(0)
+  
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Интеграция с Instagram
+model InstagramIntegration {
+  id              String   @id @default(cuid())
+  
+  // Аккаунт
+  username        String   @unique
+  accountId       String?
+  
+  // Настройки Reels
+  reelsKeywords   String?  // JSON массив ключевых слов
+  reelsMinViews   Int      @default(50000)
+  reelsMaxAge     Int      @default(30) // минут
+  
+  // Настройки Stories
+  storiesTypes    String?  // JSON: poll, quiz, question, slider
+  storiesCTA      String?
+  
+  // Mass following
+  massFollowEnabled Boolean @default(false)
+  massFollowLimit Int      @default(100)
+  unfollowDelay   Int      @default(3) // дня
+  
+  // DM рассылка
+  dmTemplate      String?
+  dmDailyLimit    Int      @default(50)
+  
+  // Метрики
+  totalReels      Int      @default(0)
+  totalStories    Int      @default(0)
+  totalDMs        Int      @default(0)
+  
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Интеграция с TikTok
+model TikTokIntegration {
+  id              String   @id @default(cuid())
+  
+  // Аккаунт
+  username        String   @unique
+  accountId       String?
+  
+  // Настройки комментариев
+  viralThreshold  Int      @default(100000) // Минимум просмотров
+  commentInFirst  Int      @default(30) // Минут после публикации
+  
+  // Telegram перелив
+  telegramCTA     String?  // "Подробнее в ТГ — ссылка в шапке"
+  telegramLink    String?
+  
+  // Duet/Stitch
+  duetEnabled     Boolean  @default(false)
+  stitchEnabled   Boolean  @default(false)
+  
+  // Метрики
+  totalComments   Int      @default(0)
+  totalDuets      Int      @default(0)
+  telegramClicks  Int      @default(0)
+  
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Сквозная аналитика
+model CrossPlatformAnalytics {
+  id              String   @id @default(cuid())
+  
+  // Дата
+  date            DateTime
+  
+  // Источник
+  sourcePlatform  String   // tiktok, instagram, youtube, twitter
+  targetPlatform  String   // telegram
+  
+  // Метрики источника
+  sourceViews     Int      @default(0)
+  sourceClicks    Int      @default(0)
+  
+  // Метрики цели
+  targetJoins     Int      @default(0)
+  targetConversions Int    @default(0)
+  targetRevenue   Float    @default(0)
+  
+  // Конверсия
+  conversionRate  Float    @default(0)
+  cpa             Float    @default(0)
+  
+  // Метод
+  methodId        Int?
+  
+  createdAt       DateTime @default(now())
+  
+  @@unique([date, sourcePlatform, targetPlatform])
+  @@index([date])
 }
