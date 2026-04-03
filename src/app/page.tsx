@@ -14,6 +14,7 @@ import { ShadowBanChecker } from '@/components/analytics/shadow-ban-checker';
 import { BanRiskAnalytics } from '@/components/analytics/ban-risk-analytics';
 import { ImageGeneratorDialog } from '@/components/content/image-generator-dialog';
 import { VideoGeneratorPanel } from '@/components/video-generator/video-generator-panel';
+import { AICommentsPanel } from '@/components/ai-comments/ai-comments-panel';
 import {
   useInfluencers,
   useDashboardMetrics,
@@ -1046,6 +1047,8 @@ export default function MUKNTrafficApp() {
         return <WarmingView />;
       case 'video-generator':
         return <VideoGeneratorView />;
+      case 'ai-comments':
+        return <AICommentsPanel />;
       case 'infrastructure':
         return <InfrastructureView />;
       case 'analytics':

@@ -17,7 +17,9 @@ import {
   Calendar,
   Flame,
   Shield,
-  Video
+  Video,
+  MessageSquare,
+  Sparkles
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -26,6 +28,7 @@ import { Separator } from '@/components/ui/separator';
 const navItems = [
   { id: 'dashboard', label: 'Дашборд', icon: LayoutDashboard },
   { id: 'influencers', label: 'Инфлюенсеры', icon: Users },
+  { id: 'ai-comments', label: 'AI-комментарии', icon: Sparkles },
   { id: 'content', label: 'Контент', icon: FileText },
   { id: 'video-generator', label: 'Генератор видео', icon: Video },
   { id: 'calendar', label: 'Календарь', icon: Calendar },
