@@ -19,6 +19,7 @@ import { AIPoolDashboard } from '@/components/ai-pool/ai-pool-dashboard';
 import { AdvancedAIPanel } from '@/components/advanced/advanced-ai-panel';
 import { MonetizationPanel } from '@/components/monetization/monetization-panel';
 import { OFMPanel } from '@/components/ofm/ofm-panel';
+import { TrafficMethods130Panel } from '@/components/traffic/traffic-methods-130-panel';
 import {
   useInfluencers,
   useDashboardMetrics,
@@ -1041,6 +1042,8 @@ export default function MUKNTrafficApp() {
         return <DashboardView />;
       case 'influencers':
         return <InfluencersView />;
+      case 'traffic':
+        return <TrafficMethods130Panel />;
       case 'content':
         return <ContentView />;
       case 'calendar':

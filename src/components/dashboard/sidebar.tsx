@@ -21,7 +21,8 @@ import {
   MessageSquare,
   Sparkles,
   Brain,
-  Heart
+  Heart,
+  Send
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -30,6 +31,7 @@ import { Separator } from '@/components/ui/separator';
 const navItems = [
   { id: 'dashboard', label: 'Дашборд', icon: LayoutDashboard },
   { id: 'influencers', label: 'Инфлюенсеры', icon: Users },
+  { id: 'traffic', label: '130 Методов', icon: Send },
   { id: 'ai-comments', label: 'AI-комментарии', icon: Sparkles },
   { id: 'ai-pool', label: 'ИИ-пул', icon: Zap },
   { id: 'advanced-ai', label: 'Advanced AI', icon: Brain },

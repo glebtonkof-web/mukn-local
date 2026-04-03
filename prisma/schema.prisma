@@ -3510,3 +3510,292 @@ model FakeContest {
   
   createdAt       DateTime @default(now())
 }
+
+// ==================== 130 TRAFFIC METHODS - FULL EXPANSION ====================
+
+// Методы трафика (1-130)
+model TrafficMethod {
+  id                String   @id @default(cuid())
+  methodNumber      Int      @unique // 1-130
+  name              String
+  description       String?
+  
+  // Категоризация
+  platform          String   // telegram, instagram, tiktok, cross_platform, ai_enhanced
+  category          String?  // spam, engagement, conversion, automation
+  
+  // Статус
+  isActive          Boolean  @default(false)
+  status            String   @default("draft") // draft, testing, active, paused, deprecated
+  
+  // Конфигурация
+  config            String?  // JSON с настройками метода
+  deepseekPrompt    String?  // Промпт для DeepSeek
+  pythonCode        String?  // Python код примера
+  
+  // Параметры
+  riskLevel         Int      @default(50) // 0-100
+  ctr               Float    @default(0) // CTR метода
+  conversionRate    Float    @default(0)
+  
+  // Метрики
+  totalActions      Int      @default(0)
+  totalClicks       Int      @default(0)
+  totalConversions  Int      @default(0)
+  revenue           Float    @default(0)
+  
+  // Анти-детект
+  requiresProxy     Boolean  @default(false)
+  requiresAntidetect Boolean @default(false)
+  accountRotation   Boolean  @default(true)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  executions        TrafficMethodExecution[]
+  templates         TrafficMethodTemplate[]
+}
+
+// Выполнения методов трафика
+model TrafficMethodExecution {
+  id              String   @id @default(cuid())
+  methodId        String
+  
+  // Цель
+  targetPlatform  String
+  targetId        String?  // ID канала/аккаунта/поста
+  targetUrl       String?
+  
+  // Контент
+  content         String?  // Сгенерированный контент
+  aiGenerated     Boolean  @default(false)
+  aiModel         String?  // deepseek-v4, deepseek-v3.2, deepseek-r1
+  
+  // Результат
+  status          String   @default("pending") // pending, executing, success, failed
+  result          String?
+  error           String?
+  
+  // Метрики
+  views           Int      @default(0)
+  clicks          Int      @default(0)
+  conversions     Int      @default(0)
+  
+  // Аккаунт
+  accountId       String?
+  influencerId    String?
+  
+  // UTM
+  utmCampaign     String?
+  utmSource       String?
+  utmMedium       String?
+  
+  executedAt      DateTime?
+  createdAt       DateTime @default(now())
+  
+  method          TrafficMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)
+}
+
+// Шаблоны для методов трафика
+model TrafficMethodTemplate {
+  id              String   @id @default(cuid())
+  methodId        String
+  
+  name            String
+  description     String?
+  
+  // Контент
+  contentTemplate String   // Шаблон с плейсхолдерами
+  variables       String?  // JSON: [{name, type, default}]
+  
+  // AI
+  deepseekPrompt  String?
+  autoGenerate    Boolean  @default(false)
+  
+  // Метаданные
+  isDefault       Boolean  @default(false)
+  useCount        Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  method          TrafficMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)
+}
+
+// Платформенные аккаунты (все платформы)
+model PlatformAccount {
+  id              String   @id @default(cuid())
+  
+  // Платформа
+  platform        String   // telegram, instagram, tiktok, bluesky, threads, reddit, youtube, twitter, pinterest, linkedin, whatsapp, discord, twitch, facebook, vk, quora, medium
+  
+  // Данные аккаунта
+  username        String?
+  displayName     String?
+  profileUrl      String?
+  bio             String?
+  
+  // Учётные данные
+  phone           String?
+  email           String?
+  password        String?  // Зашифрованный
+  sessionData     String?  // JSON
+  
+  // API данные
+  apiKey          String?
+  apiSecret       String?
+  accessToken     String?
+  refreshToken    String?
+  
+  // Прокси
+  proxyType       String?
+  proxyHost       String?
+  proxyPort       Int?
+  proxyUsername   String?
+  proxyPassword   String?
+  
+  // Антидетект
+  browserProfileId String?
+  fingerprint     String?  // JSON
+  userAgent       String?
+  
+  // Статус
+  status          String   @default("pending") // pending, warming, active, limited, banned, expired
+  banReason       String?
+  
+  // Прогрев
+  warmingStartedAt DateTime?
+  warmingEndsAt   DateTime?
+  warmingProgress  Int     @default(0)
+  
+  // Лимиты
+  dailyLimit      Int      @default(100)
+  dailyUsed       Int      @default(0)
+  
+  // Метрики
+  followersCount  Int      @default(0)
+  followingCount  Int      @default(0)
+  postsCount      Int      @default(0)
+  
+  // Риск
+  banRisk         Int      @default(0)
+  
+  // Привязки
+  influencerId    String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastUsedAt      DateTime?
+  
+  actions         PlatformAccountAction[]
+}
+
+// Действия платформенных аккаунтов
+model PlatformAccountAction {
+  id              String   @id @default(cuid())
+  accountId       String
+  
+  actionType      String   // comment, dm, follow, like, post, story, repost
+  targetType      String?  // post, video, story, user
+  targetId        String?
+  targetUrl       String?
+  
+  content         String?
+  result          String?  // success, failed, rate_limited
+  error           String?
+  
+  createdAt       DateTime @default(now())
+  
+  account         PlatformAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+// AI-сгенерированный контент
+model AIGeneratedContent {
+  id              String   @id @default(cuid())
+  
+  // Тип контента
+  contentType     String   // comment, story, post, dm, image, video_script, news, review
+  
+  // Промпт и результат
+  prompt          String?
+  generatedText   String?
+  generatedImage  String?  // base64 или URL
+  
+  // AI метаданные
+  aiModel         String?  // deepseek-v4, deepseek-v3.2, deepseek-r1
+  aiProvider      String?  // deepseek, openai, replicate
+  
+  // Контекст
+  niche           String?
+  geo             String?
+  style           String?
+  language        String   @default("ru")
+  
+  // Использование
+  usedInMethod    String?
+  usedInExecution String?
+  useCount        Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+}
+
+// Фейковый контент
+model FakeContent {
+  id              String   @id @default(cuid())
+  
+  // Тип фейка
+  fakeType        String   // income_screenshot, news, review, job_posting, story, wiki_page
+  
+  // Данные
+  title           String?
+  content         String?
+  imageData       String?  // base64
+  
+  // AI генерация
+  aiGenerated     Boolean  @default(false)
+  aiPrompt        String?
+  
+  // Использование
+  platform        String?
+  methodId        String?
+  useCount        Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Автоматические лендинги
+model LandingPageAuto {
+  id              String   @id @default(cuid())
+  
+  // Данные
+  title           String
+  description     String?
+  content         String?  // HTML
+  
+  // Домен
+  domain          String?
+  subdomain       String?
+  fullUrl         String?
+  
+  // Шаблон
+  templateType    String   @default("basic") // basic, video, form, countdown
+  
+  // Интеграции
+  offerUrl        String?
+  pixelId         String?
+  analyticsId     String?
+  
+  // Статус
+  status          String   @default("draft") // draft, published, archived
+  publishedAt     DateTime?
+  expiresAt       DateTime?
+  
+  // Метрики
+  views           Int      @default(0)
+  clicks          Int      @default(0)
+  conversions     Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
