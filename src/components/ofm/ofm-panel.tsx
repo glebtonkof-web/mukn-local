@@ -23,7 +23,7 @@ import { ProfilesPanel } from './profiles-panel';
 import { StoriesPanel } from './stories-panel';
 import { CommentsPanel } from './comments-panel';
 import { TrafficFunnelPanel } from './traffic-funnel-panel';
-import { TrafficMethodsPanel } from './traffic-methods-panel';
+import { TrafficMethodsPanelExtended } from './traffic-methods-panel-extended';
 
 export function OFMPanel() {
   const [activeTab, setActiveTab] = useState('profiles');
@@ -147,7 +147,7 @@ export function OFMPanel() {
           </TabsTrigger>
           <TabsTrigger value="methods" className="data-[state=active]:bg-[#00D4AA]">
             <Zap className="w-4 h-4 mr-2" />
-            <span className="hidden sm:inline">Методы</span>
+            <span className="hidden sm:inline">130 Методов</span>
           </TabsTrigger>
         </TabsList>
 
@@ -168,7 +168,7 @@ export function OFMPanel() {
         </TabsContent>
 
         <TabsContent value="methods" className="mt-6">
-          <TrafficMethodsPanel />
+          <TrafficMethodsPanelExtended />
         </TabsContent>
       </Tabs>
 

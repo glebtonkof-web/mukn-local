@@ -3091,3 +3091,422 @@ model CrossPlatformAnalytics {
   @@unique([date, sourcePlatform, targetPlatform])
   @@index([date])
 }
+
+// ==================== 130 TRAFFIC METHODS EXPANSION ====================
+
+// Расширенная конфигурация методов трафика (1-130)
+model TrafficMethodExtended {
+  id              String   @id @default(cuid())
+  
+  // Идентификатор метода (1-130)
+  methodId        Int      @unique
+  
+  // Категория
+  category        String   // telegram, instagram, tiktok, cross_platform, ai_powered
+  
+  // Название и описание
+  name            String
+  description     String
+  
+  // Промпты DeepSeek
+  systemPrompt    String?
+  userPrompt      String?
+  
+  // Настройки
+  defaultConfig   String?  // JSON с настройками по умолчанию
+  riskLevel       String   @default("medium") // low, medium, high, extreme
+  
+  // Лимиты
+  maxPerDay       Int      @default(100)
+  maxPerHour      Int      @default(20)
+  cooldownMinutes Int      @default(5)
+  
+  // Метрики платформы
+  avgConversion   Float    @default(0)
+  avgCPA          Float    @default(0)
+  banRisk         Float    @default(0)
+  
+  // Требования
+  requiresAccount Boolean  @default(true)
+  requiresProxy   Boolean  @default(false)
+  requiresImage   Boolean  @default(false)
+  requiresTTS     Boolean  @default(false)
+  
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Генерация фейкового контента
+model FakeContentGenerator {
+  id              String   @id @default(cuid())
+  
+  // Тип контента
+  contentType     String   // screenshot, news, review, dialog, vacancy, income
+  
+  // Параметры генерации
+  template        String?  // JSON шаблон
+  imagePrompt     String?  // Промпт для генерации изображения
+  
+  // Настройки
+  platform        String?  // binance, telegram_wallet, bank_app, news_site
+  style           String?  // real, professional, casual
+  
+  // Связь с методом
+  methodId        Int?
+  
+  // Метрики
+  usageCount      Int      @default(0)
+  successRate     Float    @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Приватные каналы-прокладки
+model PrivateChannelProxy {
+  id              String   @id @default(cuid())
+  
+  // Канал
+  channelId       String   @unique
+  channelTitle    String?
+  inviteLink      String?
+  
+  // Настройки
+  isPrivate       Boolean  @default(true)
+  autoDeleteDays  Int      @default(7)
+  
+  // Связь с оффером
+  targetOfferLink String?
+  targetChannelId String?
+  
+  // Метрики
+  joinCount       Int      @default(0)
+  conversionCount Int      @default(0)
+  
+  // Статус
+  status          String   @default("active") // active, deleted, expired
+  
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime?
+}
+
+// Фейковые вакансии
+model FakeVacancy {
+  id              String   @id @default(cuid())
+  
+  // Вакансия
+  title           String
+  salary          String?
+  description     String?
+  
+  // Генерация
+  aiGenerated     Boolean  @default(true)
+  
+  // Связь
+  targetChannelId String?
+  targetOfferLink String?
+  
+  // Метрики
+  responsesCount  Int      @default(0)
+  conversions     Int      @default(0)
+  
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+}
+
+// Фейковые скриншоты доходов
+model IncomeScreenshot {
+  id              String   @id @default(cuid())
+  
+  // Параметры
+  platform        String   // binance, telegram_wallet, bank_app, crypto_exchange
+  amount          Float
+  currency        String   @default("USD")
+  
+  // Генерация
+  imageUrl        String?
+  imageBase64     String?  // Если сгенерировано на лету
+  
+  // Метаданные
+  dateShown       String?  // Дата на скриншоте
+  
+  // Связь
+  methodId        Int?
+  
+  // Метрики
+  usageCount      Int      @default(0)
+  clickRate       Float    @default(0)
+  
+  createdAt       DateTime @default(now())
+}
+
+// Интеграция с Bluesky
+model BlueskyIntegration {
+  id              String   @id @default(cuid())
+  
+  // Аккаунт
+  handle          String   @unique
+  did             String?  // Decentralized Identifier
+  
+  // Настройки
+  targetKeywords  String?  // JSON массив ключевых слов
+  postTemplates   String?  // JSON массив шаблонов
+  
+  // Лимиты
+  dailyLimit      Int      @default(50)
+  hourlyLimit     Int      @default(10)
+  
+  // Метрики
+  totalPosts      Int      @default(0)
+  totalComments   Int      @default(0)
+  telegramClicks  Int      @default(0)
+  
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Интеграция с Threads
+model ThreadsIntegration {
+  id              String   @id @default(cuid())
+  
+  // Аккаунт (связан с Instagram)
+  instagramAccountId String?
+  threadsUsername String?
+  
+  // Настройки
+  targetHashtags  String?  // JSON массив
+  replyTemplates  String?  // JSON
+  
+  // Лимиты
+  dailyLimit      Int      @default(30)
+  
+  // Метрики
+  totalReplies    Int      @default(0)
+  totalLikes      Int      @default(0)
+  telegramClicks  Int      @default(0)
+  
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Интеграция с Reddit
+model RedditIntegration {
+  id              String   @id @default(cuid())
+  
+  // Аккаунт
+  username        String   @unique
+  
+  // Целевые сабреддиты
+  targetSubreddits String? // JSON массив
+  
+  // Настройки постинга
+  postTemplates   String?  // JSON
+  commentTemplates String? // JSON
+  
+  // Лимиты (Reddit строгий)
+  dailyLimit      Int      @default(10)
+  minAccountAge   Int      @default(30) // дней
+  
+  // Метрики
+  totalPosts      Int      @default(0)
+  totalComments   Int      @default(0)
+  karmaGained     Int      @default(0)
+  telegramClicks  Int      @default(0)
+  
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Интеграция с Discord
+model DiscordIntegration {
+  id              String   @id @default(cuid())
+  
+  // Бот или аккаунт
+  botToken        String?  // Зашифрованный
+  accountId       String?
+  
+  // Целевые серверы
+  targetServers   String?  // JSON массив server_id
+  
+  // Настройки
+  channelKeywords String?  // JSON: {channel_id: keywords}
+  messageTemplate String?
+  
+  // Лимиты
+  messageDelay    Int      @default(60) // секунд между сообщениями
+  
+  // Метрики
+  serversJoined   Int      @default(0)
+  messagesSent    Int      @default(0)
+  telegramClicks  Int      @default(0)
+  
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Интеграция с Twitch
+model TwitchIntegration {
+  id              String   @id @default(cuid())
+  
+  // Аккаунт
+  username        String   @unique
+  
+  // Целевые стримеры
+  targetStreamers String?  // JSON массив
+  
+  // Настройки
+  messageTemplate String?
+  minViewers      Int      @default(1000) // Минимум зрителей
+  
+  // Лимиты
+  messageInterval Int      @default(300) // секунд
+  
+  // Метрики
+  channelsJoined  Int      @default(0)
+  messagesSent    Int      @default(0)
+  telegramClicks  Int      @default(0)
+  
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Фейковые новостные скриншоты
+model FakeNewsScreenshot {
+  id              String   @id @default(cuid())
+  
+  // Параметры
+  newsSource      String   // forbes, bloomberg, rbc, tass, reuters
+  headline        String
+  subtitle        String?
+  
+  // Генерация
+  imageUrl        String?
+  imageBase64     String?
+  
+  // Связь с оффером
+  offerTopic      String?
+  
+  // Метрики
+  usageCount      Int      @default(0)
+  clickRate       Float    @default(0)
+  
+  createdAt       DateTime @default(now())
+}
+
+// Сайты-однодневки (landing pages)
+model LandingPageProxy {
+  id              String   @id @default(cuid())
+  
+  // Страница
+  title           String
+  description     String?
+  htmlContent     String?  // Полный HTML
+  
+  // Хостинг
+  hostingProvider String?  // github, netlify, vercel
+  url             String?
+  shortUrl        String?  // Короткая ссылка
+  
+  // Связь
+  telegramLink    String?
+  offerId         String?
+  
+  // Настройки
+  autoDeleteDays  Int      @default(30)
+  redirectDelay   Int      @default(0) // секунд до редиректа
+  
+  // Метрики
+  totalVisits     Int      @default(0)
+  telegramClicks  Int      @default(0)
+  conversionRate  Float    @default(0)
+  
+  status          String   @default("active")
+  
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime?
+}
+
+// Геолокационный таргетинг
+model GeoTargeting {
+  id              String   @id @default(cuid())
+  
+  // Локация
+  locationName    String   // Москва, Дубай, Нью-Йорк
+  locationId      String?  // ID в Instagram/Telegram
+  
+  // Платформа
+  platform        String   // instagram, telegram, tiktok
+  
+  // Настройки
+  radiusKm        Int      @default(10)
+  
+  // Метрики
+  postsTargeted   Int      @default(0)
+  commentsLeft    Int      @default(0)
+  conversions     Int      @default(0)
+  
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+}
+
+// Комментарии-песни (рифмованные)
+model SongCommentTemplate {
+  id              String   @id @default(cuid())
+  
+  // Контент
+  firstLine       String
+  secondLine      String
+  thirdLine       String
+  fourthLine      String
+  
+  // Тема
+  topic           String?  // крипта, казино, заработок
+  
+  // Связь с каналом
+  telegramMention String?
+  
+  // Метрики
+  usageCount      Int      @default(0)
+  avgEngagement   Float    @default(0)
+  
+  createdAt       DateTime @default(now())
+}
+
+// Конкурсы и розыгрыши
+model FakeContest {
+  id              String   @id @default(cuid())
+  
+  // Конкурс
+  title           String
+  prize           String   // iPhone, 1000$, и т.д.
+  conditions      String?
+  
+  // Настройки
+  endDate         DateTime?
+  isFake          Boolean  @default(true)
+  
+  // Связь
+  targetChannelId String?
+  
+  // Метрики
+  participantsCount Int    @default(0)
+  newSubscribers  Int      @default(0)
+  
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+}
