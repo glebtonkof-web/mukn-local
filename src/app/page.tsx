@@ -15,6 +15,7 @@ import { BanRiskAnalytics } from '@/components/analytics/ban-risk-analytics';
 import { ImageGeneratorDialog } from '@/components/content/image-generator-dialog';
 import { VideoGeneratorPanel } from '@/components/video-generator/video-generator-panel';
 import { AICommentsPanel } from '@/components/ai-comments/ai-comments-panel';
+import { AIPoolDashboard } from '@/components/ai-pool/ai-pool-dashboard';
 import {
   useInfluencers,
   useDashboardMetrics,
@@ -1049,6 +1050,8 @@ export default function MUKNTrafficApp() {
         return <VideoGeneratorView />;
       case 'ai-comments':
         return <AICommentsPanel />;
+      case 'ai-pool':
+        return <AIPoolDashboard />;
       case 'infrastructure':
         return <InfrastructureView />;
       case 'analytics':

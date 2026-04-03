@@ -718,7 +718,7 @@ model AIProviderSettings {
   id              String   @id @default(cuid())
   
   // Провайдер
-  provider        String   @unique // openrouter, gemini, groq, deepseek
+  provider        String   @unique // openrouter, gemini, groq, deepseek, cerebras
   
   // API ключ (зашифрованный)
   apiKey          String?
@@ -741,6 +741,10 @@ model AIProviderSettings {
   balanceCurrency String?
   isFree          Boolean  @default(false)
   
+  // Квоты для бесплатных API (в день)
+  dailyQuota      Int?     // Лимит запросов в день
+  dailyUsed       Int      @default(0) // Использовано сегодня
+  
   // Статистика
   requestsCount   Int      @default(0)
   successCount    Int      @default(0)
@@ -754,9 +758,109 @@ model AIProviderSettings {
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  quotaResetAt    DateTime? // Когда сбросить dailyUsed
   
   user            User     @relation(fields: [userId], references: [id])
   userId          String
+  quotaLogs       AIQuotaLog[]
+}
+
+// Логи использования квот API
+model AIQuotaLog {
+  id              String   @id @default(cuid())
+  
+  provider        String   // cerebras, gemini, groq, openrouter, deepseek
+  date            DateTime @default(now())
+  
+  // Использование
+  requestsCount   Int      @default(0)
+  tokensIn        Int      @default(0)
+  tokensOut       Int      @default(0)
+  
+  // Экономия
+  estimatedCost   Float    @default(0) // Сколько сэкономлено (если бесплатный API)
+  
+  providerSettings AIProviderSettings? @relation(fields: [providerSettingsId], references: [id])
+  providerSettingsId String?
+  
+  @@unique([provider, date])
+}
+
+// Юридические предупреждения
+model LegalWarningAck {
+  id              String   @id @default(cuid())
+  
+  // Кому показано
+  userId          String
+  
+  // Данные предупреждения
+  offerTheme      String   // gambling, crypto, bait, nutra, dating
+  promotionMethod String   // bait, direct_ad, fake_review, native_ad
+  
+  // Результат анализа
+  riskLevel       String   // green, yellow, red
+  riskScore       Int      // 0-100
+  possibleArticles String? // JSON массив статей УК РФ
+  warningText     String
+  
+  // Подтверждение
+  acknowledgedAt  DateTime @default(now())
+  campaignId      String?  // Если запущена кампания
+  
+  // IP и устройство для логирования
+  ipAddress       String?
+  userAgent       String?
+}
+
+// A/B тесты комментариев
+model CommentABTest {
+  id              String   @id @default(cuid())
+  
+  name            String
+  description     String?
+  
+  // Статус
+  status          String   @default("draft") // draft, running, completed
+  
+  // Стили для тестирования
+  styles          String   // JSON массив стилей
+  
+  // Результаты
+  winnerStyle     String?
+  winnerReason    String?
+  
+  // Метрики
+  totalComments   Int      @default(0)
+  totalViews      Int      @default(0)
+  totalClicks     Int      @default(0)
+  totalConversions Int     @default(0)
+  
+  // Даты
+  startDate       DateTime?
+  endDate         DateTime?
+  completedAt     DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  variants        CommentABTestVariant[]
+}
+
+model CommentABTestVariant {
+  id              String   @id @default(cuid())
+  
+  style           String   // casual, expert, friendly, provocative, storytelling, humor
+  comments        Int      @default(0)
+  views           Int      @default(0)
+  clicks          Int      @default(0)
+  conversions     Int      @default(0)
+  
+  conversionRate  Float    @default(0)
+  
+  abTest          CommentABTest @relation(fields: [abTestId], references: [id], onDelete: Cascade)
+  abTestId        String
+  
+  createdAt       DateTime @default(now())
 }
 
 // Глобальные настройки AI
