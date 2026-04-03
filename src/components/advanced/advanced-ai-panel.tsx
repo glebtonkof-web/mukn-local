@@ -24,8 +24,21 @@ import {
   Rocket,
   Layers,
   FileText,
-  Sparkles
+  Sparkles,
+  Globe,
+  ArrowRightLeft,
+  Server,
+  FlaskConical,
+  GraduationCap
 } from 'lucide-react';
+import { AntidetectPanel } from './antidetect-panel';
+import { CrossPostPanel } from './cross-post-panel';
+import { LoadBalancerPanel } from './load-balancer-panel';
+import { ABTestingPanel } from './ab-testing-panel';
+import { ForgetfulnessPanel } from './forgetfulness-panel';
+import { DynamicOfferPanel } from './dynamic-offer-panel';
+import { ShadowAccountsPanel } from './shadow-accounts-panel';
+import { LearningPanel } from './learning-panel';
 
 // Типы
 interface ChannelPrediction {
@@ -275,7 +288,7 @@ export function AdvancedAIPanel() {
       </div>
 
       <Tabs defaultValue="level1" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-9">
           <TabsTrigger value="level1" className="flex items-center gap-1">
             <Zap className="h-4 w-4" />
             Уровень 1
@@ -291,6 +304,26 @@ export function AdvancedAIPanel() {
           <TabsTrigger value="level4" className="flex items-center gap-1">
             <Sparkles className="h-4 w-4" />
             Уровень 4
+          </TabsTrigger>
+          <TabsTrigger value="testing" className="flex items-center gap-1">
+            <FlaskConical className="h-4 w-4" />
+            A/B Тест
+          </TabsTrigger>
+          <TabsTrigger value="dynamic-offer" className="flex items-center gap-1">
+            <ArrowRightLeft className="h-4 w-4" />
+            Офферы
+          </TabsTrigger>
+          <TabsTrigger value="shadow-accounts" className="flex items-center gap-1">
+            <Server className="h-4 w-4" />
+            Защита
+          </TabsTrigger>
+          <TabsTrigger value="antidetect" className="flex items-center gap-1">
+            <Globe className="h-4 w-4" />
+            Браузеры
+          </TabsTrigger>
+          <TabsTrigger value="learning" className="flex items-center gap-1">
+            <GraduationCap className="h-4 w-4" />
+            Обучение
           </TabsTrigger>
         </TabsList>
 
@@ -451,6 +484,38 @@ export function AdvancedAIPanel() {
               )}
             </CardContent>
           </Card>
+
+          {/* 5. Кросспостинг с обогащением */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ArrowRightLeft className="h-5 w-5 text-purple-500" />
+                5. Кросспостинг с обогащением
+              </CardTitle>
+              <CardDescription>
+                Адаптация успешных комментариев для разных каналов с помощью DeepSeek AI
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CrossPostPanel />
+            </CardContent>
+          </Card>
+
+          {/* 4. Имитация забывчивости */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-rose-500" />
+                4. Имитация забывчивости
+              </CardTitle>
+              <CardDescription>
+                Имитация естественного поведения: аккаунт "забывает" упомянуть оффер, а потом "вспоминает"
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ForgetfulnessPanel />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* УРОВЕНЬ 2 */}
@@ -594,6 +659,22 @@ export function AdvancedAIPanel() {
               <Button className="w-full">Сгенерировать кейс из кампании</Button>
             </CardContent>
           </Card>
+
+          {/* 12. Балансировка нагрузки */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Server className="h-5 w-5 text-cyan-500" />
+                12. Балансировка нагрузки
+              </CardTitle>
+              <CardDescription>
+                Управление серверами и прокси с автоматическим выбором лучшего
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LoadBalancerPanel />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* УРОВЕНЬ 4 */}
@@ -697,6 +778,31 @@ export function AdvancedAIPanel() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ДИНАМИЧЕСКАЯ ЗАМЕНА ОФФЕРА */}
+        <TabsContent value="dynamic-offer" className="space-y-4">
+          <DynamicOfferPanel />
+        </TabsContent>
+
+        {/* ТЕНЕВЫЕ АККАУНТЫ ПОДДЕРЖКИ */}
+        <TabsContent value="shadow-accounts" className="space-y-4">
+          <ShadowAccountsPanel />
+        </TabsContent>
+
+        {/* АНТИДЕТЕКТ БРАУЗЕРЫ */}
+        <TabsContent value="antidetect" className="space-y-4">
+          <AntidetectPanel />
+        </TabsContent>
+
+        {/* A/B ТЕСТИРОВАНИЕ */}
+        <TabsContent value="testing" className="space-y-4">
+          <ABTestingPanel />
+        </TabsContent>
+
+        {/* САМООБУЧЕНИЕ */}
+        <TabsContent value="learning" className="space-y-4">
+          <LearningPanel />
         </TabsContent>
       </Tabs>
     </div>

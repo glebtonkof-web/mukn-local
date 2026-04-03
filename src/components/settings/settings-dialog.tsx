@@ -38,11 +38,14 @@ import {
   RefreshCw,
   Zap,
   Cpu,
+  Globe,
 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AIProvidersSettings } from './ai-providers-settings';
+import { LanguageSelector } from '@/components/ui/language-selector';
+import { useTranslation, type LanguageCode } from '@/hooks/use-translation';
 
 // API Key status type
 interface ApiKeyStatus {
@@ -93,6 +96,8 @@ export function SettingsDialog() {
     language: 'ru',
     timezone: 'Europe/Moscow',
   });
+
+  const { currentLanguage, changeLanguage } = useTranslation();
 
   const [apiStatuses, setApiStatuses] = useState<Record<string, ApiKeyStatus>>({
     deepseek: { provider: 'deepseek', name: 'DeepSeek API', isActive: false, connected: null, testing: false },
@@ -587,27 +592,43 @@ export function SettingsDialog() {
 
           {/* System Tab */}
           <TabsContent value="system" className="space-y-4 mt-4">
+            {/* Language Settings */}
+            <Card className="bg-[#1E1F26] border-[#2A2B32]">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-[#6C63FF]" />
+                  <CardTitle className="text-white text-lg">Язык</CardTitle>
+                </div>
+                <CardDescription className="text-[#8A8A8A]">
+                  Выберите язык интерфейса. Все элементы будут автоматически переведены.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-white font-medium">Язык интерфейса</p>
+                    <p className="text-sm text-[#8A8A8A]">Автоматический перевод всех элементов</p>
+                  </div>
+                  <LanguageSelector
+                    value={currentLanguage}
+                    onChange={(lang: LanguageCode) => {
+                      changeLanguage(lang);
+                      setSettings({ ...settings, language: lang });
+                    }}
+                    showFlag={true}
+                    showName={true}
+                    variant="outline"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="bg-[#1E1F26] border-[#2A2B32]">
               <CardHeader>
                 <CardTitle className="text-white text-lg">Системные настройки</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-[#8A8A8A] text-sm">Язык</Label>
-                    <Select
-                      value={settings.language}
-                      onValueChange={(v) => setSettings({ ...settings, language: v })}
-                    >
-                      <SelectTrigger className="bg-[#14151A] border-[#2A2B32] text-white mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-[#1E1F26] border-[#2A2B32]">
-                        <SelectItem value="ru" className="text-white">Русский</SelectItem>
-                        <SelectItem value="en" className="text-white">English</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                   <div>
                     <Label className="text-[#8A8A8A] text-sm">Часовой пояс</Label>
                     <Select

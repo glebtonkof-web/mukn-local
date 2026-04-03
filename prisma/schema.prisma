@@ -176,6 +176,7 @@ model Account {
   influencers     Influencer[]
   actions         AccountAction[]
   riskHistory     AccountRiskHistory[]
+  antidetectBrowsers AntidetectBrowser[]
 }
 
 // ==================== SIM-КАРТЫ ====================
@@ -2258,23 +2259,42 @@ model DarknetDigest {
 model AntidetectBrowser {
   id              String   @id @default(cuid())
   
-  // Браузер
-  browserType     String   // dolphin, indigo, adspower
+  // Browser type
+  browserType     String   // dolphin, indigo, ads-power, go-login
+  
+  // Profile
   profileId       String   @unique
   profileName     String?
   
-  // Fingerprint (JSON)
-  fingerprint     String?
-  
-  // Привязка
+  // Account binding
   accountId       String?
   
-  // Статус
-  status          String   @default("active")
+  // Proxy settings
+  proxyId         String?
+  proxyHost       String?
+  proxyPort       Int?
+  proxyUsername   String?
+  proxyPassword   String?
+  
+  // Fingerprint
+  userAgent       String?
+  screenResolution String?
+  timezone        String?
+  language        String?
+  webglRenderer   String?
+  fingerprint     String?  // JSON
+  
+  // Status
+  status          String   @default("available") // available, in_use, error
+  
+  // Stats
   lastUsedAt      DateTime?
+  sessionsCount   Int      @default(0)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  
+  account         Account? @relation(fields: [accountId], references: [id])
 }
 
 // 15. Авто-генерация кейсов
@@ -2418,4 +2438,110 @@ model DeletedCommentMonitor {
   survivedMinutes Int?
   
   createdAt       DateTime @default(now())
+}
+
+// ==================== МУЛЬТИЯЗЫЧНОСТЬ ====================
+
+// Кэш переводов
+model TranslationCache {
+  id              String   @id @default(cuid())
+  
+  // Исходный текст
+  sourceText      String
+  sourceLanguage  String   @default("ru")
+  targetLanguage  String
+  
+  // Перевод
+  translatedText  String
+  
+  // Контекст
+  context         String?  // ui, comment, campaign, etc.
+  
+  // Метаданные
+  translator      String   @default("deepl") // deepl, google, manual
+  qualityScore    Float?
+  
+  createdAt       DateTime @default(now())
+  
+  @@unique([sourceText, sourceLanguage, targetLanguage, context])
+}
+
+// ==================== СИСТЕМА САМООБУЧЕНИЯ ====================
+
+model LearningPattern {
+  id              String   @id @default(cuid())
+  
+  // Тип паттерна
+  patternType     String   // comment_style, timing, channel_targeting, offer_matching
+  
+  // Данные паттерна (JSON)
+  patternData     String   // Конкретные параметры
+  
+  // Успешность
+  successCount    Int      @default(0)
+  failureCount    Int      @default(0)
+  successRate     Float    @default(0)
+  
+  // Метрики
+  avgROI          Float    @default(0)
+  avgConversion   Float    @default(0)
+  totalRevenue    Float    @default(0)
+  
+  // Контекст
+  niche           String?
+  geo             String?
+  offerType       String?
+  
+  // Статус
+  isActive        Boolean  @default(true)
+  lastUsedAt      DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  samples         LearningSample[]
+}
+
+model LearningSample {
+  id              String   @id @default(cuid())
+  
+  // Связь с паттерном
+  pattern         LearningPattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
+  patternId       String
+  
+  // Источник
+  campaignId      String?
+  influencerId    String?
+  channelId       String?
+  
+  // Данные
+  inputContext    String   // JSON: входные условия
+  action          String   // JSON: действие
+  outcome         String   // JSON: результат
+  
+  // Успешность
+  wasSuccessful   Boolean
+  revenue         Float    @default(0)
+  conversionRate  Float    @default(0)
+  
+  createdAt       DateTime @default(now())
+}
+
+model GlobalLearningStats {
+  id              String   @id @default(cuid())
+  
+  // Общая статистика
+  totalSamples    Int      @default(0)
+  successfulPatterns Int   @default(0)
+  
+  // Лучшие практики (JSON)
+  bestCommentStyles String?
+  bestTimingByNiche String?
+  bestChannelsByOffer String?
+  
+  // Последнее обновление
+  lastLearningAt  DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
