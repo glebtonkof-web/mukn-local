@@ -1,0 +1,32 @@
+[
+  {
+    "id": "crypto-video-1",
+    "title": "Как заработать на крипте в 2026? Топ-3 монеты",
+    "orientation": "portrait",
+    "voice": "ru-RU-SvetlanaNeural",
+    "script": "[Visual: bitcoin chart growth] Привет, друзья! Сегодня разберём три монеты, которые могут выстрелить в 2026.\n\n[Visual: solana logo] Первая — Solana. Она уже показала рост 200% за месяц и продолжает расти.\n\n[Visual: ethereum logo] Вторая — Ethereum. После обновления сети транзакции стали быстрее и дешевле.\n\n[Visual: checklist] Подписывайся на мой Telegram-канал — ссылка в описании! Там больше секретов крипты.",
+    "tags": ["crypto", "investment", "2026"],
+    "hashtags": ["#крипта", "#инвестиции", "#биткоин", "#solana"],
+    "description": "Обзор перспективных криптовалют на 2026 год"
+  },
+  {
+    "id": "productivity-video-1",
+    "title": "5 приложений для продуктивности",
+    "orientation": "portrait",
+    "voice": "ru-RU-DmitryNeural",
+    "script": "[Visual: smartphone apps] Привет! Сегодня покажу 5 приложений, которые изменят твою продуктивность.\n\n[Visual: notion app] Первое — Notion. Идеально для заметок и планирования.\n\n[Visual: todoist app] Второе — Todoist. Лучший таск-менеджер на рынке.\n\n[Visual: forest app] Третье — Forest. Помогает не отвлекаться от работы.\n\n[Visual: calendar app] Четвёртое — Google Calendar. Классика для планирования.\n\n[Visual: subscribe button] Подпишись на канал, чтобы не пропустить новые видео!",
+    "tags": ["productivity", "apps", "tips"],
+    "hashtags": ["#продуктивность", "#приложения", "#лайфхаки"],
+    "description": "Обзор лучших приложений для продуктивности"
+  },
+  {
+    "id": "fitness-video-1",
+    "title": "Как похудеть за 30 дней",
+    "orientation": "portrait",
+    "voice": "ru-RU-SvetlanaNeural",
+    "script": "[Visual: fitness workout] Хочешь похудеть к лету? Вот мой план на 30 дней!\n\n[Visual: healthy food] Неделя 1 — меняем питание. Убираем сахар и мучное.\n\n[Visual: gym workout] Неделя 2 — добавляем тренировки. 3 раза в неделю минимум.\n\n[Visual: running] Неделя 3 — увеличиваем кардио. Бег или ходьба каждый день.\n\n[Visual: results] Неделя 4 — закрепляем результат. Ты уже видишь изменения!\n\n[Visual: subscribe] Подпишись на канал — будет ещё больше фитнес-советов!",
+    "tags": ["fitness", "health", "weight-loss"],
+    "hashtags": ["#фитнес", "#похудение", "#здоровье"],
+    "description": "План похудения на 30 дней"
+  }
+]

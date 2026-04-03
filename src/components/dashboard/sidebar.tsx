@@ -16,7 +16,8 @@ import {
   Zap,
   Calendar,
   Flame,
-  Shield
+  Shield,
+  Video
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -26,6 +27,7 @@ const navItems = [
   { id: 'dashboard', label: 'Дашборд', icon: LayoutDashboard },
   { id: 'influencers', label: 'Инфлюенсеры', icon: Users },
   { id: 'content', label: 'Контент', icon: FileText },
+  { id: 'video-generator', label: 'Генератор видео', icon: Video },
   { id: 'calendar', label: 'Календарь', icon: Calendar },
   { id: 'monetization', label: 'Монетизация', icon: DollarSign },
   { id: 'warming', label: 'Прогрев', icon: Flame },

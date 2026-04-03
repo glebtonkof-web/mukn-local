@@ -13,6 +13,7 @@ import { WarmingDashboard } from '@/components/warming/warming-dashboard';
 import { ShadowBanChecker } from '@/components/analytics/shadow-ban-checker';
 import { BanRiskAnalytics } from '@/components/analytics/ban-risk-analytics';
 import { ImageGeneratorDialog } from '@/components/content/image-generator-dialog';
+import { VideoGeneratorPanel } from '@/components/video-generator/video-generator-panel';
 import {
   useInfluencers,
   useDashboardMetrics,
@@ -999,6 +1000,15 @@ function WarmingView() {
   );
 }
 
+// Компонент Video Generator View
+function VideoGeneratorView() {
+  return (
+    <div className="space-y-6">
+      <VideoGeneratorPanel />
+    </div>
+  );
+}
+
 // Компонент Shadow Ban View
 function ShadowBanView() {
   return (
@@ -1034,6 +1044,8 @@ export default function MUKNTrafficApp() {
         return <MonetizationView />;
       case 'warming':
         return <WarmingView />;
+      case 'video-generator':
+        return <VideoGeneratorView />;
       case 'infrastructure':
         return <InfrastructureView />;
       case 'analytics':
