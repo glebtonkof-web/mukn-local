@@ -167,7 +167,7 @@ export class VideoGenerator {
               visualDir
             );
             
-            parsedScript.scenes[i].visualPath = visualPath;
+            parsedScript.scenes[i].visualPath = visualPath ?? undefined;
           } catch (error) {
             console.error(`Failed to get visual for scene ${scene.id}:`, error);
           }

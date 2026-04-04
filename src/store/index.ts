@@ -114,6 +114,79 @@ export interface TopComment {
   conversion: number;
 }
 
+// Инфлюенсеры
+export interface Influencer {
+  id: string;
+  name: string;
+  platform?: string;
+  niche?: string;
+  subscribers?: number;
+  engagement?: number;
+  avatar?: string;
+  createdAt?: Date | string;
+  // Дополнительные поля из Prisma схемы
+  age?: number;
+  gender?: string;
+  role?: string;
+  style?: string;
+  country?: string;
+  language?: string;
+  avatarUrl?: string;
+  photos?: string;
+  voiceProvider?: string;
+  voiceId?: string;
+  status?: string;
+  telegramUsername?: string;
+  telegramChannel?: string;
+  instagramUsername?: string;
+  tiktokUsername?: string;
+  youtubeChannelId?: string;
+  postPrompt?: string;
+  commentPrompt?: string;
+  dmPrompt?: string;
+  storyPrompt?: string;
+  greetingPrompt?: string;
+  tone?: string;
+  phrases?: string;
+  forbidden?: string;
+  personality?: string;
+  interests?: string;
+  bio?: string;
+  accountId?: string;
+  simCardId?: string;
+  postsCount?: number;
+  leadsCount?: number;
+  revenue?: number;
+  banRisk?: number;
+  predictedLifeDays?: number;
+}
+
+// Офферы
+export interface Offer {
+  id: string;
+  name: string;
+  status: 'active' | 'paused' | 'draft';
+  affiliateLink?: string;
+  payout?: number;
+  currency?: string;
+  clicks?: number;
+  leads?: number;
+  revenue?: number;
+  createdAt?: Date | string;
+}
+
+// SIM-карты
+export interface SimCard {
+  id: string;
+  phoneNumber: string;
+  operator: string;
+  country: string;
+  status: 'active' | 'inactive' | 'blocked';
+  balance?: number;
+  expiryDate?: Date | string;
+  createdAt?: Date | string;
+}
+
 // Уведомления
 export interface Notification {
   id: string;
@@ -163,6 +236,31 @@ interface AppState {
   setSelectedAccounts: (ids: string[]) => void;
   accountModalOpen: boolean;
   setAccountModalOpen: (open: boolean) => void;
+  
+  // Инфлюенсеры
+  influencers: Influencer[];
+  setInfluencers: (influencers: Influencer[]) => void;
+  addInfluencer: (influencer: Influencer) => void;
+  updateInfluencer: (id: string, data: Partial<Influencer>) => void;
+  removeInfluencer: (id: string) => void;
+  createInfluencerOpen: boolean;
+  setCreateInfluencerOpen: (open: boolean) => void;
+  editingInfluencer: Influencer | null;
+  setEditingInfluencer: (influencer: Influencer | null) => void;
+  
+  // Офферы
+  offers: Offer[];
+  setOffers: (offers: Offer[]) => void;
+  addOffer: (offer: Offer) => void;
+  updateOffer: (id: string, data: Partial<Offer>) => void;
+  removeOffer: (id: string) => void;
+  
+  // SIM-карты
+  simCards: SimCard[];
+  setSimCards: (simCards: SimCard[]) => void;
+  addSimCard: (simCard: SimCard) => void;
+  updateSimCard: (id: string, data: Partial<SimCard>) => void;
+  removeSimCard: (id: string) => void;
   
   // Аналитика
   analyticsData: AnalyticsData[];
@@ -258,6 +356,55 @@ export const useAppStore = create<AppState>()(
       setSelectedAccounts: (ids) => set({ selectedAccounts: ids }),
       accountModalOpen: false,
       setAccountModalOpen: (open) => set({ accountModalOpen: open }),
+      
+      // Инфлюенсеры
+      influencers: [],
+      setInfluencers: (influencers) => set({ influencers }),
+      addInfluencer: (influencer) => set((state) => ({
+        influencers: [influencer, ...state.influencers]
+      })),
+      updateInfluencer: (id, data) => set((state) => ({
+        influencers: state.influencers.map((i) =>
+          i.id === id ? { ...i, ...data } : i
+        )
+      })),
+      removeInfluencer: (id) => set((state) => ({
+        influencers: state.influencers.filter((i) => i.id !== id)
+      })),
+      createInfluencerOpen: false,
+      setCreateInfluencerOpen: (open) => set({ createInfluencerOpen: open }),
+      editingInfluencer: null,
+      setEditingInfluencer: (influencer) => set({ editingInfluencer: influencer }),
+      
+      // Офферы
+      offers: [],
+      setOffers: (offers) => set({ offers }),
+      addOffer: (offer) => set((state) => ({
+        offers: [offer, ...state.offers]
+      })),
+      updateOffer: (id, data) => set((state) => ({
+        offers: state.offers.map((o) =>
+          o.id === id ? { ...o, ...data } : o
+        )
+      })),
+      removeOffer: (id) => set((state) => ({
+        offers: state.offers.filter((o) => o.id !== id)
+      })),
+      
+      // SIM-карты
+      simCards: [],
+      setSimCards: (simCards) => set({ simCards }),
+      addSimCard: (simCard) => set((state) => ({
+        simCards: [simCard, ...state.simCards]
+      })),
+      updateSimCard: (id, data) => set((state) => ({
+        simCards: state.simCards.map((s) =>
+          s.id === id ? { ...s, ...data } : s
+        )
+      })),
+      removeSimCard: (id) => set((state) => ({
+        simCards: state.simCards.filter((s) => s.id !== id)
+      })),
       
       // Аналитика
       analyticsData: [],

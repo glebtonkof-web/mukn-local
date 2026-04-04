@@ -1336,7 +1336,7 @@ function AnalyticsView() {
   }, [setTopChannels, setTopComments]);
 
   const chartData = useMemo(() => {
-    const data = [];
+    const data: { date: string; revenue: number; comments: number; bans: number; conversions: number }[] = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);

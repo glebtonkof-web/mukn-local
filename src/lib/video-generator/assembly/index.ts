@@ -28,7 +28,7 @@ interface AssemblyResult {
 /**
  * Проверяет, установлен ли FFmpeg
  */
-async function checkFFmpeg(): Promise<boolean> {
+export async function checkFFmpeg(): Promise<boolean> {
   try {
     await execAsync('ffmpeg -version');
     return true;

@@ -30,7 +30,7 @@ model User {
   notifications     Notification[]
   actionLogs        ActionLog[]
   warmingSettings   WarmingSettings[]
-  budgetSettings    BudgetSettings[]
+  budgetSettings    BudgetSettings?
   aiProviderSettings AIProviderSettings[]
   aiGlobalSettings  AIGlobalSettings[]
   proxies           Proxy[]
@@ -555,7 +555,7 @@ model BudgetSettings {
   updatedAt       DateTime @updatedAt
   
   user            User     @relation(fields: [userId], references: [id])
-  userId          String
+  userId          String   @unique
 }
 
 model ApiKey {
@@ -722,7 +722,7 @@ model AIProviderSettings {
   id              String   @id @default(cuid())
   
   // Провайдер
-  provider        String   @unique // openrouter, gemini, groq, deepseek, cerebras
+  provider        String   // openrouter, gemini, groq, deepseek, cerebras
   
   // API ключ (зашифрованный)
   apiKey          String?
@@ -767,6 +767,8 @@ model AIProviderSettings {
   user            User     @relation(fields: [userId], references: [id])
   userId          String
   quotaLogs       AIQuotaLog[]
+  
+  @@unique([provider, userId])
 }
 
 // Логи использования квот API

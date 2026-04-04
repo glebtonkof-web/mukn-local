@@ -149,15 +149,15 @@ ${customTextPrompt ? `Дополнительный контекст: ${customTex
     let voiceAudio = null;
     if (voice) {
       try {
-        const audioResponse = await zai.tts.generate({
+        // @ts-expect-error - TTS may not be available in SDK type definitions
+        const audioResponse = await zai.tts?.generate({
           text: storyText,
           voice: voice,
           speed: 0.9,
         });
-
-        voiceAudio = audioResponse.audio || audioResponse;
+        voiceAudio = audioResponse?.audio || audioResponse || null;
       } catch (ttsError) {
-        logger.warn('Failed to generate voice for story', ttsError as Error);
+        logger.warn('Failed to generate voice for story', { error: String(ttsError) });
       }
     }
 
@@ -194,7 +194,8 @@ ${customTextPrompt ? `Дополнительный контекст: ${customTex
       story: {
         id: storyId,
         text: storyText,
-        imageBase64: typeof imageBase64 === 'string' ? imageBase64 : Buffer.from(imageBase64).toString('base64'),
+        imageBase64: typeof imageBase64 === 'string' ? imageBase64 : 
+          (imageBase64 && typeof imageBase64 === 'object' && 'base64' in imageBase64 ? imageBase64.base64 : ''),
         suggestedLink,
         theme,
         themeName: themeData.name,

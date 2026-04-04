@@ -6,7 +6,7 @@ import { db } from '@/lib/db';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { postContent, offerInfo, userId, autoStart } = body;
+    const { postContent, offerInfo, userId, autoStart, targetChannelId } = body;
     
     if (!postContent || !offerInfo || !userId) {
       return NextResponse.json(
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const scenario = await generateViralChain(postContent, offerInfo, userId);
     
     // Если autoStart, создаём цепочку в базе
-    let chainId = null;
+    let chainId: string | null = null;
     if (autoStart && scenario.steps.length > 0) {
       const chain = await db.viralCommentChain.create({
         data: {
@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
           totalSteps: scenario.steps.length,
           status: 'running',
           startedAt: new Date(),
+          targetChannelId: targetChannelId || 'unknown',
         },
       });
       chainId = chain.id;

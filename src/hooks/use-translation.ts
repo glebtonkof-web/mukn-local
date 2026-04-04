@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { LanguageCode } from '@/app/api/translate/route';
+
+// Supported language codes
+export type LanguageCode = 'ru' | 'en' | 'de' | 'fr' | 'es' | 'it' | 'pt' | 'zh' | 'ja' | 'ko';
 
 // Supported languages
 export const LANGUAGES = [
@@ -34,14 +36,17 @@ interface UseTranslationOptions {
 }
 
 interface TranslationResult {
+  success: boolean;
   translatedText: string;
   sourceLanguage: string;
   targetLanguage: string;
   cached: boolean;
   qualityScore?: number;
+  error?: string;
 }
 
 interface BatchTranslationResult {
+  success: boolean;
   results: Array<{
     original: string;
     translated: string;

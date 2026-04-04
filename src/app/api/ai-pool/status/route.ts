@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAIDispatcher, ProviderName } from '@/lib/ai-dispatcher';
 
+interface ProviderStatus {
+  provider: string;
+  name: string;
+  isFree: boolean;
+  isActive: boolean;
+  hasApiKey: boolean;
+  dailyQuota: number;
+  dailyUsed: number;
+  remaining: number;
+  percentUsed: number;
+  totalRequests: number;
+  successRate: string;
+  avgResponseTime: number;
+  lastCheck: string | null;
+  status: string;
+}
+
 // Квоты бесплатных API
 const QUOTAS: Record<ProviderName, { daily: number; name: string; isFree: boolean }> = {
   cerebras: { daily: 14400, name: 'Cerebras (Llama 3.3 70B)', isFree: true },
@@ -21,7 +38,7 @@ export async function GET(request: NextRequest) {
       orderBy: { priority: 'asc' },
     });
     
-    const result = [];
+    const result: ProviderStatus[] = [];
     
     for (const [key, quota] of Object.entries(QUOTAS)) {
       const existing = providers.find(p => p.provider === key);

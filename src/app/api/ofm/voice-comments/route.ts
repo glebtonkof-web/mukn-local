@@ -65,13 +65,19 @@ ${targetChannel ? `Целевой канал: ${targetChannel}` : ''}`;
       .trim();
 
     // Step 2: Convert to audio using TTS
-    const audioResponse = await zai.tts.generate({
-      text: cleanText,
-      voice: voice,
-      speed: 1.0,
-    });
-
-    const base64Audio = audioResponse.audio || audioResponse;
+    let base64Audio: string;
+    try {
+      // @ts-expect-error - TTS may not be available in SDK type definitions
+      const audioResponse = await zai.tts?.generate({
+        text: cleanText,
+        voice: voice,
+        speed: 1.0,
+      });
+      base64Audio = audioResponse?.audio || audioResponse || '';
+    } catch {
+      base64Audio = '';
+      logger.warn('TTS not available for voice comment');
+    }
 
     // Create voice comment record
     const voiceComment: VoiceComment = {

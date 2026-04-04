@@ -525,7 +525,7 @@ export class AIDispatcher {
   }>> {
     await this.initialize();
     
-    const result = [];
+    const result: { provider: ProviderName; isActive: boolean; isFree: boolean; dailyQuota: number; dailyUsed: number; remaining: number; percentUsed: number }[] = [];
     
     for (const [name, provider] of this.providers) {
       result.push({

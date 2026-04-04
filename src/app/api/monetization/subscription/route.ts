@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId') || 'default';
 
-    let subscription = await db.rOISubscription.findUnique({
+    const existingSubscription = await db.rOISubscription.findUnique({
       where: { userId },
       include: {
         payments: {
@@ -17,6 +17,8 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    let subscription = existingSubscription;
+    
     if (!subscription) {
       // Создаём подписку по умолчанию
       subscription = await db.rOISubscription.create({
@@ -28,7 +30,7 @@ export async function GET(request: NextRequest) {
           minPayout: 10,
         },
         include: {
-          payments: [],
+          payments: true,
         },
       });
     }

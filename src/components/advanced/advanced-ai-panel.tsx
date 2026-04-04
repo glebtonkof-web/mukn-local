@@ -764,8 +764,8 @@ export function AdvancedAIPanel() {
                   </div>
                   {Object.keys(voiceResult.entities || {}).length > 0 && (
                     <div className="flex flex-wrap gap-2">
-                      {Object.entries(voiceResult.entities).map(([key, value]) => (
-                        value && <Badge key={key} variant="outline">{key}: {String(value)}</Badge>
+                      {Object.entries(voiceResult.entities || {}).map(([key, value]: [string, unknown]) => (
+                        value !== null && value !== undefined && <Badge key={key} variant="outline">{key}: {String(value)}</Badge>
                       ))}
                     </div>
                   )}

@@ -100,7 +100,7 @@ export function InfluencerCard({
       {/* Ниша индикатор */}
       <div
         className="h-1 rounded-t-lg"
-        style={{ backgroundColor: nicheColors[influencer.niche] || '#6C63FF' }}
+        style={{ backgroundColor: nicheColors[influencer.niche ?? ''] || '#6C63FF' }}
       />
 
       <CardHeader className="pb-3">
@@ -164,15 +164,15 @@ export function InfluencerCard({
           <Badge
             variant="outline"
             className="text-xs"
-            style={{ borderColor: nicheColors[influencer.niche], color: nicheColors[influencer.niche] }}
+            style={{ borderColor: nicheColors[influencer.niche ?? ''], color: nicheColors[influencer.niche ?? ''] }}
           >
-            {nicheLabels[influencer.niche] || influencer.niche}
+            {nicheLabels[influencer.niche ?? ''] || influencer.niche || 'N/A'}
           </Badge>
           <Badge
             variant="outline"
-            className={cn('text-xs text-white border-0', statusColors[influencer.status])}
+            className={cn('text-xs text-white border-0', statusColors[influencer.status ?? ''])}
           >
-            {statusLabels[influencer.status] || influencer.status}
+            {statusLabels[influencer.status ?? ''] || influencer.status || 'N/A'}
           </Badge>
         </div>
       </CardHeader>
@@ -197,7 +197,7 @@ export function InfluencerCard({
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-[#8A8A8A]" />
             <span className="text-sm text-[#8A8A8A]">
-              {(influencer.subscribersCount ?? 0).toLocaleString('ru-RU')}
+              {(influencer.subscribers ?? 0).toLocaleString('ru-RU')}
             </span>
           </div>
           <div className="flex items-center gap-2">

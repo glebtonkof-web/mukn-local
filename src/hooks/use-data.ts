@@ -185,14 +185,13 @@ export function useInfluencers() {
         instagramUsername: result.influencer.instagramUsername,
         tiktokUsername: result.influencer.tiktokUsername,
         youtubeChannelId: result.influencer.youtubeChannelId,
-        subscribersCount: result.influencer.subscribersCount ?? 0,
+        subscribers: result.influencer.subscribers ?? 0,
         postsCount: result.influencer.postsCount ?? 0,
         leadsCount: result.influencer.leadsCount ?? 0,
         revenue: result.influencer.revenue ?? 0,
         banRisk: result.influencer.banRisk ?? 0,
         predictedLifeDays: result.influencer.predictedLifeDays,
         createdAt: result.influencer.createdAt,
-        updatedAt: result.influencer.updatedAt,
       };
       addInfluencer(newInfluencer);
       return result.influencer;
