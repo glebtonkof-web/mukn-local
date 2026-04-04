@@ -326,7 +326,7 @@ export function AIProvidersSettings() {
                       Бесплатный
                     </Badge>
                   )}
-                  {provider.balance !== undefined && (
+                  {provider.balance !== undefined && provider.balance !== null && (
                     <Badge variant="outline" className="border-[#FFB800] text-[#FFB800] text-xs">
                       ${provider.balance.toFixed(2)}
                     </Badge>
