@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useAppStore, Campaign, Account, ActivityItem } from '@/store';
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { TrafficView } from '@/components/views/traffic-view';
@@ -188,75 +188,105 @@ const getOfferTypeLabel = (type: string) => {
   }
 };
 
+// ==================== ТИПЫ ДЛЯ API ====================
+
+interface KPIMetric {
+  title: string;
+  value: string;
+  change?: number;
+  icon: string;
+  color: string;
+}
+
+interface Activity {
+  id: string;
+  type: string;
+  message: string;
+  timestamp: Date | string;
+  campaignId?: string;
+  accountId?: string;
+}
+
+interface ChartDataPoint {
+  date: string;
+  revenue: number;
+  comments: number;
+}
+
 // ==================== КОМПОНЕНТ ДАШБОРДА (ГЛАВНАЯ) ====================
 
 function DashboardView() {
-  const { kpiData, setKpiData, activities, setActivities, campaigns, accounts, setCampaigns, setAccounts } = useAppStore();
+  const { setCampaigns, setAccounts } = useAppStore();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
+  const [kpiData, setKpiData] = useState<KPIMetric[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
 
-  // Моковые данные для KPI
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // Имитация API запроса
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Моковые KPI данные
-        setKpiData([
-          { title: 'Доход сегодня', value: '1 240 ₽', change: 12, icon: 'dollar', color: 'green' },
-          { title: 'Живые аккаунты', value: '24', change: -2, icon: 'users', color: 'neutral' },
-          { title: 'Комментариев сегодня', value: '156', change: 8, icon: 'message', color: 'green' },
-          { title: 'Топ-канал', value: '@crypto_signals', change: undefined, icon: 'trending', color: 'neutral' },
-        ]);
+  // Загрузка данных через API
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Параллельная загрузка всех данных
+      const [kpiRes, activitiesRes, campaignsRes, accountsRes, revenueRes] = await Promise.all([
+        fetch('/api/dashboard/kpi'),
+        fetch('/api/dashboard/activities?limit=20'),
+        fetch('/api/campaigns'),
+        fetch('/api/accounts'),
+        fetch('/api/analytics/revenue?days=7'),
+      ]);
 
-        // Моковые активности
-        setActivities([
-          { id: '1', type: 'comment', message: 'Комментарий успешно опубликован в @crypto_news', timestamp: new Date(Date.now() - 300000), campaignId: 'c1' },
-          { id: '2', type: 'warning', message: 'Аккаунт @user123 приближается к лимиту комментариев', timestamp: new Date(Date.now() - 600000), accountId: 'a1' },
-          { id: '3', type: 'ban', message: 'Аккаунт @banned_user заблокирован', timestamp: new Date(Date.now() - 1200000), accountId: 'a2' },
-          { id: '4', type: 'success', message: 'Кампания "Crypto Boost" запущена', timestamp: new Date(Date.now() - 1800000), campaignId: 'c2' },
-          { id: '5', type: 'join', message: 'Новый аккаунт @new_user добавлен в систему', timestamp: new Date(Date.now() - 2400000), accountId: 'a3' },
-          { id: '6', type: 'limit', message: 'Достигнут лимит комментариев для @limited_user', timestamp: new Date(Date.now() - 3000000), accountId: 'a4' },
-        ]);
+      if (!kpiRes.ok) throw new Error('Ошибка загрузки KPI');
+      if (!activitiesRes.ok) throw new Error('Ошибка загрузки активностей');
+      if (!campaignsRes.ok) throw new Error('Ошибка загрузки кампаний');
+      if (!accountsRes.ok) throw new Error('Ошибка загрузки аккаунтов');
+      if (!revenueRes.ok) throw new Error('Ошибка загрузки аналитики');
 
-        // Моковые кампании
-        setCampaigns([
-          { id: 'c1', name: 'Crypto Signals Pro', status: 'active', offerType: 'crypto', accountsActive: 5, accountsTotal: 6, commentsToday: 48, revenue: 540, budget: 1000, budgetSpent: 320, createdAt: new Date(), updatedAt: new Date() },
-          { id: 'c2', name: 'Casino Royale', status: 'active', offerType: 'casino', accountsActive: 8, accountsTotal: 8, commentsToday: 72, revenue: 700, budget: 2000, budgetSpent: 890, createdAt: new Date(), updatedAt: new Date() },
-          { id: 'c3', name: 'Dating Apps', status: 'paused', offerType: 'dating', accountsActive: 0, accountsTotal: 4, commentsToday: 0, revenue: 0, budget: 500, budgetSpent: 150, createdAt: new Date(), updatedAt: new Date() },
-        ]);
+      const kpiJson = await kpiRes.json();
+      const activitiesJson = await activitiesRes.json();
+      const campaignsJson = await campaignsRes.json();
+      const accountsJson = await accountsRes.json();
+      const revenueJson = await revenueRes.json();
 
-        // Моковые аккаунты
-        setAccounts([
-          { id: 'a1', platform: 'telegram', username: 'crypto_master', proxy: '185.234.xx.xx:1080', commentsToday: 12, commentsTotal: 156, banRisk: 15, status: 'active', warmingProgress: 100, dailyComments: 12, dailyDm: 5, maxComments: 50, maxDm: 20 },
-          { id: 'a2', platform: 'telegram', username: 'signal_pro', proxy: '45.67.xx.xx:1080', commentsToday: 8, commentsTotal: 89, banRisk: 45, status: 'active', warmingProgress: 100, dailyComments: 8, dailyDm: 3, maxComments: 50, maxDm: 20 },
-          { id: 'a3', platform: 'telegram', username: 'trader_alex', proxy: '91.234.xx.xx:1080', commentsToday: 20, commentsTotal: 234, banRisk: 72, status: 'limit', warmingProgress: 100, dailyComments: 20, dailyDm: 8, maxComments: 50, maxDm: 20 },
-          { id: 'a4', platform: 'telegram', username: 'newbie_user', proxy: '', commentsToday: 0, commentsTotal: 0, banRisk: 0, status: 'new', warmingProgress: 0, dailyComments: 0, dailyDm: 0, maxComments: 50, maxDm: 20 },
-        ]);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
+      // Устанавливаем KPI данные
+      if (kpiJson.kpi) {
+        setKpiData(kpiJson.kpi);
       }
-    };
 
+      // Устанавливаем активности
+      if (activitiesJson.activities) {
+        setActivities(activitiesJson.activities);
+      }
+
+      // Устанавливаем кампании в стор
+      if (campaignsJson.campaigns) {
+        setCampaigns(campaignsJson.campaigns);
+      }
+
+      // Устанавливаем аккаунты в стор
+      if (accountsJson.accounts) {
+        setAccounts(accountsJson.accounts);
+      }
+
+      // Устанавливаем данные для графика
+      if (revenueJson.chartData) {
+        setChartData(revenueJson.chartData);
+      }
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setError(err instanceof Error ? err.message : 'Ошибка загрузки данных');
+      toast.error('Ошибка загрузки данных дашборда');
+    } finally {
+      setLoading(false);
+    }
+  }, [setCampaigns, setAccounts]);
+
+  // Загрузка при монтировании
+  useEffect(() => {
     fetchData();
-  }, [setKpiData, setActivities, setCampaigns, setAccounts]);
-
-  // Данные для графика
-  const chartData = useMemo(() => {
-    return [
-      { date: 'Пн', revenue: 850, comments: 45 },
-      { date: 'Вт', revenue: 1200, comments: 67 },
-      { date: 'Ср', revenue: 980, comments: 52 },
-      { date: 'Чт', revenue: 1450, comments: 78 },
-      { date: 'Пт', revenue: 1100, comments: 61 },
-      { date: 'Сб', revenue: 780, comments: 38 },
-      { date: 'Вс', revenue: 1240, comments: 65 },
-    ];
-  }, []);
+  }, [fetchData]);
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -266,6 +296,7 @@ function DashboardView() {
       case 'warning': return <AlertTriangle className="w-4 h-4" />;
       case 'limit': return <Shield className="w-4 h-4" />;
       case 'success': return <CheckCircle className="w-4 h-4" />;
+      case 'info': return <Activity className="w-4 h-4" />;
       default: return <Activity className="w-4 h-4" />;
     }
   };
@@ -278,26 +309,85 @@ function DashboardView() {
       case 'warning': return 'bg-[#FFB800]/20 text-[#FFB800]';
       case 'limit': return 'bg-[#FFB800]/20 text-[#FFB800]';
       case 'success': return 'bg-[#00D26A]/20 text-[#00D26A]';
+      case 'info': return 'bg-[#6C63FF]/20 text-[#6C63FF]';
       default: return 'bg-[#8A8A8A]/20 text-[#8A8A8A]';
     }
   };
 
+  // Пауза всех кампаний
   const handlePauseAll = async () => {
-    toast.success('Все кампании приостановлены');
+    try {
+      const res = await fetch('/api/campaigns/pause-all', { method: 'POST' });
+      if (!res.ok) throw new Error('Ошибка приостановки кампаний');
+      const data = await res.json();
+      toast.success(data.message || `Приостановлено ${data.pausedCount} кампаний`);
+      fetchData(); // Перезагрузка данных
+    } catch (err) {
+      console.error('Error pausing campaigns:', err);
+      toast.error('Не удалось приостановить кампании');
+    }
   };
 
+  // Проверка здоровья всех аккаунтов
   const handleHealthCheck = async () => {
-    toast.info('Проверка всех аккаунтов запущена...');
+    try {
+      toast.info('Проверка всех аккаунтов запущена...');
+      const res = await fetch('/api/health/check-all', { method: 'POST' });
+      if (!res.ok) throw new Error('Ошибка проверки аккаунтов');
+      const data = await res.json();
+      if (data.results) {
+        toast.success(
+          `Проверка завершена: ${data.results.healthy} OK, ${data.results.warnings} предупреждений, ${data.results.errors} ошибок`
+        );
+      }
+    } catch (err) {
+      console.error('Error checking health:', err);
+      toast.error('Не удалось проверить аккаунты');
+    }
   };
 
+  // Экспорт отчёта
   const handleExportReport = async () => {
-    toast.success('Отчёт за сегодня скачивается...');
+    try {
+      toast.info('Формирование отчёта...');
+      const res = await fetch('/api/reports/export/excel?type=dashboard');
+      if (!res.ok) throw new Error('Ошибка экспорта отчёта');
+      
+      // Получаем blob и скачиваем файл
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `mukn-report-dashboard-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success('Отчёт скачан');
+    } catch (err) {
+      console.error('Error exporting report:', err);
+      toast.error('Не удалось экспортировать отчёт');
+    }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
         <Loader2 className="w-8 h-8 text-[#6C63FF] animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 gap-4">
+        <AlertTriangle className="w-12 h-12 text-[#FF4D4D]" />
+        <p className="text-[#FF4D4D]">{error}</p>
+        <Button onClick={fetchData} variant="outline" className="border-[#2A2B32] text-[#8A8A8A] hover:text-white">
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Попробовать снова
+        </Button>
       </div>
     );
   }
@@ -313,10 +403,11 @@ function DashboardView() {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => window.location.reload()}
+            onClick={fetchData}
+            disabled={loading}
             className="border-[#2A2B32] text-[#8A8A8A] hover:text-white"
           >
-            <RefreshCw className="w-4 h-4 mr-2" />
+            <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
             Обновить
           </Button>
         </div>
@@ -392,33 +483,39 @@ function DashboardView() {
           </CardHeader>
           <CardContent>
             <div className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
-                {chartType === 'line' ? (
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2A2B32" />
-                    <XAxis dataKey="date" stroke="#8A8A8A" />
-                    <YAxis stroke="#8A8A8A" />
-                    <RechartsTooltip
-                      contentStyle={{ backgroundColor: '#14151A', border: '1px solid #2A2B32', borderRadius: '8px' }}
-                      labelStyle={{ color: '#fff' }}
-                    />
-                    <Legend />
-                    <Line type="monotone" dataKey="revenue" stroke="#6C63FF" strokeWidth={2} dot={{ fill: '#6C63FF' }} name="Доход (₽)" />
-                  </LineChart>
-                ) : (
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2A2B32" />
-                    <XAxis dataKey="date" stroke="#8A8A8A" />
-                    <YAxis stroke="#8A8A8A" />
-                    <RechartsTooltip
-                      contentStyle={{ backgroundColor: '#14151A', border: '1px solid #2A2B32', borderRadius: '8px' }}
-                      labelStyle={{ color: '#fff' }}
-                    />
-                    <Legend />
-                    <Bar dataKey="revenue" fill="#6C63FF" name="Доход (₽)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                )}
-              </ResponsiveContainer>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  {chartType === 'line' ? (
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#2A2B32" />
+                      <XAxis dataKey="date" stroke="#8A8A8A" />
+                      <YAxis stroke="#8A8A8A" />
+                      <RechartsTooltip
+                        contentStyle={{ backgroundColor: '#14151A', border: '1px solid #2A2B32', borderRadius: '8px' }}
+                        labelStyle={{ color: '#fff' }}
+                      />
+                      <Legend />
+                      <Line type="monotone" dataKey="revenue" stroke="#6C63FF" strokeWidth={2} dot={{ fill: '#6C63FF' }} name="Доход (₽)" />
+                    </LineChart>
+                  ) : (
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#2A2B32" />
+                      <XAxis dataKey="date" stroke="#8A8A8A" />
+                      <YAxis stroke="#8A8A8A" />
+                      <RechartsTooltip
+                        contentStyle={{ backgroundColor: '#14151A', border: '1px solid #2A2B32', borderRadius: '8px' }}
+                        labelStyle={{ color: '#fff' }}
+                      />
+                      <Legend />
+                      <Bar dataKey="revenue" fill="#6C63FF" name="Доход (₽)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  )}
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-[#8A8A8A]">
+                  Нет данных для отображения
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -434,22 +531,28 @@ function DashboardView() {
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[250px]">
-              <div className="space-y-3">
-                {activities.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="flex items-start gap-3 p-3 rounded-lg bg-[#1E1F26] hover:bg-[#2A2B32] transition-colors"
-                  >
-                    <div className={cn('w-8 h-8 rounded-full flex items-center justify-center shrink-0', getActivityColor(activity.type))}>
-                      {getActivityIcon(activity.type)}
+              {activities.length > 0 ? (
+                <div className="space-y-3">
+                  {activities.map((activity) => (
+                    <div
+                      key={activity.id}
+                      className="flex items-start gap-3 p-3 rounded-lg bg-[#1E1F26] hover:bg-[#2A2B32] transition-colors"
+                    >
+                      <div className={cn('w-8 h-8 rounded-full flex items-center justify-center shrink-0', getActivityColor(activity.type))}>
+                        {getActivityIcon(activity.type)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-white">{activity.message}</p>
+                        <p className="text-xs text-[#8A8A8A] mt-1">{formatTime(activity.timestamp)}</p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white">{activity.message}</p>
-                      <p className="text-xs text-[#8A8A8A] mt-1">{formatTime(activity.timestamp)}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full text-[#8A8A8A]">
+                  Нет недавней активности
+                </div>
+              )}
             </ScrollArea>
           </CardContent>
         </Card>
@@ -505,43 +608,80 @@ function DashboardView() {
 
 // ==================== КОМПОНЕНТ КАМПАНИЙ ====================
 
+interface CampaignFromAPI {
+  id: string;
+  name: string;
+  description?: string | null;
+  type: string;
+  niche?: string | null;
+  geo?: string | null;
+  status: string;
+  budget: number;
+  spent: number;
+  revenue: number;
+  leadsCount: number;
+  conversions: number;
+  startDate?: Date | string | null;
+  endDate?: Date | string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  influencers?: Array<{ influencerId: string; role: string }>;
+  offers?: Array<{ offerId: string; isPrimary: boolean }>;
+}
+
 function CampaignsView() {
-  const { campaigns, setCampaigns, campaignModalOpen, setCampaignModalOpen, editingCampaign, setEditingCampaign, addCampaign, updateCampaign, removeCampaign } = useAppStore();
-  const [loading, setLoading] = useState(false);
+  const { campaignModalOpen, setCampaignModalOpen } = useAppStore();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [campaigns, setCampaigns] = useState<CampaignFromAPI[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [campaignToDelete, setCampaignToDelete] = useState<Campaign | null>(null);
+  const [campaignToDelete, setCampaignToDelete] = useState<CampaignFromAPI | null>(null);
   const [modalTab, setModalTab] = useState('offer');
+  const [editingCampaign, setEditingCampaign] = useState<CampaignFromAPI | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Default form data
-  const defaultFormData: Partial<Campaign> = {
+  const defaultFormData = {
     name: '',
+    type: 'crypto',
+    niche: '',
+    geo: '',
     status: 'draft',
-    offerType: 'crypto',
-    link: '',
-    accountsActive: 0,
-    accountsTotal: 0,
-    commentsToday: 0,
-    revenue: 0,
     budget: 0,
-    budgetSpent: 0,
-    autoReplaceOnBan: true,
-    maxCommentsPerAccount: 50,
-    postingMode: 'new',
-    delayMin: 30,
-    delayMax: 120,
-    delayRandom: true,
-    useUniqueText: true,
-    useDeepSeek: true,
-    deepSeekTemperature: 0.7,
-    maxCostPerLead: 100,
-    workTimeStart: '09:00',
-    workTimeEnd: '21:00',
+    description: '',
+  startDate: '',
+    endDate: '',
+  influencerIds: [] as string[],
+    offerIds: [] as string[],
   };
 
   // Форма создания/редактирования
-  const [formData, setFormData] = useState<Partial<Campaign>>(defaultFormData);
+  const [formData, setFormData] = useState(defaultFormData);
+
+  // Загрузка кампаний через API
+  const fetchCampaigns = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/campaigns');
+      if (!res.ok) throw new Error('Ошибка загрузки кампаний');
+      const data = await res.json();
+      setCampaigns(data.campaigns || []);
+    } catch (err) {
+      console.error('Error fetching campaigns:', err);
+      setError(err instanceof Error ? err.message : 'Ошибка загрузки кампаний');
+      toast.error('Ошибка загрузки кампаний');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Загрузка при монтировании
+  useEffect(() => {
+    fetchCampaigns();
+  }, [fetchCampaigns]);
 
   const filteredCampaigns = useMemo(() => {
     return campaigns.filter(c => {
@@ -551,10 +691,22 @@ function CampaignsView() {
     });
   }, [campaigns, searchQuery, statusFilter]);
 
-  const handleOpenModal = (campaign?: Campaign) => {
+  const handleOpenModal = (campaign?: CampaignFromAPI) => {
     if (campaign) {
       setEditingCampaign(campaign);
-      setFormData(campaign);
+      setFormData({
+        name: campaign.name,
+        type: campaign.type,
+        niche: campaign.niche || '',
+        geo: campaign.geo || '',
+        status: campaign.status,
+        budget: campaign.budget,
+        description: campaign.description || '',
+        startDate: campaign.startDate ? new Date(campaign.startDate).toISOString().split('T')[0] : '',
+        endDate: campaign.endDate ? new Date(campaign.endDate).toISOString().split('T')[0] : '',
+        influencerIds: campaign.influencers?.map(i => i.influencerId) || [],
+        offerIds: campaign.offers?.map(o => o.offerId) || [],
+      });
     } else {
       setEditingCampaign(null);
       setFormData(defaultFormData);
@@ -569,53 +721,176 @@ function CampaignsView() {
     setFormData(defaultFormData);
   };
 
-  const handleSave = () => {
+  // Создание/обновление кампании
+  const handleSave = async () => {
     if (!formData.name) {
       toast.error('Введите название кампании');
       return;
     }
 
-    if (editingCampaign) {
-      updateCampaign(editingCampaign.id, formData);
-      toast.success('Кампания обновлена');
-    } else {
-      addCampaign({
-        ...formData as Campaign,
-        id: `c${Date.now()}`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-      toast.success('Кампания создана');
+    if (!formData.type) {
+      toast.error('Выберите тип кампании');
+      return;
     }
-    handleCloseModal();
+
+    setActionLoading('save');
+    try {
+      if (editingCampaign) {
+        // Обновление через PUT
+        const res = await fetch('/api/campaigns', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingCampaign.id,
+            ...formData,
+            startDate: formData.startDate ? new Date(formData.startDate) : undefined,
+            endDate: formData.endDate ? new Date(formData.endDate) : undefined,
+          }),
+        });
+        if (!res.ok) throw new Error('Ошибка обновления кампании');
+        toast.success('Кампания обновлена');
+      } else {
+        // Создание через POST
+        const res = await fetch('/api/campaigns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...formData,
+            startDate: formData.startDate ? new Date(formData.startDate) : undefined,
+            endDate: formData.endDate ? new Date(formData.endDate) : undefined,
+            userId: 'default-user', // TODO: получить из auth
+          }),
+        });
+        if (!res.ok) throw new Error('Ошибка создания кампании');
+        toast.success('Кампания создана');
+      }
+      handleCloseModal();
+      fetchCampaigns();
+    } catch (err) {
+      console.error('Error saving campaign:', err);
+      toast.error('Не удалось сохранить кампанию');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handleDelete = () => {
-    if (campaignToDelete) {
-      removeCampaign(campaignToDelete.id);
+  // Удаление кампании
+  const handleDelete = async () => {
+    if (!campaignToDelete) return;
+    
+    setActionLoading('delete');
+    try {
+      const res = await fetch(`/api/campaigns?id=${campaignToDelete.id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Ошибка удаления кампании');
       toast.success('Кампания удалена');
       setDeleteDialogOpen(false);
       setCampaignToDelete(null);
+      fetchCampaigns();
+    } catch (err) {
+      console.error('Error deleting campaign:', err);
+      toast.error('Не удалось удалить кампанию');
+    } finally {
+      setActionLoading(null);
     }
   };
 
-  const handleToggleStatus = (campaign: Campaign) => {
-    const newStatus = campaign.status === 'active' ? 'paused' : 'active';
-    updateCampaign(campaign.id, { status: newStatus });
-    toast.success(`Кампания ${newStatus === 'active' ? 'запущена' : 'приостановлена'}`);
+  // Переключение статуса (пауза/запуск)
+  const handleToggleStatus = async (campaign: CampaignFromAPI) => {
+    const action = campaign.status === 'active' ? 'pause' : 'resume';
+    setActionLoading(campaign.id);
+    try {
+      const res = await fetch(`/api/campaigns/${campaign.id}/${action}`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error(`Ошибка ${action === 'pause' ? 'приостановки' : 'запуска'} кампании`);
+      toast.success(`Кампания ${action === 'pause' ? 'приостановлена' : 'запущена'}`);
+      fetchCampaigns();
+    } catch (err) {
+      console.error('Error toggling campaign status:', err);
+      toast.error('Не удалось изменить статус кампании');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handleDuplicate = (campaign: Campaign) => {
-    addCampaign({
-      ...campaign,
-      id: `c${Date.now()}`,
-      name: `${campaign.name} (копия)`,
-      status: 'draft',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    toast.success('Кампания скопирована');
+  // Дублирование кампании
+  const handleDuplicate = async (campaign: CampaignFromAPI) => {
+    setActionLoading(`dup-${campaign.id}`);
+    try {
+      const res = await fetch(`/api/campaigns/${campaign.id}/duplicate`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error('Ошибка дублирования кампании');
+      toast.success('Кампания скопирована');
+      fetchCampaigns();
+    } catch (err) {
+      console.error('Error duplicating campaign:', err);
+      toast.error('Не удалось скопировать кампанию');
+    } finally {
+      setActionLoading(null);
+    }
   };
+
+  // AI анализ
+  const handleAIAnalysis = async () => {
+    if (campaigns.length === 0) {
+      toast.error('Нет кампаний для анализа');
+      return;
+    }
+    
+    setActionLoading('ai-analysis');
+    try {
+      // Анализируем первую активную кампанию (или первую в списке)
+      const campaignToAnalyze = campaigns.find(c => c.status === 'active') || campaigns[0];
+      
+      const res = await fetch('/api/ai/analyze-campaign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: campaignToAnalyze.id,
+          userId: 'default-user', // TODO: получить из auth
+          analysisType: 'full_analysis',
+        }),
+      });
+      
+      if (!res.ok) throw new Error('Ошибка AI анализа');
+      const data = await res.json();
+      
+      if (data.prediction) {
+        toast.success('AI анализ завершён', {
+          description: `Уверенность: ${data.prediction.confidenceScore || 50}%`,
+        });
+      }
+    } catch (err) {
+      console.error('Error AI analysis:', err);
+      toast.error('Не удалось выполнить AI анализ');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 text-[#6C63FF] animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 gap-4">
+        <AlertTriangle className="w-12 h-12 text-[#FF4D4D]" />
+        <p className="text-[#FF4D4D]">{error}</p>
+        <Button onClick={fetchCampaigns} variant="outline" className="border-[#2A2B32] text-[#8A8A8A] hover:text-white">
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Попробовать снова
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -628,13 +903,15 @@ function CampaignsView() {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => {
-              toast.info('AI анализ запущен...');
-              // Call AI API
-            }}
+            onClick={handleAIAnalysis}
+            disabled={actionLoading === 'ai-analysis' || campaigns.length === 0}
             className="border-[#6C63FF] text-[#6C63FF]"
           >
-            <Sparkles className="w-4 h-4 mr-2" />
+            {actionLoading === 'ai-analysis' ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4 mr-2" />
+            )}
             AI Анализ
           </Button>
           <Button
@@ -670,6 +947,14 @@ function CampaignsView() {
             <SelectItem value="draft">Черновики</SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          variant="outline"
+          onClick={fetchCampaigns}
+          disabled={loading}
+          className="border-[#2A2B32] text-[#8A8A8A] hover:text-white"
+        >
+          <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+        </Button>
       </div>
 
       {/* Карточки кампаний */}
@@ -692,24 +977,36 @@ function CampaignsView() {
                     <Edit className="w-4 h-4 mr-2" />
                     Настройки
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleToggleStatus(campaign)} className="text-white hover:bg-[#1E1F26]">
-                    {campaign.status === 'active' ? (
-                      <>
-                        <Pause className="w-4 h-4 mr-2" />
-                        Пауза
-                      </>
+                  <DropdownMenuItem 
+                    onClick={() => handleToggleStatus(campaign)}
+                    disabled={actionLoading === campaign.id}
+                    className="text-white hover:bg-[#1E1F26]"
+                  >
+                    {actionLoading === campaign.id ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : campaign.status === 'active' ? (
+                      <Pause className="w-4 h-4 mr-2" />
                     ) : (
-                      <>
-                        <Play className="w-4 h-4 mr-2" />
-                        Запустить
-                      </>
+                      <Play className="w-4 h-4 mr-2" />
                     )}
+                    {campaign.status === 'active' ? 'Пауза' : 'Запустить'}
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleDuplicate(campaign)} className="text-white hover:bg-[#1E1F26]">
-                    <Copy className="w-4 h-4 mr-2" />
+                  <DropdownMenuItem 
+                    onClick={() => handleDuplicate(campaign)}
+                    disabled={actionLoading === `dup-${campaign.id}`}
+                    className="text-white hover:bg-[#1E1F26]"
+                  >
+                    {actionLoading === `dup-${campaign.id}` ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Copy className="w-4 h-4 mr-2" />
+                    )}
                     Дублировать
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => { setCampaignToDelete(campaign); setDeleteDialogOpen(true); }} className="text-[#FF4D4D] hover:bg-[#1E1F26]">
+                  <DropdownMenuItem 
+                    onClick={() => { setCampaignToDelete(campaign); setDeleteDialogOpen(true); }}
+                    className="text-[#FF4D4D] hover:bg-[#1E1F26]"
+                  >
                     <Trash2 className="w-4 h-4 mr-2" />
                     Удалить
                   </DropdownMenuItem>
@@ -719,7 +1016,7 @@ function CampaignsView() {
             <CardContent className="space-y-4">
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="border-[#6C63FF] text-[#6C63FF]">
-                  {getOfferTypeLabel(campaign.offerType)}
+                  {campaign.type || 'Не указан'}
                 </Badge>
                 <Badge className={cn(
                   'text-white',
@@ -731,49 +1028,47 @@ function CampaignsView() {
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-[#8A8A8A]">Аккаунты</p>
-                  <p className="text-white font-medium">{campaign.accountsActive}/{campaign.accountsTotal}</p>
+                  <p className="text-[#8A8A8A]">Ниша</p>
+                  <p className="text-white font-medium">{campaign.niche || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-[#8A8A8A]">Комментов сегодня</p>
-                  <p className="text-white font-medium">{campaign.commentsToday}</p>
+                  <p className="text-[#8A8A8A]">Гео</p>
+                  <p className="text-white font-medium">{campaign.geo || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[#8A8A8A]">Лиды</p>
+                  <p className="text-white font-medium">{campaign.leadsCount}</p>
                 </div>
                 <div>
                   <p className="text-[#8A8A8A]">Доход</p>
                   <p className="text-[#00D26A] font-medium">{campaign.revenue.toLocaleString()} ₽</p>
-                </div>
-                <div>
-                  <p className="text-[#8A8A8A]">Бюджет</p>
-                  <p className="text-white font-medium">{campaign.budgetSpent}/{campaign.budget} ₽</p>
                 </div>
               </div>
 
               <div className="space-y-1">
                 <div className="flex justify-between text-xs text-[#8A8A8A]">
                   <span>Расход бюджета</span>
-                  <span>{Math.round((campaign.budgetSpent / (campaign.budget || 1)) * 100)}%</span>
+                  <span>{campaign.budget > 0 ? Math.round((campaign.spent / campaign.budget) * 100) : 0}%</span>
                 </div>
-                <Progress value={(campaign.budgetSpent / (campaign.budget || 1)) * 100} className="h-2" />
+                <Progress value={campaign.budget > 0 ? (campaign.spent / campaign.budget) * 100 : 0} className="h-2" />
               </div>
 
               <Button
                 onClick={() => handleToggleStatus(campaign)}
+                disabled={actionLoading === campaign.id}
                 className={cn(
                   'w-full',
                   campaign.status === 'active' ? 'bg-[#FFB800] hover:bg-[#FFB800]/80 text-black' : 'bg-[#00D26A] hover:bg-[#00D26A]/80 text-black'
                 )}
               >
-                {campaign.status === 'active' ? (
-                  <>
-                    <Pause className="w-4 h-4 mr-2" />
-                    Приостановить
-                  </>
+                {actionLoading === campaign.id ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : campaign.status === 'active' ? (
+                  <Pause className="w-4 h-4 mr-2" />
                 ) : (
-                  <>
-                    <Play className="w-4 h-4 mr-2" />
-                    Запустить
-                  </>
+                  <Play className="w-4 h-4 mr-2" />
                 )}
+                {campaign.status === 'active' ? 'Приостановить' : 'Запустить'}
               </Button>
             </CardContent>
           </Card>
@@ -809,9 +1104,9 @@ function CampaignsView() {
 
             <TabsContent value="offer" className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label>Название кампании</Label>
+                <Label>Название кампании *</Label>
                 <Input
-                  value={formData.name || ''}
+                  value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Название кампании"
                   className="bg-[#1E1F26] border-[#2A2B32]"
@@ -819,188 +1114,98 @@ function CampaignsView() {
               </div>
 
               <div className="space-y-2">
-                <Label>Тип оффера</Label>
-                <Select value={formData.offerType || 'crypto'} onValueChange={(v) => setFormData({ ...formData, offerType: v as any })}>
+                <Label>Тип кампании *</Label>
+                <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
                   <SelectTrigger className="bg-[#1E1F26] border-[#2A2B32]">
-                    <SelectValue />
+                    <SelectValue placeholder="Выберите тип" />
                   </SelectTrigger>
                   <SelectContent className="bg-[#14151A] border-[#2A2B32]">
                     <SelectItem value="casino">Казино</SelectItem>
                     <SelectItem value="crypto">Крипта</SelectItem>
                     <SelectItem value="dating">Дейтинг</SelectItem>
                     <SelectItem value="nutra">Нутра</SelectItem>
+                    <SelectItem value="ecommerce">E-commerce</SelectItem>
+                    <SelectItem value="other">Другое</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label>Ссылка на канал/бот</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={formData.link || ''}
-                    onChange={(e) => setFormData({ ...formData, link: e.target.value })}
-                    placeholder="https://t.me/channel или @username"
-                    className="bg-[#1E1F26] border-[#2A2B32]"
-                  />
-                  <Button variant="outline" className="border-[#6C63FF] text-[#6C63FF]">
-                    Тест
-                  </Button>
-                </div>
+                <Label>Ниша</Label>
+                <Input
+                  value={formData.niche}
+                  onChange={(e) => setFormData({ ...formData, niche: e.target.value })}
+                  placeholder="Ниша кампании"
+                  className="bg-[#1E1F26] border-[#2A2B32]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Гео</Label>
+                <Input
+                  value={formData.geo}
+                  onChange={(e) => setFormData({ ...formData, geo: e.target.value })}
+                  placeholder="Страны (например: RU, UA, KZ)"
+                  className="bg-[#1E1F26] border-[#2A2B32]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Описание</Label>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Описание кампании"
+                  className="bg-[#1E1F26] border-[#2A2B32] min-h-[80px]"
+                />
               </div>
             </TabsContent>
 
             <TabsContent value="accounts" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Выбрать аккаунты</Label>
-                <Select>
-                  <SelectTrigger className="bg-[#1E1F26] border-[#2A2B32]">
-                    <SelectValue placeholder="Выберите аккаунты..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#14151A] border-[#2A2B32]">
-                    {/* Список аккаунтов будет здесь */}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label>Авто-замена при бане</Label>
-                <Switch
-                  checked={formData.autoReplaceOnBan}
-                  onCheckedChange={(v) => setFormData({ ...formData, autoReplaceOnBan: v })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Максимум комментариев на аккаунт/день</Label>
-                <Input
-                  type="number"
-                  value={formData.maxCommentsPerAccount || 50}
-                  onChange={(e) => setFormData({ ...formData, maxCommentsPerAccount: parseInt(e.target.value) })}
-                  className="bg-[#1E1F26] border-[#2A2B32]"
-                />
+              <div className="p-4 bg-[#1E1F26] rounded-lg">
+                <p className="text-[#8A8A8A] text-sm">
+                  Выбор аккаунтов и настройки постинга будут доступны после создания кампании.
+                </p>
               </div>
             </TabsContent>
 
             <TabsContent value="posting" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Режим</Label>
-                <div className="flex gap-2">
-                  {[
-                    { value: 'new', label: 'Новые посты' },
-                    { value: 'old', label: 'Старые посты' },
-                    { value: 'both', label: 'Оба' },
-                  ].map((mode) => (
-                    <Button
-                      key={mode.value}
-                      variant={formData.postingMode === mode.value ? 'default' : 'outline'}
-                      onClick={() => setFormData({ ...formData, postingMode: mode.value as any })}
-                      className={formData.postingMode === mode.value ? 'bg-[#6C63FF]' : 'border-[#2A2B32] text-[#8A8A8A]'}
-                    >
-                      {mode.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Задержка между комментариями</Label>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      value={formData.delayMin || 30}
-                      onChange={(e) => setFormData({ ...formData, delayMin: parseInt(e.target.value) })}
-                      className="w-20 bg-[#1E1F26] border-[#2A2B32]"
-                    />
-                    <span className="text-[#8A8A8A]">сек</span>
-                  </div>
-                  <span className="text-[#8A8A8A]">—</span>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      value={formData.delayMax || 120}
-                      onChange={(e) => setFormData({ ...formData, delayMax: parseInt(e.target.value) })}
-                      className="w-20 bg-[#1E1F26] border-[#2A2B32]"
-                    />
-                    <span className="text-[#8A8A8A]">сек</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox id="random" checked={formData.delayRandom} onCheckedChange={(v) => setFormData({ ...formData, delayRandom: !!v })} />
-                    <Label htmlFor="random" className="text-[#8A8A8A]">Рандом</Label>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label>Уникализация текста</Label>
-                <Switch
-                  checked={formData.useUniqueText}
-                  onCheckedChange={(v) => setFormData({ ...formData, useUniqueText: v })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Использовать DeepSeek</Label>
-                  <Switch
-                    checked={formData.useDeepSeek}
-                    onCheckedChange={(v) => setFormData({ ...formData, useDeepSeek: v })}
-                  />
-                </div>
-                {formData.useDeepSeek && (
-                  <div className="space-y-2">
-                    <Label>Температура: {formData.deepSeekTemperature}</Label>
-                    <Slider
-                      value={[formData.deepSeekTemperature || 0.7]}
-                      onValueChange={(v) => setFormData({ ...formData, deepSeekTemperature: v[0] })}
-                      min={0}
-                      max={1.2}
-                      step={0.1}
-                      className="w-full"
-                    />
-                  </div>
-                )}
+              <div className="p-4 bg-[#1E1F26] rounded-lg">
+                <p className="text-[#8A8A8A] text-sm">
+                  Настройки постинга будут доступны после создания кампании.
+                </p>
               </div>
             </TabsContent>
 
             <TabsContent value="budget" className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label>Бюджет на день (₽)</Label>
+                <Label>Бюджет (₽)</Label>
                 <Input
                   type="number"
-                  value={formData.budget || 0}
-                  onChange={(e) => setFormData({ ...formData, budget: parseInt(e.target.value) })}
+                  value={formData.budget}
+                  onChange={(e) => setFormData({ ...formData, budget: parseInt(e.target.value) || 0 })}
                   className="bg-[#1E1F26] border-[#2A2B32]"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>Макс. стоимость за лид (₽)</Label>
+                <Label>Дата начала</Label>
                 <Input
-                  type="number"
-                  value={formData.maxCostPerLead || 100}
-                  onChange={(e) => setFormData({ ...formData, maxCostPerLead: parseInt(e.target.value) })}
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                   className="bg-[#1E1F26] border-[#2A2B32]"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>Время работы</Label>
-                <div className="flex items-center gap-4">
-                  <Input
-                    type="time"
-                    value={formData.workTimeStart || '09:00'}
-                    onChange={(e) => setFormData({ ...formData, workTimeStart: e.target.value })}
-                    className="bg-[#1E1F26] border-[#2A2B32]"
-                  />
-                  <span className="text-[#8A8A8A]">—</span>
-                  <Input
-                    type="time"
-                    value={formData.workTimeEnd || '21:00'}
-                    onChange={(e) => setFormData({ ...formData, workTimeEnd: e.target.value })}
-                    className="bg-[#1E1F26] border-[#2A2B32]"
-                  />
-                </div>
+                <Label>Дата окончания</Label>
+                <Input
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                  className="bg-[#1E1F26] border-[#2A2B32]"
+                />
               </div>
             </TabsContent>
           </Tabs>
@@ -1009,7 +1214,14 @@ function CampaignsView() {
             <Button variant="outline" onClick={handleCloseModal} className="border-[#2A2B32] text-[#8A8A8A]">
               Отмена
             </Button>
-            <Button onClick={handleSave} className="bg-[#6C63FF] hover:bg-[#6C63FF]/80">
+            <Button 
+              onClick={handleSave} 
+              disabled={actionLoading === 'save'}
+              className="bg-[#6C63FF] hover:bg-[#6C63FF]/80"
+            >
+              {actionLoading === 'save' ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
               {editingCampaign ? 'Сохранить' : 'Создать'}
             </Button>
           </DialogFooter>
@@ -1029,7 +1241,14 @@ function CampaignsView() {
             <AlertDialogCancel className="bg-[#1E1F26] border-[#2A2B32] text-white hover:bg-[#2A2B32]">
               Отмена
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-[#FF4D4D] hover:bg-[#FF4D4D]/80">
+            <AlertDialogAction 
+              onClick={handleDelete}
+              disabled={actionLoading === 'delete'}
+              className="bg-[#FF4D4D] hover:bg-[#FF4D4D]/80"
+            >
+              {actionLoading === 'delete' ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
               Удалить
             </AlertDialogAction>
           </AlertDialogFooter>

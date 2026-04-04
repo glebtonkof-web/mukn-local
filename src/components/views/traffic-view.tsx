@@ -1,164 +1,48 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { 
-  TrendingUp, Search, Zap, Target, Globe, MessageSquare, 
-  Instagram, Youtube, Twitter, Facebook, Linkedin,
-  Star, CheckCircle, AlertTriangle, Play, ExternalLink
+  TrendingUp, Search, Zap, Target, MessageSquare, 
+  Star, CheckCircle, AlertTriangle, Play, Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-// 130 методов трафика по категориям
-const trafficMethods = {
-  telegram: {
-    name: 'Telegram',
-    icon: MessageSquare,
-    color: '#0088cc',
-    methods: [
-      { id: 'tg-1', name: 'Комментарии в каналах', difficulty: 'easy', risk: 'low', revenue: 'medium', description: 'Автоматические комментарии в Telegram каналах' },
-      { id: 'tg-2', name: 'PM рассылка', difficulty: 'medium', risk: 'high', revenue: 'high', description: 'Личные сообщения целевой аудитории' },
-      { id: 'tg-3', name: 'Вступление в чаты', difficulty: 'easy', risk: 'low', revenue: 'low', description: 'Автоматическое вступление в тематические чаты' },
-      { id: 'tg-4', name: 'Репосты постов', difficulty: 'easy', risk: 'low', revenue: 'medium', description: 'Автоматические репосты в свои каналы' },
-      { id: 'tg-5', name: 'Реакции на посты', difficulty: 'easy', risk: 'low', revenue: 'low', description: 'Массовые реакции для привлечения внимания' },
-      { id: 'tg-6', name: 'Закладки/Избранное', difficulty: 'medium', risk: 'medium', revenue: 'medium', description: 'Сохранение постов с последующим продвижением' },
-      { id: 'tg-7', name: 'Создание каналов', difficulty: 'medium', risk: 'low', revenue: 'high', description: 'Автоматизация создания и ведения каналов' },
-      { id: 'tg-8', name: 'Комментарии-вопросы', difficulty: 'easy', risk: 'low', revenue: 'medium', description: 'Комментарии с вопросами для вовлечения' },
-      { id: 'tg-9', name: 'Ответы на комментарии', difficulty: 'medium', risk: 'medium', revenue: 'medium', description: 'Ответы под популярными комментариями' },
-      { id: 'tg-10', name: 'Закупка рекламы', difficulty: 'hard', risk: 'low', revenue: 'high', description: 'Автоматизированная закупка рекламы в каналах' },
-      { id: 'tg-11', name: 'Боты-приманки', difficulty: 'medium', risk: 'medium', revenue: 'high', description: 'Создание ботов для привлечения трафика' },
-      { id: 'tg-12', name: 'Инвайт в каналы', difficulty: 'hard', risk: 'high', revenue: 'high', description: 'Приглашение пользователей в каналы' },
-      { id: 'tg-13', name: 'Форвард в чаты', difficulty: 'medium', risk: 'medium', revenue: 'medium', description: 'Пересылка контента в тематические чаты' },
-      { id: 'tg-14', name: 'Упоминания @username', difficulty: 'medium', risk: 'high', revenue: 'medium', description: 'Упоминание пользователей в комментариях' },
-      { id: 'tg-15', name: 'Опросы и голосования', difficulty: 'easy', risk: 'low', revenue: 'low', description: 'Создание опросов для вовлечения' },
-    ]
-  },
-  instagram: {
-    name: 'Instagram',
-    icon: Instagram,
-    color: '#E4405F',
-    methods: [
-      { id: 'ig-1', name: 'Комментарии под постами', difficulty: 'easy', risk: 'medium', revenue: 'medium', description: 'Автоматические комментарии в Instagram' },
-      { id: 'ig-2', name: 'Лайки + подписка', difficulty: 'easy', risk: 'low', revenue: 'low', description: 'Массфолловинг с лайками' },
-      { id: 'ig-3', name: 'Reels комментарии', difficulty: 'medium', risk: 'medium', revenue: 'high', description: 'Комментарии под Reels' },
-      { id: 'ig-4', name: 'Stories реакции', difficulty: 'easy', risk: 'low', revenue: 'medium', description: 'Реакции на Stories' },
-      { id: 'ig-5', name: 'DM рассылка', difficulty: 'hard', risk: 'high', revenue: 'high', description: 'Сообщения в Direct' },
-      { id: 'ig-6', name: 'Упоминания в Stories', difficulty: 'medium', risk: 'medium', revenue: 'medium', description: 'Упоминание аккаунтов в Stories' },
-      { id: 'ig-7', name: 'Collab посты', difficulty: 'hard', risk: 'low', revenue: 'high', description: 'Совместные посты с блогерами' },
-      { id: 'ig-8', name: 'IGTV комментарии', difficulty: 'medium', risk: 'medium', revenue: 'medium', description: 'Комментарии под длинными видео' },
-      { id: 'ig-9', name: 'Хэштег стратегия', difficulty: 'medium', risk: 'low', revenue: 'medium', description: 'Продвижение через хэштеги' },
-      { id: 'ig-10', name: 'Live комментарии', difficulty: 'hard', risk: 'low', revenue: 'medium', description: 'Комментарии во время трансляций' },
-    ]
-  },
-  tiktok: {
-    name: 'TikTok',
-    icon: Youtube,
-    color: '#000000',
-    methods: [
-      { id: 'tt-1', name: 'Комментарии под видео', difficulty: 'easy', risk: 'medium', revenue: 'high', description: 'Автоматические комментарии в TikTok' },
-      { id: 'tt-2', name: 'Дуэты', difficulty: 'medium', risk: 'low', revenue: 'high', description: 'Создание дуэтов с популярными видео' },
-      { id: 'tt-3', name: 'Stitch видео', difficulty: 'medium', risk: 'low', revenue: 'high', description: 'Реакции на видео через Stitch' },
-      { id: 'tt-4', name: 'Лайки + подписка', difficulty: 'easy', risk: 'low', revenue: 'medium', description: 'Массовое взаимодействие' },
-      { id: 'tt-5', name: 'DM рассылка', difficulty: 'hard', risk: 'high', revenue: 'high', description: 'Сообщения в личку' },
-      { id: 'tt-6', name: 'Трендовые звуки', difficulty: 'medium', risk: 'low', revenue: 'high', description: 'Использование трендовых звуков' },
-      { id: 'tt-7', name: 'Ответы комментариями', difficulty: 'easy', risk: 'low', revenue: 'medium', description: 'Видео-ответы на комментарии' },
-      { id: 'tt-8', name: 'Live подарки', difficulty: 'hard', risk: 'low', revenue: 'medium', description: 'Взаимодействие на стримах' },
-    ]
-  },
-  youtube: {
-    name: 'YouTube',
-    icon: Youtube,
-    color: '#FF0000',
-    methods: [
-      { id: 'yt-1', name: 'Комментарии под видео', difficulty: 'easy', risk: 'medium', revenue: 'medium', description: 'Автоматические комментарии' },
-      { id: 'yt-2', name: 'Shorts комментарии', difficulty: 'easy', risk: 'medium', revenue: 'high', description: 'Комментарии под Shorts' },
-      { id: 'yt-3', name: 'Лайки + подписка', difficulty: 'easy', risk: 'low', revenue: 'low', description: 'Массовое взаимодействие' },
-      { id: 'yt-4', name: 'Ответы на комментарии', difficulty: 'medium', risk: 'medium', revenue: 'medium', description: 'Ответы под топ комментариями' },
-      { id: 'yt-5', name: 'Live чат', difficulty: 'hard', risk: 'medium', revenue: 'medium', description: 'Активность в live чатах' },
-      { id: 'yt-6', name: 'Community посты', difficulty: 'medium', risk: 'low', revenue: 'medium', description: 'Комментарии под постами сообщества' },
-    ]
-  },
-  twitter: {
-    name: 'Twitter/X',
-    icon: Twitter,
-    color: '#1DA1F2',
-    methods: [
-      { id: 'tw-1', name: 'Твиты-ответы', difficulty: 'easy', risk: 'medium', revenue: 'medium', description: 'Ответы на популярные твиты' },
-      { id: 'tw-2', name: 'Ретвиты + лайки', difficulty: 'easy', risk: 'low', revenue: 'low', description: 'Массовое взаимодействие' },
-      { id: 'tw-3', name: 'Quote tweets', difficulty: 'medium', risk: 'medium', revenue: 'high', description: 'Цитирование твитов с комментарием' },
-      { id: 'tw-4', name: 'Упоминания', difficulty: 'medium', risk: 'high', revenue: 'medium', description: 'Упоминание пользователей' },
-      { id: 'tw-5', name: 'Spaces участие', difficulty: 'hard', risk: 'low', revenue: 'medium', description: 'Активность в аудио-комнатах' },
-      { id: 'tw-6', name: 'Threads ответы', difficulty: 'medium', risk: 'medium', revenue: 'high', description: 'Ответы на треды' },
-    ]
-  },
-  facebook: {
-    name: 'Facebook',
-    icon: Facebook,
-    color: '#1877F2',
-    methods: [
-      { id: 'fb-1', name: 'Комментарии в группах', difficulty: 'easy', risk: 'medium', revenue: 'medium', description: 'Комментарии в тематических группах' },
-      { id: 'fb-2', name: 'Reels комментарии', difficulty: 'medium', risk: 'medium', revenue: 'high', description: 'Комментарии под Reels' },
-      { id: 'fb-3', name: 'Посты на страницах', difficulty: 'medium', risk: 'medium', revenue: 'medium', description: 'Комментарии на страницах' },
-      { id: 'fb-4', name: 'Messenger рассылка', difficulty: 'hard', risk: 'high', revenue: 'high', description: 'Сообщения в Messenger' },
-      { id: 'fb-5', name: 'Live комментарии', difficulty: 'medium', risk: 'low', revenue: 'medium', description: 'Комментарии на трансляциях' },
-      { id: 'fb-6', name: 'Marketplace', difficulty: 'hard', risk: 'medium', revenue: 'high', description: 'Продвижение через Marketplace' },
-    ]
-  },
-  linkedin: {
-    name: 'LinkedIn',
-    icon: Linkedin,
-    color: '#0A66C2',
-    methods: [
-      { id: 'li-1', name: 'Комментарии под постами', difficulty: 'medium', risk: 'low', revenue: 'high', description: 'Профессиональные комментарии' },
-      { id: 'li-2', name: 'InMail рассылка', difficulty: 'hard', risk: 'medium', revenue: 'high', description: 'Сообщения в InMail' },
-      { id: 'li-3', name: 'Лайки + подключения', difficulty: 'easy', risk: 'low', revenue: 'medium', description: 'Расширение сети контактов' },
-      { id: 'li-4', name: 'Статья комментарии', difficulty: 'medium', risk: 'low', revenue: 'medium', description: 'Комментарии под статьями' },
-    ]
-  },
-  advanced: {
-    name: 'Advanced',
-    icon: Zap,
-    color: '#FFB800',
-    methods: [
-      { id: 'ad-1', name: 'Клоакинг', difficulty: 'hard', risk: 'high', revenue: 'very-high', description: 'Скрытие контента от модерации' },
-      { id: 'ad-2', name: 'Вирусный контент', difficulty: 'medium', risk: 'medium', revenue: 'very-high', description: 'Создание вирусного контента' },
-      { id: 'ad-3', name: 'CPA сети', difficulty: 'medium', risk: 'low', revenue: 'high', description: 'Работа с CPA партнёрками' },
-      { id: 'ad-4', name: 'Авитос трафик', difficulty: 'medium', risk: 'medium', revenue: 'medium', description: 'Трафик с досок объявлений' },
-      { id: 'ad-5', name: 'Дейтинг трафик', difficulty: 'medium', risk: 'medium', revenue: 'medium', description: 'Трафик с дейтинг платформ' },
-      { id: 'ad-6', name: 'Buy traffic', difficulty: 'medium', risk: 'low', revenue: 'medium', description: 'Покупка арбитражного трафика' },
-      { id: 'ad-7', name: 'Реферальная система', difficulty: 'medium', risk: 'low', revenue: 'high', description: 'Привлечение через рефералов' },
-      { id: 'ad-8', name: 'Influencer маркетинг', difficulty: 'hard', risk: 'low', revenue: 'high', description: 'Работа с блогерами' },
-      { id: 'ad-9', name: 'Podcast реклама', difficulty: 'medium', risk: 'low', revenue: 'medium', description: 'Реклама в подкастах' },
-      { id: 'ad-10', name: 'Reddit продвижение', difficulty: 'hard', risk: 'medium', revenue: 'high', description: 'Трафик с Reddit' },
-      { id: 'ad-11', name: 'Pinterest', difficulty: 'medium', risk: 'low', revenue: 'medium', description: 'Визуальный трафик' },
-      { id: 'ad-12', name: 'Quora ответы', difficulty: 'medium', risk: 'low', revenue: 'medium', description: 'Ответы на вопросы' },
-      { id: 'ad-13', name: 'App Store ASO', difficulty: 'hard', risk: 'low', revenue: 'high', description: 'Оптимизация приложений' },
-      { id: 'ad-14', name: 'Telegram Ads', difficulty: 'medium', risk: 'low', revenue: 'high', description: 'Официальная реклама в Telegram' },
-      { id: 'ad-15', name: 'Кросс-промо', difficulty: 'easy', risk: 'low', revenue: 'medium', description: 'Взаимный пиар' },
-    ]
-  }
-};
+// Типы данных
+type RiskLevel = 'low' | 'medium' | 'high' | 'extreme';
 
-const getDifficultyColor = (difficulty: string) => {
-  switch (difficulty) {
-    case 'easy': return 'text-[#00D26A]';
-    case 'medium': return 'text-[#FFB800]';
-    case 'hard': return 'text-[#FF4D4D]';
-    default: return 'text-[#8A8A8A]';
-  }
-};
+interface TrafficMethod {
+  id: number;
+  name: string;
+  risk: RiskLevel;
+  category: string;
+}
 
-const getDifficultyLabel = (difficulty: string) => {
-  switch (difficulty) {
-    case 'easy': return 'Легко';
-    case 'medium': return 'Средне';
-    case 'hard': return 'Сложно';
-    default: return difficulty;
-  }
+interface PlatformMethods {
+  name: string;
+  icon: React.ElementType;
+  color: string;
+  methods: (TrafficMethod & { platform: string })[];
+}
+
+interface ApiResponse {
+  methods: Record<string, TrafficMethod[]>;
+  totalMethods: number;
+  categories: string[];
+  counts: Record<string, number>;
+}
+
+// Маппинг категорий API на отображаемые платформы
+const categoryConfig: Record<string, { name: string; color: string }> = {
+  telegram: { name: 'Telegram', color: '#0088cc' },
+  instagram: { name: 'Instagram', color: '#E4405F' },
+  tiktok: { name: 'TikTok', color: '#000000' },
+  cross_platform: { name: 'Cross-Platform', color: '#6C63FF' },
+  ai_powered: { name: 'AI Powered', color: '#FFB800' },
 };
 
 const getRiskColor = (risk: string) => {
@@ -166,6 +50,7 @@ const getRiskColor = (risk: string) => {
     case 'low': return 'bg-[#00D26A]';
     case 'medium': return 'bg-[#FFB800]';
     case 'high': return 'bg-[#FF4D4D]';
+    case 'extreme': return 'bg-[#8B0000]';
     default: return 'bg-[#8A8A8A]';
   }
 };
@@ -175,6 +60,7 @@ const getRiskLabel = (risk: string) => {
     case 'low': return 'Низкий';
     case 'medium': return 'Средний';
     case 'high': return 'Высокий';
+    case 'extreme': return 'Экстремальный';
     default: return risk;
   }
 };
@@ -182,42 +68,164 @@ const getRiskLabel = (risk: string) => {
 export function TrafficView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPlatform, setSelectedPlatform] = useState<string>('all');
-  const [activeMethods, setActiveMethods] = useState<string[]>([]);
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const [activeMethods, setActiveMethods] = useState<number[]>([]);
+  const [favorites, setFavorites] = useState<number[]>([]);
+  const [methods, setMethods] = useState<Record<string, TrafficMethod[]>>({});
+  const [totalMethods, setTotalMethods] = useState(0);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
 
-  const totalMethods = Object.values(trafficMethods).reduce((acc, cat) => acc + cat.methods.length, 0);
+  // Загрузка методов трафика
+  const fetchMethods = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/api/traffic/methods');
+      
+      if (!response.ok) {
+        throw new Error(`Ошибка загрузки: ${response.status}`);
+      }
+      
+      const data: ApiResponse = await response.json();
+      setMethods(data.methods);
+      setTotalMethods(data.totalMethods);
+      setCounts(data.counts);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
+      setError(message);
+      toast.error(`Ошибка загрузки методов: ${message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
+  useEffect(() => {
+    fetchMethods();
+  }, [fetchMethods]);
+
+  // Фильтрация методов
   const filteredMethods = searchQuery
-    ? Object.entries(trafficMethods).reduce((acc, [key, category]) => {
-        const filtered = category.methods.filter(m => 
+    ? Object.entries(methods).reduce((acc, [key, methodList]) => {
+        const filtered = methodList.filter(m => 
           m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          m.description.toLowerCase().includes(searchQuery.toLowerCase())
+          m.category.toLowerCase().includes(searchQuery.toLowerCase())
         );
         if (filtered.length > 0) {
-          acc[key] = { ...category, methods: filtered };
+          acc[key] = filtered;
         }
         return acc;
-      }, {} as typeof trafficMethods)
+      }, {} as Record<string, TrafficMethod[]>)
     : selectedPlatform === 'all' 
-      ? trafficMethods 
-      : { [selectedPlatform]: trafficMethods[selectedPlatform as keyof typeof trafficMethods] };
+      ? methods 
+      : { [selectedPlatform]: methods[selectedPlatform] || [] };
 
-  const toggleMethod = (id: string) => {
+  const toggleMethod = (id: number) => {
     setActiveMethods(prev => 
       prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]
     );
   };
 
-  const toggleFavorite = (id: string) => {
+  const toggleFavorite = (id: number) => {
     setFavorites(prev => 
       prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
     );
   };
 
-  const runSelectedMethods = () => {
-    toast.success(`Запущено ${activeMethods.length} методов трафика`);
-    setActiveMethods([]);
+  // Запуск выбранных методов
+  const runSelectedMethods = async () => {
+    if (activeMethods.length === 0) return;
+    
+    setRunning(true);
+    const results: { success: number[]; failed: number[] } = { success: [], failed: [] };
+    
+    try {
+      // Запускаем методы параллельно
+      const promises = activeMethods.map(async (methodId) => {
+        try {
+          const response = await fetch('/api/traffic/methods', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ methodId }),
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          
+          const data = await response.json();
+          return { methodId, success: true, data };
+        } catch (err) {
+          console.error(`Method ${methodId} failed:`, err);
+          return { methodId, success: false };
+        }
+      });
+      
+      const responses = await Promise.all(promises);
+      
+      responses.forEach(({ methodId, success }) => {
+        if (success) {
+          results.success.push(methodId);
+        } else {
+          results.failed.push(methodId);
+        }
+      });
+      
+      if (results.success.length > 0) {
+        toast.success(`Успешно запущено ${results.success.length} методов`);
+      }
+      
+      if (results.failed.length > 0) {
+        toast.error(`Ошибка при запуске ${results.failed.length} методов`);
+      }
+      
+      // Очищаем выбранные методы после успешного запуска
+      if (results.success.length > 0) {
+        setActiveMethods([]);
+      }
+      
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
+      toast.error(`Ошибка запуска: ${message}`);
+    } finally {
+      setRunning(false);
+    }
   };
+
+  // Подсчет методов с высоким риском
+  const highRiskCount = Object.values(methods).flat().filter(m => m.risk === 'high' || m.risk === 'extreme').length;
+
+  // Состояние загрузки
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-[#6C63FF]" />
+          <p className="text-[#8A8A8A]">Загрузка методов трафика...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Состояние ошибки
+  if (error && Object.keys(methods).length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <AlertTriangle className="w-12 h-12 text-[#FF4D4D]" />
+          <div>
+            <h3 className="text-lg font-medium text-white mb-1">Ошибка загрузки</h3>
+            <p className="text-[#8A8A8A] mb-4">{error}</p>
+            <Button onClick={fetchMethods} variant="outline">
+              Попробовать снова
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -231,9 +239,22 @@ export function TrafficView() {
           <p className="text-[#8A8A8A]">Всего {totalMethods} методов для привлечения трафика</p>
         </div>
         {activeMethods.length > 0 && (
-          <Button onClick={runSelectedMethods} className="bg-[#00D26A] hover:bg-[#00D26A]/80">
-            <Play className="w-4 h-4 mr-2" />
-            Запустить ({activeMethods.length})
+          <Button 
+            onClick={runSelectedMethods} 
+            className="bg-[#00D26A] hover:bg-[#00D26A]/80"
+            disabled={running}
+          >
+            {running ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Запуск...
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4 mr-2" />
+                Запустить ({activeMethods.length})
+              </>
+            )}
           </Button>
         )}
       </div>
@@ -259,8 +280,8 @@ export function TrafficView() {
             >
               Все
             </Button>
-            {Object.entries(trafficMethods).map(([key, cat]) => {
-              const Icon = cat.icon;
+            {Object.entries(categoryConfig).map(([key, config]) => {
+              const count = counts[key] || 0;
               return (
                 <Button
                   key={key}
@@ -269,9 +290,12 @@ export function TrafficView() {
                   onClick={() => setSelectedPlatform(key)}
                   className={selectedPlatform === key ? 'bg-[#6C63FF]' : 'border-[#2A2B32]'}
                 >
-                  <Icon className="w-4 h-4 mr-1" style={{ color: selectedPlatform === key ? '#fff' : cat.color }} />
-                  {cat.name}
-                  <Badge className="ml-2 bg-[#1E1F26] text-[#8A8A8A] text-xs">{cat.methods.length}</Badge>
+                  <span 
+                    className="w-2 h-2 rounded-full mr-2" 
+                    style={{ backgroundColor: config.color }}
+                  />
+                  {config.name}
+                  <Badge className="ml-2 bg-[#1E1F26] text-[#8A8A8A] text-xs">{count}</Badge>
                 </Button>
               );
             })}
@@ -281,20 +305,24 @@ export function TrafficView() {
 
       {/* Методы по категориям */}
       <div className="space-y-6">
-        {Object.entries(filteredMethods).map(([key, category]) => {
-          const Icon = category.icon;
+        {Object.entries(filteredMethods).map(([key, methodList]) => {
+          const config = categoryConfig[key] || { name: key, color: '#8A8A8A' };
+          
           return (
             <Card key={key} className="bg-[#14151A] border-[#2A2B32]">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
-                  <Icon className="w-5 h-5" style={{ color: category.color }} />
-                  {category.name}
-                  <Badge className="bg-[#1E1F26] text-[#8A8A8A]">{category.methods.length} методов</Badge>
+                  <span 
+                    className="w-4 h-4 rounded-full" 
+                    style={{ backgroundColor: config.color }}
+                  />
+                  {config.name}
+                  <Badge className="bg-[#1E1F26] text-[#8A8A8A]">{methodList.length} методов</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {category.methods.map((method) => {
+                  {methodList.map((method) => {
                     const isActive = activeMethods.includes(method.id);
                     const isFavorite = favorites.includes(method.id);
                     
@@ -321,11 +349,8 @@ export function TrafficView() {
                             {isActive && <CheckCircle className="w-4 h-4 text-[#00D26A]" />}
                           </div>
                         </div>
-                        <p className="text-xs text-[#8A8A8A] mb-3">{method.description}</p>
+                        <p className="text-xs text-[#8A8A8A] mb-3">Категория: {method.category}</p>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant="outline" className={cn('text-xs', getDifficultyColor(method.difficulty))}>
-                            {getDifficultyLabel(method.difficulty)}
-                          </Badge>
                           <Badge className={cn('text-xs text-white', getRiskColor(method.risk))}>
                             {getRiskLabel(method.risk)}
                           </Badge>
@@ -363,7 +388,7 @@ export function TrafficView() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-white">{activeMethods.length}</p>
-                <p className="text-xs text-[#8A8A8A]">Активных</p>
+                <p className="text-xs text-[#8A8A8A]">Выбрано</p>
               </div>
             </div>
           </CardContent>
@@ -388,11 +413,7 @@ export function TrafficView() {
                 <AlertTriangle className="w-5 h-5 text-[#FF4D4D]" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-white">
-                  {Object.values(trafficMethods).reduce((acc, cat) => 
-                    acc + cat.methods.filter(m => m.risk === 'high').length, 0
-                  )}
-                </p>
+                <p className="text-2xl font-bold text-white">{highRiskCount}</p>
                 <p className="text-xs text-[#8A8A8A]">Высокий риск</p>
               </div>
             </div>
