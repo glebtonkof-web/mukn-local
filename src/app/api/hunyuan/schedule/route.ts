@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/hunyuan/schedule - Получение расписания публикаций
 export async function GET(request: NextRequest) {
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
     
     const schedule = await db.publicationSchedule.create({
       data: {
+        id: nanoid(),
         contentId: body.contentId,
         platforms: JSON.stringify(body.platforms),
         scheduledAt: new Date(body.scheduledAt),
@@ -47,6 +49,7 @@ export async function POST(request: NextRequest) {
         priority: body.priority || 5,
         campaignId: body.campaignId,
         influencerId: body.influencerId,
+        updatedAt: new Date(),
       },
     });
 

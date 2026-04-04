@@ -2,6 +2,7 @@
 // Оценка от 0 до 100: насколько хорошо AI понял ваш стиль
 
 import { db } from '../db';
+import { nanoid } from 'nanoid';
 
 export interface StyleRatingComponents {
   toneMatch: number;
@@ -36,7 +37,7 @@ class AIStyleRatingSystem {
     let rating = await db.aIStyleRating.findUnique({ where: { userId } });
 
     if (!rating) {
-      rating = await db.aIStyleRating.create({ data: { userId } });
+      rating = await db.aIStyleRating.create({ data: { id: nanoid(), userId, updatedAt: new Date() } });
     }
 
     const components: StyleRatingComponents = {
@@ -61,7 +62,7 @@ class AIStyleRatingSystem {
     let rating = await db.aIStyleRating.findUnique({ where: { userId } });
 
     if (!rating) {
-      rating = await db.aIStyleRating.create({ data: { userId } });
+      rating = await db.aIStyleRating.create({ data: { id: nanoid(), userId, updatedAt: new Date() } });
     }
 
     const totalEdits = rating.totalEdits + 1;

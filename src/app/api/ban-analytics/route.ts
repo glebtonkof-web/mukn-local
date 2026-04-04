@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withRetry, createCircuitBreaker } from '@/lib/resilience';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 const dbCircuitBreaker = createCircuitBreaker('database', { circuitBreakerThreshold: 3 });
 
@@ -301,7 +302,7 @@ export async function GET(request: NextRequest) {
       db.account.findMany({
         where,
         include: {
-          actions: {
+          AccountAction: {
             where: {
               createdAt: {
                 gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
@@ -310,7 +311,7 @@ export async function GET(request: NextRequest) {
             orderBy: { createdAt: 'desc' },
             take: 200,
           },
-          riskHistory: {
+          AccountRiskHistory: {
             where: {
               date: {
                 gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
@@ -326,7 +327,7 @@ export async function GET(request: NextRequest) {
     // Analyze each account
     const analyses: AccountRiskAnalysis[] = [];
     for (const account of accounts) {
-      const analysis = await analyzeAccountRisk(account, account.actions, account.riskHistory);
+      const analysis = await analyzeAccountRisk(account, account.AccountAction, account.AccountRiskHistory);
       analyses.push(analysis);
     }
 
@@ -398,7 +399,7 @@ export async function POST(request: NextRequest) {
       db.account.findUnique({
         where: { id: accountId },
         include: {
-          actions: {
+          AccountAction: {
             where: {
               createdAt: {
                 gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
@@ -407,7 +408,7 @@ export async function POST(request: NextRequest) {
             orderBy: { createdAt: 'desc' },
             take: 500,
           },
-          riskHistory: {
+          AccountRiskHistory: {
             where: {
               date: {
                 gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
@@ -427,7 +428,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Analyze account
-    const analysis = await analyzeAccountRisk(account, account.actions, account.riskHistory);
+    const analysis = await analyzeAccountRisk(account, account.AccountAction, account.AccountRiskHistory);
 
     // Update account's ban risk
     await db.account.update({
@@ -440,6 +441,7 @@ export async function POST(request: NextRequest) {
     // Create risk history entry
     await db.accountRiskHistory.create({
       data: {
+        id: nanoid(),
         accountId,
         date: new Date(),
         riskScore: analysis.riskScore,

@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { nanoid } from 'nanoid'
 import {
   RateLimitPresets,
   createRateLimiter,
@@ -142,6 +143,7 @@ export async function DELETE(request: NextRequest) {
     // Log action
     await db.actionLog.create({
       data: {
+        id: nanoid(),
         userId: adminUserId,
         action: 'RESET_RATE_LIMIT',
         entityType: 'rate_limit',

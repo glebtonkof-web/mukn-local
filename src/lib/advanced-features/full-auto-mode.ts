@@ -3,6 +3,7 @@
 
 import { db } from '../db';
 import { EventEmitter } from 'events';
+import { nanoid } from 'nanoid';
 
 export interface FullAutoConfig {
   id?: string;
@@ -38,6 +39,7 @@ class FullAutoModeService extends EventEmitter {
     if (!modeId) {
       const mode = await db.fullAutoMode.create({
         data: {
+          id: nanoid(),
           name: config.name,
           postsPerDay: config.postsPerDay || 5,
           storiesPerDay: config.storiesPerDay || 3,
@@ -50,6 +52,7 @@ class FullAutoModeService extends EventEmitter {
           campaignIds: config.campaignIds ? JSON.stringify(config.campaignIds) : null,
           userId: config.userId,
           status: 'active',
+          updatedAt: new Date(),
         },
       });
       modeId = mode.id;
@@ -248,12 +251,14 @@ class FullAutoModeService extends EventEmitter {
       // Создаём пост
       const post = await db.post.create({
         data: {
+          id: nanoid(),
           platform,
           content,
           aiGenerated: true,
           aiPrompt: idea,
           status: 'draft',
           influencerId: JSON.parse(mode.influencerIds || '[]')[0],
+          updatedAt: new Date(),
         },
       });
 
@@ -322,6 +327,7 @@ class FullAutoModeService extends EventEmitter {
     // Логируем анализ
     await db.aIActionLog.create({
       data: {
+        id: nanoid(),
         action: 'analyze',
         entityType: 'campaign',
         input: JSON.stringify({ modeId: mode.id }),

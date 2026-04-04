@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/settings/post - Получить настройки поста
 export async function GET(request: NextRequest) {
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
       if (!settings) {
         // Создаём настройки по умолчанию
         settings = await db.postSettings.create({
-          data: { postId }
+          data: { id: nanoid(), postId, updatedAt: new Date() }
         });
       }
       
@@ -63,8 +64,10 @@ export async function POST(request: NextRequest) {
       // Создаём новые
       settings = await db.postSettings.create({
         data: {
+          id: nanoid(),
           postId,
-          ...updateData
+          ...updateData,
+          updatedAt: new Date(),
         }
       });
     }

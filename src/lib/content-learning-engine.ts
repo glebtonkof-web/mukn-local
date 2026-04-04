@@ -2,6 +2,7 @@
 // AI learns from user corrections and improves future generations
 
 import { db } from './db';
+import { nanoid } from 'nanoid';
 
 // Типы
 export type EditType = 'background' | 'text' | 'color' | 'voice' | 'duration' | 'style' | 'composition' | 'lighting';
@@ -44,6 +45,7 @@ export class ContentLearningEngine {
     // Сохраняем в БД
     await db.userEditHistory.create({
       data: {
+        id: nanoid(),
         contentId: edit.contentId,
         editType: edit.editType,
         userCommand: edit.userCommand,
@@ -183,6 +185,7 @@ export class ContentLearningEngine {
   private async createPattern(category: LearningCategory, keywords: string[], edit: UserEdit): Promise<void> {
     await db.contentTemplate.create({
       data: {
+        id: nanoid(),
         name: `Learned: ${category}`,
         contentType: 'learned_pattern',
         styleParams: JSON.stringify({
@@ -195,6 +198,7 @@ export class ContentLearningEngine {
           beforeState: edit.beforeState,
           afterState: edit.afterState,
         }),
+        updatedAt: new Date(),
       },
     });
   }
@@ -378,6 +382,7 @@ export class ContentLearningEngine {
     for (const pref of profile.preferences) {
       await db.contentTemplate.create({
         data: {
+          id: nanoid(),
           name: `Imported: ${pref.category}`,
           contentType: 'learned_pattern',
           styleParams: JSON.stringify({
@@ -387,6 +392,7 @@ export class ContentLearningEngine {
             successRate: pref.successRate,
             examples: pref.examples,
           }),
+          updatedAt: new Date(),
         },
       });
     }

@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       take: limit,
       orderBy: { createdAt: 'desc' },
       include: {
-        account: {
+        Account: {
           select: {
             platform: true,
             username: true,
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
 
     // Добавляем действия с аккаунтами
     accountActions.forEach(action => {
-      const accountName = action.account?.username || action.account?.phone || 'Неизвестный аккаунт';
+      const accountName = action.Account?.username || action.Account?.phone || 'Неизвестный аккаунт';
       let eventType: 'warning' | 'error' | 'success' | 'info' = 'info';
       let title = '';
       let message = '';

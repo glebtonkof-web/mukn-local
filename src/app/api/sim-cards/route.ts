@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withRetry } from '@/lib/resilience';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 // GET /api/sim-cards - Получить все SIM-карты
 export async function GET(request: NextRequest) {
@@ -16,8 +17,8 @@ export async function GET(request: NextRequest) {
     const simCards = await db.simCard.findMany({
       where,
       include: {
-        accounts: true,
-        influencers: {
+        Account: true,
+        Influencer: {
           select: {
             id: true,
             name: true,
@@ -77,6 +78,7 @@ export async function POST(request: NextRequest) {
     const simCard = await withRetry(() =>
       db.simCard.create({
         data: {
+          id: nanoid(),
           phoneNumber: body.phoneNumber,
           operator: body.operator,
           country: body.country || 'RU',
@@ -85,6 +87,7 @@ export async function POST(request: NextRequest) {
           purchasePrice: body.purchasePrice,
           notes: body.notes,
           userId: body.userId || 'default-user',
+          updatedAt: new Date(),
         },
       })
     );

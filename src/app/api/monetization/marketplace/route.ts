@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/monetization/marketplace - Получить список связок
 export async function GET(request: NextRequest) {
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
       orderBy,
       take: 50,
       include: {
-        reviews: {
+        MarketplaceReview: {
           take: 3,
           orderBy: { createdAt: 'desc' },
         },
@@ -102,6 +103,7 @@ export async function POST(request: NextRequest) {
     // Создаём связку (CampaignBundle)
     const bundle = await db.campaignBundle.create({
       data: {
+        id: nanoid(),
         authorId: sellerId || 'default',
         name: name || 'Новая связка',
         description,
@@ -110,12 +112,14 @@ export async function POST(request: NextRequest) {
         currency: currency || 'RUB',
         status: 'draft',
         isVerified: false,
+        updatedAt: new Date(),
       },
     });
 
     // Создаём листинг на маркетплейсе
     const listing = await db.marketplaceListing.create({
       data: {
+        id: nanoid(),
         bundleId: bundle.id,
         sellerId: sellerId || 'default',
         sellerName,
@@ -126,6 +130,7 @@ export async function POST(request: NextRequest) {
         commissionRate: 0.20,
         tags: tags ? JSON.stringify(tags) : null,
         status: 'pending_review',
+        updatedAt: new Date(),
       },
     });
 
@@ -166,6 +171,7 @@ export async function PUT(request: NextRequest) {
     // Создаём транзакцию
     const transaction = await db.marketplaceTransaction.create({
       data: {
+        id: nanoid(),
         listingId,
         buyerId: buyerId || 'default',
         price: listing.price,

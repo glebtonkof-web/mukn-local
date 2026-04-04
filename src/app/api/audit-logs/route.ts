@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/audit-logs - Get audit logs with filtering
 export async function GET(request: NextRequest) {
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
     const logs = await db.actionLog.findMany({
       where,
       include: {
-        user: {
+        User: {
           select: {
             id: true,
             name: true,
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest) {
         entityId: log.entityId,
         details: log.details ? JSON.parse(log.details) : null,
         createdAt: log.createdAt,
-        user: log.user,
+        user: log.User,
       })),
       total,
       hasMore: offset + logs.length < total,
@@ -132,6 +133,7 @@ export async function POST(request: NextRequest) {
     // Create audit log
     const log = await db.actionLog.create({
       data: {
+        id: nanoid(),
         action,
         entityType,
         entityId: entityId || null,
@@ -139,7 +141,7 @@ export async function POST(request: NextRequest) {
         userId: userId || 'system',
       },
       include: {
-        user: {
+        User: {
           select: {
             id: true,
             name: true,
@@ -157,7 +159,7 @@ export async function POST(request: NextRequest) {
         entityId: log.entityId,
         details: log.details ? JSON.parse(log.details) : null,
         createdAt: log.createdAt,
-        user: log.user,
+        user: log.User,
       },
     });
   } catch (error) {

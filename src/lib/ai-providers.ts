@@ -2,6 +2,7 @@
 // Управляет несколькими AI провайдерами с автоматическим fallback
 
 import { db } from './db';
+import { nanoid } from 'nanoid';
 
 // Типы провайдеров
 export type ProviderName = 'openrouter' | 'gemini' | 'groq' | 'deepseek';
@@ -528,6 +529,7 @@ export class AIManager {
     try {
       await db.actionLog.create({
         data: {
+          id: nanoid(),
           action: 'ai_provider_switch',
           entityType: 'ai_provider',
           details: JSON.stringify({

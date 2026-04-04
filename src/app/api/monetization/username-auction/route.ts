@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/monetization/username-auction - Получить активные аукционы
 export async function GET(request: NextRequest) {
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
     const auctions = await db.usernameAuction.findMany({
       where,
       include: {
-        bids: {
+        UsernameBid: {
           orderBy: { amount: 'desc' },
           take: 5,
         },
@@ -60,12 +61,14 @@ export async function POST(request: NextRequest) {
 
     const auction = await db.usernameAuction.create({
       data: {
+        id: nanoid(),
         username,
         platform,
         startingPrice,
         currentBid: startingPrice,
         endsAt: new Date(Date.now() + durationDays * 86400000),
         status: 'active',
+        updatedAt: new Date(),
       },
     });
 
@@ -117,6 +120,7 @@ export async function PUT(request: NextRequest) {
     // Создаём ставку
     const bid = await db.usernameBid.create({
       data: {
+        id: nanoid(),
         auctionId,
         bidderId,
         amount,

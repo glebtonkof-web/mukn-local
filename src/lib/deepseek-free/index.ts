@@ -12,6 +12,7 @@
 
 import { PrismaClient } from '@prisma/client'
 import crypto from 'crypto'
+import { nanoid } from 'nanoid'
 
 const prisma = new PrismaClient()
 
@@ -324,11 +325,13 @@ export class AccountPoolManager {
   async addAccount(userId: string, email: string, password: string, priority: number = 5): Promise<DeepSeekAccount> {
     const account = await prisma.deepSeekAccount.create({
       data: {
+        id: nanoid(),
         userId,
         email,
         password: this.encryptPassword(password),
         priority,
-        status: 'active'
+        status: 'active',
+        updatedAt: new Date()
       }
     })
 
@@ -447,10 +450,11 @@ export class SmartCacheManager {
     await prisma.deepSeekCache.upsert({
       where: { promptHash },
       create: {
+        id: nanoid(),
         promptHash,
         promptPreview: prompt.substring(0, 100),
         response,
-        accountId,
+        accountId: accountId || null,
         expiresAt
       },
       update: {
@@ -504,7 +508,10 @@ export class SmartCacheManager {
       l1Size: l1Stats.size,
       l1MaxSize: l1Stats.maxSize,
       l2Size: l2Count,
-      topHits
+      topHits: topHits.map(h => ({
+        promptPreview: h.promptPreview || '',
+        hitCount: h.hitCount
+      }))
     }
   }
 
@@ -551,10 +558,11 @@ export class RequestQueueManager {
 
     const item = await prisma.deepSeekRequestQueue.create({
       data: {
+        id: nanoid(),
         userId,
         prompt,
         promptHash,
-        contextType,
+        contextType: contextType || null,
         contextData: contextData ? JSON.stringify(contextData) : null,
         priority,
         status: 'pending'
@@ -778,6 +786,7 @@ export class DeepSeekFreeManager {
       // 7. Логируем запрос
       await prisma.deepSeekRequestLog.create({
         data: {
+          id: nanoid(),
           accountId: account.id,
           promptHash: crypto.createHash('sha256').update(prompt).digest('hex'),
           promptPreview: prompt.substring(0, 100),

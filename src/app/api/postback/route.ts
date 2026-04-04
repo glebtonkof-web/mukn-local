@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -42,28 +43,22 @@ export async function POST(request: NextRequest) {
           { networkOfferId: offer_id },
         ],
       },
-      include: {
-        campaigns: {
-          take: 1,
-        },
-      },
     });
 
     // Get campaign ID from offer or find a default campaign
-    let campaignId = offer?.campaigns[0]?.campaignId;
+    let campaignId: string | undefined;
     
-    if (!campaignId) {
-      // Try to find any active campaign
-      const defaultCampaign = await db.campaign.findFirst({
-        where: { status: 'active' },
-        select: { id: true },
-      });
-      campaignId = defaultCampaign?.id;
-    }
+    // Try to find any active campaign
+    const defaultCampaign = await db.campaign.findFirst({
+      where: { status: 'active' },
+      select: { id: true },
+    });
+    campaignId = defaultCampaign?.id;
 
     // Create conversion record only if we have a campaign
     const conversion = campaignId ? await db.campaignAnalytics.create({
       data: {
+        id: nanoid(),
         date: new Date(),
         impressions: 0,
         clicks: 0,
@@ -100,6 +95,7 @@ export async function POST(request: NextRequest) {
     // Create action log
     await db.actionLog.create({
       data: {
+        id: nanoid(),
         action: 'conversion_postback',
         entityType: 'offer',
         entityId: offer?.id || 'unknown',

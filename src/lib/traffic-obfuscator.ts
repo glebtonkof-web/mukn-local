@@ -354,5 +354,6 @@ export const trafficObfuscator = {
     getTrafficObfuscator().createObfuscatedRequest(prompt),
   simulateHumanBehavior: () => getTrafficObfuscator().simulateHumanBehavior(),
   getStats: () => getTrafficObfuscator().getStats(),
+  getConfig: () => getTrafficObfuscator().getConfig(),
   setEnabled: (enabled: boolean) => getTrafficObfuscator().setEnabled(enabled),
 };

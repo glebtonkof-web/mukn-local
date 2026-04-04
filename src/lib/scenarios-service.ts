@@ -639,6 +639,7 @@ export const scenariosService = {
   abortScenario: (id: string) => getScenariosService().abortScenario(id),
   setSchedule: (id: string, schedule: ScenarioSchedule) =>
     getScenariosService().setSchedule(id, schedule),
+  deleteScenario: (id: string) => getScenariosService().deleteScenario(id),
   getScenario: (id: string) => getScenariosService().getScenario(id),
   getAllScenarios: () => getScenariosService().getAllScenarios(),
   getScenarioTemplates: () => getScenariosService().getScenarioTemplates(),

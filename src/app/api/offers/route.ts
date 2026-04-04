@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { withRetry } from '@/lib/resilience';
 import { logger } from '@/lib/logger';
@@ -19,9 +20,9 @@ export async function GET(request: NextRequest) {
     const offers = await db.offer.findMany({
       where,
       include: {
-        campaigns: {
+        CampaignOffer: {
           include: {
-            campaign: {
+            Campaign: {
               select: {
                 id: true,
                 name: true,
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        abTestVariants: true,
+        ABTestVariant: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -84,6 +85,7 @@ export async function POST(request: NextRequest) {
     const offer = await withRetry(() =>
       db.offer.create({
         data: {
+          id: nanoid(),
           name: body.name,
           description: body.description,
           network: body.network,
@@ -94,6 +96,7 @@ export async function POST(request: NextRequest) {
           payout: body.payout || 0,
           currency: body.currency || 'USD',
           status: body.status || 'active',
+          updatedAt: new Date(),
         },
       })
     );

@@ -13,6 +13,7 @@ import {
 } from '@/lib/google-sheets';
 import { logger } from '@/lib/logger';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 /**
  * GET /api/integrations/google-sheets/connect
@@ -195,6 +196,7 @@ export async function POST(request: NextRequest) {
 
       const connection = await db.googleSheetsConnection.create({
         data: {
+          id: nanoid(),
           userId,
           name,
           spreadsheetId,
@@ -204,6 +206,7 @@ export async function POST(request: NextRequest) {
           syncInterval: syncInterval || 60,
           syncConfig: syncConfig ? JSON.stringify(syncConfig) : null,
           status: spreadsheetId ? 'connected' : 'pending',
+          updatedAt: new Date(),
         },
       });
 

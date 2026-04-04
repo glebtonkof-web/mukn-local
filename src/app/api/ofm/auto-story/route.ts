@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import ZAI from 'z-ai-web-dev-sdk';
+import { nanoid } from 'nanoid';
 
 // GET /api/ofm/auto-story - Get auto-story rules
 export async function GET(request: NextRequest) {
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
       // Create new rule
       const rule = await db.autoStoryRule.create({
         data: {
+          id: nanoid(),
           profileId: body.profileId,
           minProfileClicks: body.minProfileClicks || 1,
           delayMinutes: body.delayMinutes || 5,
@@ -66,6 +68,7 @@ export async function POST(request: NextRequest) {
           offerLink: body.offerLink,
           linkText: body.linkText,
           isActive: body.isActive ?? true,
+          updatedAt: new Date(),
         },
       });
 
@@ -180,7 +183,8 @@ export async function POST(request: NextRequest) {
     // Create story
     const story = await db.oFMStory.create({
       data: {
-        profileId,
+        id: nanoid(),
+        OFMProfile: { connect: { id: profileId } },
         text: storyText,
         imageUrl: storyImageUrl,
         linkUrl: rule.offerLink || undefined,

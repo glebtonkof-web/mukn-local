@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 
 // GET /api/notifications - Get notifications for user
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
     
     const notification = await db.notification.create({
       data: {
+        id: nanoid(),
         userId: userId || 'default-user',
         type: type || 'info',
         title,

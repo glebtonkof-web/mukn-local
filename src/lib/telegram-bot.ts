@@ -6,6 +6,7 @@
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import crypto from 'crypto';
+import { nanoid } from 'nanoid';
 
 // Telegram Bot API types
 export interface TelegramUpdate {
@@ -386,15 +387,16 @@ export class TelegramBotHandler {
 
     return db.telegramBotEvent.create({
       data: {
+        id: nanoid(),
         eventType,
         rawData: JSON.stringify(update),
-        chatId: chat?.id?.toString(),
-        chatTitle: chat?.title,
-        userId: user?.id?.toString(),
-        username: user?.username,
-        messageId: message?.message_id?.toString(),
-        text: message?.text || callbackData,
-        processed: false,
+        chatId: chat?.id?.toString() || null,
+        chatTitle: chat?.title || null,
+        userId: user?.id?.toString() || null,
+        username: user?.username || null,
+        messageId: message?.message_id?.toString() || null,
+        text: message?.text || callbackData || null,
+        processed: false
       }
     });
   }
@@ -830,12 +832,14 @@ export class TelegramBotHandler {
     try {
       await db.notification.create({
         data: {
+          id: nanoid(),
           userId,
           type,
           title,
           message,
-          entityType,
-          entityId,
+          entityType: entityType || null,
+          entityId: entityId || null,
+          isRead: false
         }
       });
     } catch (error) {

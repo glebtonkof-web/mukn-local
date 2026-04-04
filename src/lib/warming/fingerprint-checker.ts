@@ -63,7 +63,7 @@ export function checkWebGL(vendor?: string, renderer?: string): FingerprintCheck
   
   const hasRealGPU = renderer && realGPUPatterns.some(p => renderer.includes(p));
   
-  const passed = !hasSuspiciousRenderer || hasRealGPU;
+  const passed = !hasSuspiciousRenderer || !!hasRealGPU;
   
   return {
     id: 'webgl',

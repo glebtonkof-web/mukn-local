@@ -7,6 +7,7 @@ import { Server as HTTPServer } from 'http';
 import { NextApiRequest, NextApiResponse } from 'next';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // Global variable to store the Socket.IO server instance
 let io: SocketIOServer | null = null;
@@ -230,13 +231,14 @@ export async function sendNotification(
     // Save to database
     const savedNotification = await db.notification.create({
       data: {
+        id: nanoid(),
         userId,
         type: notification.type,
         title: notification.title,
         message: notification.message,
         entityType: notification.entityType || null,
         entityId: notification.entityId || null,
-        isRead: false,
+        isRead: false
       },
     });
     
@@ -268,11 +270,12 @@ export async function logAndEmit(
     // Save to action log
     const log = await db.actionLog.create({
       data: {
+        id: nanoid(),
         userId,
         action,
         entityType,
         entityId,
-        details: details ? JSON.stringify(details) : null,
+        details: details ? JSON.stringify(details) : null
       },
     });
     

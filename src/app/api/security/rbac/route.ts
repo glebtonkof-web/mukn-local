@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { nanoid } from 'nanoid'
 import {
   hasPermission,
   hasAllPermissions,
@@ -223,6 +224,7 @@ export async function POST(request: NextRequest) {
       // Create audit log
       await db.actionLog.create({
         data: {
+          id: nanoid(),
           userId: adminUserId,
           action: 'UPDATE_USER_ROLE',
           entityType: 'user',

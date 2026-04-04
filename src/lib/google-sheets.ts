@@ -5,6 +5,7 @@
 
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 // Google OAuth2 Configuration
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
@@ -398,8 +399,8 @@ export class GoogleSheetsClient {
     const campaigns = await db.campaign.findMany({
       where,
       include: {
-        influencers: { include: { influencer: true } },
-        offers: { include: { offer: true } },
+        CampaignInfluencer: { include: { Influencer: true } },
+        CampaignOffer: { include: { Offer: true } },
       },
     });
 
@@ -433,8 +434,8 @@ export class GoogleSheetsClient {
         campaign.startDate?.toISOString() || '',
         campaign.endDate?.toISOString() || '',
         campaign.createdAt.toISOString(),
-        campaign.influencers.map(i => i.influencer?.name).join(', '),
-        campaign.offers.map(o => o.offer?.name).join(', '),
+        campaign.CampaignInfluencer?.map((i: any) => i.Influencer?.name).filter(Boolean).join(', ') || '',
+        campaign.CampaignOffer?.map((o: any) => o.Offer?.name).filter(Boolean).join(', ') || '',
       ]);
     }
 
@@ -466,8 +467,8 @@ export class GoogleSheetsClient {
     const accounts = await db.account.findMany({
       where,
       include: {
-        simCard: true,
-        influencers: true,
+        SimCard: true,
+        Influencer: true,
       },
     });
 
@@ -631,12 +632,14 @@ export async function createGoogleSheetsConnection(
   try {
     const connection = await db.googleSheetsConnection.create({
       data: {
+        id: nanoid(),
         userId,
         name,
         accessToken: tokens.access_token, // Should be encrypted in production
         refreshToken: tokens.refresh_token,
         tokenExpiry: new Date(tokens.expires_at || Date.now() + tokens.expires_in * 1000),
         status: 'connected',
+        updatedAt: new Date()
       }
     });
 
@@ -697,14 +700,15 @@ export async function recordExport(
 ) {
   return db.googleSheetsExport.create({
     data: {
+      id: nanoid(),
       connectionId,
       userId: 'system',
       exportType: dataType,
       dataType: dataType,
-      range: result.range,
+      range: result.range || null,
       rowCount: result.exportedRows,
       status: result.status,
-      error: result.error,
+      error: result.error || null
     },
   });
 }
@@ -723,13 +727,14 @@ export async function recordImport(
 ) {
   return db.googleSheetsImport.create({
     data: {
+      id: nanoid(),
       connectionId,
       userId: 'system',
       importType: dataType,
       dataType: dataType,
       rowCount: result.importedRows,
       status: result.status,
-      error: result.error,
+      error: result.error || null
     },
   });
 }

@@ -25,6 +25,7 @@ interface OFMProfile {
   commentsCount: number;
   revenue: number;
   status: string;
+  followersGained?: number;
   account?: {
     id: string;
     platform: string;

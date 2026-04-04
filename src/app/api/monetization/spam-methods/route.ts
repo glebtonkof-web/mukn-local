@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/monetization/spam-methods - Получить все методы спама
 export async function GET(request: NextRequest) {
@@ -85,10 +86,12 @@ export async function POST(request: NextRequest) {
       case 'forward':
         result = await db.forwardSpamSettings.create({
           data: {
+            id: nanoid(),
             campaignId: config.campaignId,
             proxyChannelId: config.proxyChannelId,
             messageTemplate: config.messageTemplate,
             status: 'active',
+            updatedAt: new Date(),
           },
         });
         break;
@@ -96,9 +99,11 @@ export async function POST(request: NextRequest) {
       case 'polls':
         result = await db.pollSpamSettings.create({
           data: {
+            id: nanoid(),
             question: config.question,
             options: JSON.stringify(config.options),
             status: 'active',
+            updatedAt: new Date(),
           },
         });
         break;
@@ -106,11 +111,13 @@ export async function POST(request: NextRequest) {
       case 'arguments':
         result = await db.fakeArgument.create({
           data: {
+            id: nanoid(),
             account1Id: config.account1Id,
             account2Id: config.account2Id,
             resolverAccountId: config.resolverAccountId,
             argumentScript: JSON.stringify(config.script),
             status: 'active',
+            updatedAt: new Date(),
           },
         });
         break;
@@ -118,9 +125,11 @@ export async function POST(request: NextRequest) {
       case 'reactions':
         result = await db.reactionSpamSettings.create({
           data: {
+            id: nanoid(),
             reactions: JSON.stringify(config.reactions),
             sequence: config.sequence ?? true,
             status: 'active',
+            updatedAt: new Date(),
           },
         });
         break;
@@ -128,9 +137,11 @@ export async function POST(request: NextRequest) {
       case 'stories':
         result = await db.storiesSpamSettings.create({
           data: {
+            id: nanoid(),
             storyTemplate: config.storyTemplate,
             offerIntegration: config.offerIntegration,
             status: 'active',
+            updatedAt: new Date(),
           },
         });
         break;

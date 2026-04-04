@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/monetization/white-label - Получить информацию о White Label
 export async function GET(request: NextRequest) {
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
       const license = await db.whiteLabelLicense.findFirst({
         where: { licenseeId },
         include: {
-          payments: {
+          WhiteLabelPayment: {
             orderBy: { createdAt: 'desc' },
             take: 10,
           },
@@ -81,6 +82,7 @@ export async function POST(request: NextRequest) {
     // Создаём лицензию
     const license = await db.whiteLabelLicense.create({
       data: {
+        id: nanoid(),
         licenseeId,
         licenseeName,
         brandName,
@@ -90,12 +92,14 @@ export async function POST(request: NextRequest) {
         licenseFee: 5000,
         royaltyRate: 0.10,
         status: 'pending_payment',
+        updatedAt: new Date(),
       },
     });
 
     // Создаём платёж
     await db.whiteLabelPayment.create({
       data: {
+        id: nanoid(),
         licenseId: license.id,
         amount: 5000,
         type: 'license',

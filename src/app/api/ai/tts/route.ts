@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
+import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
     if (influencerId) {
       await db.actionLog.create({
         data: {
+          id: nanoid(),
           action: 'tts_generation',
           entityType: 'influencer',
           entityId: influencerId,

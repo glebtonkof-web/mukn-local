@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { AIManager, PROVIDER_MODELS, type ProviderName } from '@/lib/ai-providers';
+import { nanoid } from 'nanoid';
 
 // Демо userId (в реальном приложении из сессии)
 const DEMO_USER_ID = 'demo-user';
@@ -20,6 +21,7 @@ export async function GET() {
           email: 'demo@mukn.traffic',
           name: 'Demo User',
           role: 'admin',
+          updatedAt: new Date(),
         },
       });
     }
@@ -42,12 +44,14 @@ export async function GET() {
       for (const p of defaultProviders) {
         await db.aIProviderSettings.create({
           data: {
+            id: nanoid(),
             provider: p.provider,
             priority: p.priority,
             isFree: p.isFree,
             isActive: false,
             models: JSON.stringify(PROVIDER_MODELS[p.provider as ProviderName]?.map(m => m.id) || []),
             userId: user.id,
+            updatedAt: new Date(),
           },
         });
       }
@@ -66,11 +70,13 @@ export async function GET() {
     if (!globalSettings) {
       globalSettings = await db.aIGlobalSettings.create({
         data: {
+          id: nanoid(),
           autoFallback: true,
           notifyOnSwitch: true,
           useCheapestModel: false,
           minBalanceForSwitch: 5.0,
           userId: user.id,
+          updatedAt: new Date(),
         },
       });
     }
@@ -141,6 +147,7 @@ export async function PUT(request: NextRequest) {
           email: 'demo@mukn.traffic',
           name: 'Demo User',
           role: 'admin',
+          updatedAt: new Date(),
         },
       });
     }
@@ -164,6 +171,7 @@ export async function PUT(request: NextRequest) {
     } else {
       result = await db.aIProviderSettings.create({
         data: {
+          id: nanoid(),
           provider,
           apiKey,
           defaultModel,
@@ -172,6 +180,7 @@ export async function PUT(request: NextRequest) {
           isFree: provider === 'gemini' || provider === 'groq',
           models: JSON.stringify(PROVIDER_MODELS[provider as ProviderName]?.map(m => m.id) || []),
           userId: user.id,
+          updatedAt: new Date(),
         },
       });
     }
@@ -215,6 +224,7 @@ export async function POST(request: NextRequest) {
           email: 'demo@mukn.traffic',
           name: 'Demo User',
           role: 'admin',
+          updatedAt: new Date(),
         },
       });
     }
@@ -241,6 +251,7 @@ export async function POST(request: NextRequest) {
       } else {
         globalSettings = await db.aIGlobalSettings.create({
           data: {
+            id: nanoid(),
             autoFallback: data.autoFallback ?? true,
             notifyOnSwitch: data.notifyOnSwitch ?? true,
             telegramNotify: data.telegramNotify ?? false,
@@ -249,6 +260,7 @@ export async function POST(request: NextRequest) {
             dailyLimit: data.dailyLimit,
             monthlyLimit: data.monthlyLimit,
             userId: user.id,
+            updatedAt: new Date(),
           },
         });
       }

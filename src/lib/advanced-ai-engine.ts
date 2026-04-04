@@ -3,6 +3,7 @@
 
 import { db } from './db';
 import { AIDispatcher, getAIDispatcher, TaskType } from './ai-dispatcher';
+import { nanoid } from 'nanoid';
 
 // ==================== ТИПЫ ====================
 
@@ -141,6 +142,7 @@ ${channelData.recentPosts ? `- Последние посты: ${JSON.stringify(c
       await db.channelAnalysis.upsert({
         where: { channelId },
         create: {
+          id: nanoid(),
           channelId,
           channelName: channelData.name,
           subscribersCount: channelData.subscribersCount || 0,
@@ -150,6 +152,7 @@ ${channelData.recentPosts ? `- Последние посты: ${JSON.stringify(c
           bestTimeToPost: prediction.bestTimeToPost,
           moderationStrictness: prediction.moderationStrictness,
           lastAnalyzedAt: new Date(),
+          updatedAt: new Date(),
         },
         update: {
           spamDeleteMinutes: prediction.spamDeleteMinutes,
@@ -305,12 +308,14 @@ export async function analyzeEmotionalContext(
       // Сохраняем анализ
       await db.emotionalAnalysis.create({
         data: {
+          id: nanoid(),
           postContent: postContent.substring(0, 500),
           primaryEmotion: profile.primaryEmotion,
           emotionScores: JSON.stringify(profile.emotionScores),
           recommendedStyle: profile.recommendedStyle,
           recommendedTone: profile.recommendedTone,
           avoidTopics: JSON.stringify(profile.avoidTopics),
+          updatedAt: new Date(),
         },
       });
       
@@ -479,6 +484,7 @@ export async function neuralChannelSearch(
   // Сохраняем запрос поиска
   const searchRecord = await db.neuralChannelSearch.create({
     data: {
+      id: nanoid(),
       searchQuery: query,
       offerNiche: filters.niche,
       minSubscribers: filters.minSubscribers,
@@ -743,6 +749,7 @@ export async function predictChannelLTV(
       await db.channelLTVPrediction.upsert({
         where: { channelId },
         create: {
+          id: nanoid(),
           channelId,
           channelName: channelData.name,
           predictedLTV: prediction.predictedLTV,
@@ -751,6 +758,7 @@ export async function predictChannelLTV(
           purchasingPower: prediction.factors.purchasingPower,
           competitionLevel: prediction.factors.competitionLevel,
           recommendedBudget: prediction.recommendedBudget,
+          updatedAt: new Date(),
         },
         update: {
           predictedLTV: prediction.predictedLTV,
@@ -856,6 +864,7 @@ ${JSON.stringify(subscriberSample.slice(0, 20).map(u => ({
       // Сохраняем результат
       await db.botDetection.create({
         data: {
+          id: nanoid(),
           channelId,
           botPercentage: detection.botPercentage,
           realUsersPercentage: detection.realUsersPercentage,
@@ -1121,6 +1130,7 @@ export async function processVoiceCommand(
       // Сохраняем команду
       await db.voiceCommand.create({
         data: {
+          id: nanoid(),
           transcript,
           intent: commandResult.intent,
           entities: JSON.stringify(commandResult.entities),

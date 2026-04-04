@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 // GET /api/traffic/sources - List traffic sources
 export async function GET(request: NextRequest) {
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
         include: {
           _count: {
             select: {
-              campaigns: true,
+              TrafficCampaign: true,
             },
           },
         },
@@ -88,12 +89,14 @@ export async function POST(request: NextRequest) {
 
     const source = await db.trafficSource.create({
       data: {
-        name: body.name,
-        platform: body.platform,
-        methodId: body.methodId,
-        methodName: body.methodName,
+        id: nanoid(),
+        name: String(body.name),
+        platform: String(body.platform),
+        methodId: Number(body.methodId),
+        methodName: String(body.methodName),
         config: body.config,
-        status: body.status || 'active',
+        status: String(body.status || 'active'),
+        updatedAt: new Date(),
       },
     });
 

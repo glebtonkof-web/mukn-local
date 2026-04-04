@@ -400,7 +400,7 @@ function PhaseTimeline({ currentDay, strategy }: { currentDay: number; strategy:
               )}
               style={{
                 backgroundColor: isActive ? `${phase.config.color}20` : 'transparent',
-                ringColor: isActive ? phase.config.color : undefined,
+                ...(isActive && { '--tw-ring-color': phase.config.color } as React.CSSProperties),
               }}
             >
               <div

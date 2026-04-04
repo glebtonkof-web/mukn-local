@@ -8,8 +8,8 @@ export async function GET() {
     // Получаем всех инфлюенсеров
     const influencers = await db.influencer.findMany({
       include: {
-        account: true,
-        simCard: true,
+        Account: true,
+        SimCard: true,
       },
     });
 

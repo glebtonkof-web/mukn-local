@@ -2,6 +2,7 @@
 // DeepSeek придумывает тему и варианты
 
 import { db } from '../db';
+import { nanoid } from 'nanoid';
 
 export interface PollOption {
   text: string;
@@ -71,6 +72,7 @@ Respond in JSON format:
     // Сохраняем в БД
     const poll = await db.interactivePoll.create({
       data: {
+        id: nanoid(),
         title: question.substring(0, 100),
         question,
         options: JSON.stringify(options.map(o => ({ text: o }))),
@@ -81,6 +83,7 @@ Respond in JSON format:
         status: 'draft',
         aiGenerated: true,
         aiPrompt: prompt,
+        updatedAt: new Date(),
       },
     });
 

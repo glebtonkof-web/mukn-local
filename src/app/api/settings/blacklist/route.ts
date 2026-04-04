@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/settings/blacklist - Получить чёрные списки
 export async function GET() {
@@ -10,7 +11,7 @@ export async function GET() {
 
     if (!settings) {
       settings = await db.blacklistSettings.create({
-        data: { userId: 'default' }
+        data: { id: nanoid(), userId: 'default', updatedAt: new Date() }
       });
     }
 
@@ -67,7 +68,9 @@ export async function POST(request: NextRequest) {
     } else {
       settings = await db.blacklistSettings.create({
         data: {
+          id: nanoid(),
           userId: 'default',
+          updatedAt: new Date(),
           ...updateData
         }
       });

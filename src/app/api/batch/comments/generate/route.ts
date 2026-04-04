@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         style: true,
         status: true,
         _count: {
-          select: { comments: true },
+          select: { Comment: true },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -63,11 +63,11 @@ export async function GET(request: NextRequest) {
     // Get pending comments
     const pendingComments = await db.comment.findMany({
       where: {
-        influencer: { userId },
+        Influencer: { userId },
         status: 'pending',
       },
       include: {
-        influencer: {
+        Influencer: {
           select: { name: true },
         },
       },

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/settings/global - Получить глобальные настройки
 export async function GET() {
@@ -11,7 +12,9 @@ export async function GET() {
       // Создаём настройки по умолчанию
       settings = await db.globalSettings.create({
         data: {
+          id: nanoid(),
           userId: 'default',
+          updatedAt: new Date(),
         }
       });
     }
@@ -70,8 +73,10 @@ export async function POST(request: NextRequest) {
       // Создаём новые настройки
       settings = await db.globalSettings.create({
         data: {
+          id: nanoid(),
+          userId: 'default',
           ...updateData,
-          userId: 'default'
+          updatedAt: new Date(),
         }
       });
     } else {

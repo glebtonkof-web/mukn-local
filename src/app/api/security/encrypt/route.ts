@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { nanoid } from 'nanoid'
 import {
   CryptoService,
   encrypt,
@@ -94,6 +95,7 @@ export async function POST(request: NextRequest) {
         // Log action
         await db.actionLog.create({
           data: {
+            id: nanoid(),
             userId,
             action: 'SERVER_ENCRYPT',
             entityType: 'encryption',
@@ -280,6 +282,7 @@ export async function PUT(request: NextRequest) {
     // Log action
     await db.actionLog.create({
       data: {
+        id: nanoid(),
         userId,
         action: user.masterPassword ? 'UPDATE_MASTER_PASSWORD' : 'SET_MASTER_PASSWORD',
         entityType: 'user',

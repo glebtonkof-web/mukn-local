@@ -13,9 +13,9 @@ export async function GET(
     const offer = await db.offer.findUnique({
       where: { id },
       include: {
-        campaigns: {
+        CampaignOffer: {
           include: {
-            campaign: {
+            Campaign: {
               select: {
                 id: true,
                 name: true,
@@ -24,7 +24,7 @@ export async function GET(
             },
           },
         },
-        abTestVariants: true,
+        ABTestVariant: true,
       },
     });
 

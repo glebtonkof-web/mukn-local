@@ -5,6 +5,7 @@ import { db } from './db';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { nanoid } from 'nanoid';
 
 // Типы контента
 export type ContentType = 'image' | 'video' | 'audio' | 'avatar';
@@ -113,11 +114,12 @@ export class HunyuanService {
       // Создаём запись в БД
       const content = await db.generatedContent.create({
         data: {
+          id: nanoid(),
           type: 'image',
           platform: 'telegram', // default
           source: 'z-ai-sdk',
           prompt: prompt,
-          negativePrompt: options.negativePrompt,
+          negativePrompt: options.negativePrompt || null,
           mediaUrl: `/download/hunyuan/images/${filename}`,
           mediaBase64: imageBase64.substring(0, 1000) + '...', // truncate for storage
           width: parseInt(options.size?.split('x')[0] || '1024'),
@@ -125,6 +127,7 @@ export class HunyuanService {
           fileSize: buffer.length,
           status: 'completed',
           generationTime: Date.now() - startTime,
+          updatedAt: new Date()
         },
       });
 
@@ -158,12 +161,14 @@ export class HunyuanService {
       // Создаём запись в БД
       const content = await db.generatedContent.create({
         data: {
+          id: nanoid(),
           type: 'video',
           platform: 'telegram',
           source: 'hunyuan',
           prompt: options.text,
           status: 'generating',
           generationParams: JSON.stringify(options),
+          updatedAt: new Date()
         },
       });
 
@@ -231,13 +236,14 @@ export class HunyuanService {
         // Записываем в историю правок
         await db.userEditHistory.create({
           data: {
+            id: nanoid(),
             contentId: result.contentId,
             editType: 'image',
             userCommand: command,
             beforeState: JSON.stringify({ originalImage: imagePath }),
             afterState: JSON.stringify({ editedImage: result.mediaUrl }),
             understood: true,
-            satisfied: true,
+            satisfied: true
           },
         });
       }
@@ -283,15 +289,17 @@ export class HunyuanService {
     // Создаём запись в БД
     const content = await db.generatedContent.create({
       data: {
+        id: nanoid(),
         type: options.type,
         platform: options.platform,
         source: 'hunyuan',
         prompt: enhancedPrompt,
-        negativePrompt: options.negativePrompt,
-        influencerId: options.influencerId,
-        templateId: options.templateId,
+        negativePrompt: options.negativePrompt || null,
+        influencerId: options.influencerId || null,
+        templateId: options.templateId || null,
         status: 'generating',
         generationParams: JSON.stringify(options.styleParams || {}),
+        updatedAt: new Date()
       },
     });
 

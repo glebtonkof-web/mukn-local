@@ -8,6 +8,7 @@ import {
   isTrafficReady,
 } from '@/lib/warming/platform-configs';
 import { generateHumanDelay } from '@/lib/warming/behavior-monitor';
+import { nanoid } from 'nanoid';
 
 // GET - Fetch all warming accounts
 export async function GET(request: NextRequest) {
@@ -22,19 +23,23 @@ export async function GET(request: NextRequest) {
 
     const accounts = await db.account.findMany({
       where,
-      include: {
-        warming: {
-          include: {
-            actions: {
-              orderBy: { createdAt: 'desc' },
-              take: 50,
-            },
-          },
-        },
-        proxy: true,
-      },
       orderBy: { createdAt: 'desc' },
     });
+
+    // Get all Instagram warmings for these accounts
+    const accountIds = accounts.map(a => a.id);
+    const warmings = await db.instagramWarming.findMany({
+      where: { accountId: { in: accountIds } },
+      include: {
+        InstagramWarmingAction: {
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        },
+      },
+    });
+
+    // Create a map for quick lookup
+    const warmingMap = new Map(warmings.map(w => [w.accountId, w]));
 
     // Calculate stats
     const stats = {
@@ -48,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     const enrichedAccounts = accounts.map(account => {
       const platformConfig = getPlatformConfig(account.platform);
-      const warming = account.warming?.[0];
+      const warming = warmingMap.get(account.id);
       
       // Count by platform
       stats.byPlatform[account.platform] = (stats.byPlatform[account.platform] || 0) + 1;
@@ -64,16 +69,14 @@ export async function GET(request: NextRequest) {
           todayPosts: 0,
           todayDm: 0,
           todayStoriesViews: 0,
-          todayInvites: 0,
-          todayRetweets: 0,
           todayTimeSpent: 0,
           banRisk: 0,
           progress: 0,
           phase: 'not_started',
           phaseConfig: null,
           maxLimits: null,
-          proxyHost: account.proxy?.host,
-          proxyCountry: account.proxy?.country,
+          proxyHost: account.proxyHost,
+          proxyCountry: null,
         };
       }
 
@@ -116,18 +119,16 @@ export async function GET(request: NextRequest) {
         todayPosts: warming.todayPosts,
         todayDm: warming.todayDm,
         todayStoriesViews: warming.todayStoriesViews,
-        todayInvites: warming.todayInvites || 0,
-        todayRetweets: warming.todayRetweets || 0,
         todayTimeSpent: warming.todayTimeSpent,
         banRisk,
         progress,
         phase: phase?.icon || 'unknown',
         phaseConfig: phase,
         maxLimits: limits,
-        proxyHost: account.proxy?.host,
-        proxyCountry: account.proxy?.country,
-        fingerprintScore: warming.fingerprintScore,
-        behaviorScore: warming.behaviorScore,
+        proxyHost: account.proxyHost,
+        proxyCountry: null,
+        fingerprintScore: null,
+        behaviorScore: null,
       };
     });
 
@@ -148,14 +149,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action, accountId, username, platform, actionType } = body;
+    const { action, accountId, username, platform, actionType, userId } = body;
 
     switch (action) {
       case 'start': {
         // Start warming for a new account
-        if (!accountId || !username || !platform) {
+        if (!accountId || !username || !platform || !userId) {
           return NextResponse.json(
-            { error: 'Необходимы accountId, username и platform' },
+            { error: 'Необходимы accountId, username, platform и userId' },
             { status: 400 }
           );
         }
@@ -178,6 +179,8 @@ export async function POST(request: NextRequest) {
               username,
               platform,
               status: 'active',
+              userId,
+              updatedAt: new Date(),
             },
           });
         }
@@ -206,7 +209,9 @@ export async function POST(request: NextRequest) {
         // Create warming record
         const warming = await db.instagramWarming.create({
           data: {
+            id: nanoid(),
             accountId: account.id,
+            username,
             status: 'warming',
             currentDay: 1,
             warmingStartedAt: new Date(),
@@ -217,8 +222,6 @@ export async function POST(request: NextRequest) {
             todayPosts: 0,
             todayDm: 0,
             todayStoriesViews: 0,
-            todayInvites: 0,
-            todayRetweets: 0,
             todayTimeSpent: 0,
             banRisk: 0,
             totalLikes: 0,
@@ -226,12 +229,14 @@ export async function POST(request: NextRequest) {
             totalComments: 0,
             totalPosts: 0,
             totalDm: 0,
+            updatedAt: new Date(),
           },
         });
 
         // Log warming started action
         await db.instagramWarmingAction.create({
           data: {
+            id: nanoid(),
             warmingId: warming.id,
             actionType: 'warming_started',
             target: null,
@@ -302,7 +307,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Update counters
-        const updateData: Record<string, number> = {};
+        const updateData: Record<string, number | Date> = { updatedAt: new Date() };
         const fieldMap: Record<string, string> = {
           like: 'todayLikes',
           follow: 'todayFollows',
@@ -310,18 +315,16 @@ export async function POST(request: NextRequest) {
           post: 'todayPosts',
           dm: 'todayDm',
           view: 'todayStoriesViews',
-          invite: 'todayInvites',
-          retweet: 'todayRetweets',
         };
 
         const field = fieldMap[actionType];
         if (field) {
-          updateData[field] = (warming as Record<string, number>)[field] + 1;
+          updateData[field] = (warming[field as keyof typeof warming] as number) + 1;
           
           // Also update total
-          const totalField = `total${field.replace('today', '')}` as string;
+          const totalField = `total${field.replace('today', '')}` as keyof typeof warming;
           if (totalField in warming) {
-            updateData[totalField] = (warming as Record<string, number>)[totalField] + 1;
+            updateData[totalField] = (warming[totalField] as number) + 1;
           }
         }
 
@@ -335,6 +338,7 @@ export async function POST(request: NextRequest) {
         const phase = getCurrentPhase(account.platform, warming.currentDay);
         await db.instagramWarmingAction.create({
           data: {
+            id: nanoid(),
             warmingId: warming.id,
             actionType,
             target: null,
@@ -360,8 +364,6 @@ export async function POST(request: NextRequest) {
             todayPosts: updatedWarming.todayPosts,
             todayDm: updatedWarming.todayDm,
             todayStoriesViews: updatedWarming.todayStoriesViews,
-            todayInvites: updatedWarming.todayInvites,
-            todayRetweets: updatedWarming.todayRetweets,
           },
           nearLimit: limitCheck.nearLimit,
           warnings,
@@ -423,15 +425,15 @@ export async function POST(request: NextRequest) {
             todayPosts: 0,
             todayDm: 0,
             todayStoriesViews: 0,
-            todayInvites: 0,
-            todayRetweets: 0,
             todayTimeSpent: 0,
+            updatedAt: new Date(),
           },
         });
 
         // Log day change
         await db.instagramWarmingAction.create({
           data: {
+            id: nanoid(),
             warmingId: warming.id,
             actionType: 'day_change',
             target: null,
@@ -475,8 +477,6 @@ function checkLimit(
     todayPosts: number;
     todayDm: number;
     todayStoriesViews: number;
-    todayInvites: number;
-    todayRetweets: number;
   },
   actionType: string,
   limits: ReturnType<typeof getDailyLimits>
@@ -492,8 +492,6 @@ function checkLimit(
     post: { current: warming.todayPosts, max: limits.posts.max, label: 'постов' },
     dm: { current: warming.todayDm, max: limits.dm.max, label: 'сообщений' },
     view: { current: warming.todayStoriesViews, max: limits.stories?.max || 0, label: 'просмотров' },
-    invite: { current: warming.todayInvites, max: limits.invites?.max || 0, label: 'инвайтов' },
-    retweet: { current: warming.todayRetweets, max: limits.retweets?.max || 0, label: 'репостов' },
   };
 
   const check = checks[actionType];

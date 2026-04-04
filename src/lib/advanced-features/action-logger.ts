@@ -1,6 +1,7 @@
 // Детальный логгер действий AI
 
 import { db } from '../db';
+import { nanoid } from 'nanoid';
 
 export type LogAction = 'generate' | 'edit' | 'publish' | 'analyze' | 'train' | 'optimize' | 'fail' | 'retry';
 export type LogEntityType = 'content' | 'image' | 'video' | 'campaign' | 'influencer' | 'account';
@@ -44,6 +45,7 @@ class DetailedActionLogger {
   async log(entry: LogEntry): Promise<string> {
     const logRecord = await db.aIActionLog.create({
       data: {
+        id: nanoid(),
         action: entry.action,
         entityType: entry.entityType,
         entityId: entry.entityId,
@@ -196,6 +198,7 @@ class DetailedActionLogger {
     try {
       await db.aIActionLog.createMany({
         data: batch.map(entry => ({
+          id: nanoid(),
           action: entry.action,
           entityType: entry.entityType,
           entityId: entry.entityId,

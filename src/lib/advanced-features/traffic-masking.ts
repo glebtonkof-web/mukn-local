@@ -2,6 +2,7 @@
 // Случайные User-Agent, задержки, движения мыши
 
 import { db } from '../db';
+import { nanoid } from 'nanoid';
 
 export interface MaskingProfile {
   id?: string;
@@ -88,6 +89,7 @@ class TrafficMaskingService {
 
     const saved = await db.trafficMasking.create({
       data: {
+        id: nanoid(),
         name: profile.name,
         userAgent: profile.userAgent,
         viewport: JSON.stringify(profile.viewport),
@@ -99,6 +101,7 @@ class TrafficMaskingService {
         randomScrolls: profile.randomScrolls,
         minDelay: profile.minDelay,
         maxDelay: profile.maxDelay,
+        updatedAt: new Date(),
       },
     });
 

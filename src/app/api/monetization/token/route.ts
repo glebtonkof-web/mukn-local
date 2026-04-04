@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/monetization/token - Информация о токене MUKN
 export async function GET(request: NextRequest) {
@@ -10,6 +11,7 @@ export async function GET(request: NextRequest) {
       // Создаём токен если не существует
       token = await db.platformToken.create({
         data: {
+          id: nanoid(),
           symbol: 'MUKN',
           name: 'MUKN Token',
           totalSupply: 1000000,
@@ -18,6 +20,7 @@ export async function GET(request: NextRequest) {
           priceChange24h: 5.2,
           discountPercent: 10,
           stakingAPY: 15,
+          updatedAt: new Date(),
         },
       });
     }
@@ -73,6 +76,7 @@ export async function POST(request: NextRequest) {
     // Создаём транзакцию
     const transaction = await db.tokenTransaction.create({
       data: {
+        id: nanoid(),
         userId,
         type,
         amount,
@@ -122,6 +126,7 @@ export async function PUT(request: NextRequest) {
 
       const transaction = await db.tokenTransaction.create({
         data: {
+          id: nanoid(),
           userId,
           type: 'stake',
           amount,

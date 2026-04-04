@@ -229,8 +229,8 @@ async function exportLeads(
   const influencers = await db.influencer.findMany({
     where,
     include: {
-      comments: { where: { status: 'posted' } },
-      directMessages: { where: { converted: true } },
+      Comment: { where: { status: 'posted' } },
+      DirectMessage: { where: { converted: true } },
     },
   });
 
@@ -253,8 +253,8 @@ async function exportLeads(
       inf.subscribersCount.toString(),
       inf.leadsCount.toString(),
       inf.revenue.toString(),
-      inf.comments.length.toString(),
-      inf.directMessages.length.toString(),
+      inf.Comment.length.toString(),
+      inf.DirectMessage.length.toString(),
       inf.status,
       inf.createdAt.toISOString(),
     ]);
@@ -282,7 +282,7 @@ async function exportComments(
 
   const comments = await db.comment.findMany({
     where,
-    include: { influencer: true },
+    include: { Influencer: true },
     orderBy: { createdAt: 'desc' },
     take: 1000,
   });
@@ -306,7 +306,7 @@ async function exportComments(
       comment.targetUrl || '',
       comment.status,
       comment.aiGenerated ? 'Yes' : 'No',
-      comment.influencer?.name || '',
+      comment.Influencer?.name || '',
       comment.postedAt?.toISOString() || '',
       comment.createdAt.toISOString(),
     ]);
@@ -333,7 +333,7 @@ async function exportAnalytics(
 
   const analytics = await db.campaignAnalytics.findMany({
     where,
-    include: { campaign: true },
+    include: { Campaign: true },
     orderBy: { date: 'desc' },
     take: 1000,
   });
@@ -355,7 +355,7 @@ async function exportAnalytics(
 
     rows.push([
       a.date.toISOString().split('T')[0],
-      a.campaign?.name || '',
+      a.Campaign?.name || '',
       a.impressions.toString(),
       a.clicks.toString(),
       a.leads.toString(),

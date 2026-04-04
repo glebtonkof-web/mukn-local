@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // POST /api/accounts/[id]/warm - Start warming an account
 export async function POST(
@@ -44,6 +45,7 @@ export async function POST(
     // Log activity
     await db.activityLog.create({
       data: {
+        id: nanoid(),
         type: 'join',
         message: `Прогрев аккаунта ${account.username || account.phone} запущен`,
         accountId: id

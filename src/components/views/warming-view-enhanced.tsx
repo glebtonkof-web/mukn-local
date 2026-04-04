@@ -388,7 +388,7 @@ function PhaseTimeline({
               )}
               style={{
                 backgroundColor: isActive ? `${phase.color}20` : 'transparent',
-                ringColor: isActive ? phase.color : undefined,
+                ...(isActive && { '--tw-ring-color': phase.color } as React.CSSProperties),
               }}
             >
               <div
@@ -1086,7 +1086,7 @@ export function WarmingViewEnhanced() {
                               actionType === 'invite' ? account.todayInvites :
                               actionType === 'retweet' ? account.todayRetweets : 0;
 
-                            const max = (maxLimits as Record<string, { min: number; max: number }>)[maxKey]?.max || 0;
+                            const max = (maxLimits as unknown as Record<string, { min: number; max: number }>)[maxKey]?.max || 0;
 
                             return (
                               <ActionButton

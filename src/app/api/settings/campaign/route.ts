@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/settings/campaign - Получить настройки кампании
 export async function GET(request: NextRequest) {
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
       if (!settings) {
         // Создаём настройки по умолчанию
         settings = await db.campaignSettings.create({
-          data: { campaignId }
+          data: { id: nanoid(), campaignId, updatedAt: new Date() }
         });
       }
       
@@ -63,8 +64,10 @@ export async function POST(request: NextRequest) {
       // Создаём новые
       settings = await db.campaignSettings.create({
         data: {
+          id: nanoid(),
           campaignId,
-          ...updateData
+          ...updateData,
+          updatedAt: new Date(),
         }
       });
     }

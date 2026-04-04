@@ -3,6 +3,7 @@
 
 import { db } from '../db';
 import { stockIntegration } from './stock-integration';
+import { nanoid } from 'nanoid';
 
 export interface StorySlide {
   order: number;
@@ -37,11 +38,13 @@ class StoriesSlidesGenerator {
     // Создаём запись в БД
     const storiesRecord = await db.storiesSlides.create({
       data: {
+        id: nanoid(),
         name: config.topic,
         platform: config.platform,
         slidesCount,
         slides: '[]',
         status: 'generating',
+        updatedAt: new Date(),
       },
     });
 

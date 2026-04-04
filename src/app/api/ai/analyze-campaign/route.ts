@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAIProviderManager, TaskType } from '@/lib/ai-provider-manager';
+import { nanoid } from 'nanoid';
 
 // Интерфейсы
 interface CampaignMetrics {
@@ -79,21 +80,21 @@ export async function GET(request: NextRequest) {
     const campaign = await db.campaign.findUnique({
       where: { id: campaignId },
       include: {
-        influencers: {
+        CampaignInfluencer: {
           include: {
-            influencer: true,
+            Influencer: true,
           },
         },
-        offers: {
+        CampaignOffer: {
           include: {
-            offer: true,
+            Offer: true,
           },
         },
-        analytics: {
+        CampaignAnalytics: {
           orderBy: { date: 'desc' },
           take: 30, // Последние 30 дней
         },
-        posts: {
+        Post: {
           orderBy: { createdAt: 'desc' },
           take: 50,
         },
@@ -162,15 +163,15 @@ export async function POST(request: NextRequest) {
     const campaign = await db.campaign.findUnique({
       where: { id: campaignId },
       include: {
-        influencers: {
+        CampaignInfluencer: {
           include: {
-            influencer: {
+            Influencer: {
               include: {
-                comments: {
+                Comment: {
                   orderBy: { createdAt: 'desc' },
                   take: 100,
                 },
-                directMessages: {
+                DirectMessage: {
                   orderBy: { createdAt: 'desc' },
                   take: 50,
                 },
@@ -178,12 +179,12 @@ export async function POST(request: NextRequest) {
             },
           },
         },
-        offers: {
+        CampaignOffer: {
           include: {
-            offer: true,
+            Offer: true,
           },
         },
-        analytics: {
+        CampaignAnalytics: {
           orderBy: { date: 'desc' },
           take: 30,
         },
@@ -219,6 +220,7 @@ export async function POST(request: NextRequest) {
     // Сохраняем результат анализа в БД для истории
     await db.actionLog.create({
       data: {
+        id: nanoid(),
         action: `ai_analysis_${analysisType}`,
         entityType: 'campaign',
         entityId: campaignId,
@@ -254,7 +256,7 @@ export async function POST(request: NextRequest) {
  */
 async function collectMetrics(campaignId: string, campaign: Record<string, unknown>) {
   // Агрегируем метрики из аналитики
-  const analyticsData = campaign.analytics as Array<{
+  const analyticsData = campaign.CampaignAnalytics as Array<{
     impressions: number;
     clicks: number;
     leads: number;
@@ -276,21 +278,21 @@ async function collectMetrics(campaignId: string, campaign: Record<string, unkno
   );
 
   // Метрики инфлюенсеров
-  const influencerRelations = campaign.influencers as Array<{
-    influencer: {
+  const influencerRelations = campaign.CampaignInfluencer as Array<{
+    Influencer: {
       id: string;
       name: string;
-      comments?: Array<{ status: string }>;
-      directMessages?: Array<{ status: string }>;
+      Comment?: Array<{ status: string }>;
+      DirectMessage?: Array<{ status: string }>;
       banRisk: number;
       status: string;
     };
   }> || [];
 
   const influencerMetrics: InfluencerMetrics[] = influencerRelations.map((rel) => {
-    const inf = rel.influencer;
-    const comments = inf.comments || [];
-    const dms = inf.directMessages || [];
+    const inf = rel.Influencer;
+    const comments = inf.Comment || [];
+    const dms = inf.DirectMessage || [];
 
     return {
       influencerId: inf.id,

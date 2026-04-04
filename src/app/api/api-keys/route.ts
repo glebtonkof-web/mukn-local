@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET - Retrieve API keys for the default user
 export async function GET() {
@@ -14,6 +15,7 @@ export async function GET() {
           email: 'admin@mukn.local',
           name: 'Admin',
           role: 'admin',
+          updatedAt: new Date(),
         },
       });
     }
@@ -96,9 +98,11 @@ export async function POST(request: NextRequest) {
     if (!user) {
       user = await db.user.create({
         data: {
+          id: nanoid(),
           email: 'admin@mukn.local',
           name: 'Admin',
           role: 'admin',
+          updatedAt: new Date(),
         },
       });
     }
@@ -125,11 +129,13 @@ export async function POST(request: NextRequest) {
     } else {
       apiKey = await db.apiKey.create({
         data: {
+          id: nanoid(),
           userId: user.id,
           provider,
           name,
           key, // In production, this should be encrypted
           isActive: true,
+          updatedAt: new Date(),
         },
       });
     }

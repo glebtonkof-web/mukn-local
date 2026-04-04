@@ -471,7 +471,7 @@ export function useRealtimeNotifications(options: UseRealtimeNotificationsOption
       clearTimeout(timer);
       disconnect();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
   
   // Reconnect on userId change

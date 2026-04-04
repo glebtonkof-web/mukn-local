@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 import ZAI from 'z-ai-web-dev-sdk';
 
 // Cross-Platform Traffic Methods Configuration
@@ -348,7 +349,7 @@ export async function GET(request: NextRequest) {
       const sources = await db.trafficSource.findMany({
         where: { methodId: parseInt(methodId) },
         include: {
-          campaigns: {
+          TrafficCampaign: {
             take: 10,
             orderBy: { createdAt: 'desc' },
           },
@@ -386,12 +387,12 @@ export async function GET(request: NextRequest) {
       db.trafficSource.findMany({
         where,
         include: {
-          campaigns: {
+          TrafficCampaign: {
             take: 5,
             orderBy: { createdAt: 'desc' },
           },
           _count: {
-            select: { campaigns: true },
+            select: { TrafficCampaign: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -477,12 +478,14 @@ export async function POST(request: NextRequest) {
     } else {
       source = await db.trafficSource.create({
         data: {
+          id: nanoid(),
           name: `${method.title} - ${new Date().toISOString().split('T')[0]}`,
           platform: 'cross-platform',
-          methodId: body.methodId,
-          methodName: method.name,
+          methodId: Number(body.methodId),
+          methodName: String(method.name),
           config: JSON.stringify({ ...body.settings, lastResult: result, targetTelegramChannel: body.targetTelegramChannel }),
           status: 'active',
+          updatedAt: new Date(),
         },
       });
 
@@ -490,10 +493,12 @@ export async function POST(request: NextRequest) {
       if (body.campaignName) {
         await db.trafficCampaign.create({
           data: {
-            sourceId: source.id,
+            id: nanoid(),
+            sourceId: String(source.id),
             name: body.campaignName,
             status: 'active',
             startDate: new Date(),
+            updatedAt: new Date(),
           },
         });
       }

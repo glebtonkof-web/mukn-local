@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import ZAI from 'z-ai-web-dev-sdk';
+import { nanoid } from 'nanoid';
 
 // Предустановленные промпты для разных ниш
 const DEFAULT_PROMPTS: Record<string, Record<string, { system: string; examples: string[] }>> = {
@@ -387,6 +388,7 @@ export async function PUT(request: NextRequest) {
         isActive: body.isActive ?? true,
       },
       create: {
+        id: nanoid(),
         niche: body.niche,
         contentType: body.contentType,
         style: body.style || 'playful',
@@ -394,6 +396,7 @@ export async function PUT(request: NextRequest) {
         userPrompt: body.userPrompt,
         examples: body.examples ? JSON.stringify(body.examples) : null,
         isActive: body.isActive ?? true,
+        updatedAt: new Date(),
       },
     });
 

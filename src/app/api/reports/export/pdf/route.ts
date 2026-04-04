@@ -238,9 +238,9 @@ async function generateCampaignsPDF(campaignIds?: string[], startDate?: string, 
   const campaigns = await db.campaign.findMany({
     where: whereClause,
     include: {
-      influencers: {
+      CampaignInfluencer: {
         include: {
-          influencer: true,
+          Influencer: true,
         },
       },
     },
@@ -307,7 +307,7 @@ async function generateCampaignsPDF(campaignIds?: string[], startDate?: string, 
     yPos = (doc as any).lastAutoTable.finalY + 10;
     
     // Influencers in campaign
-    if (campaign.influencers.length > 0) {
+    if (campaign.CampaignInfluencer.length > 0) {
       doc.setFontSize(10);
       doc.setTextColor(...COLORS.primary);
       doc.text('Инфлюенсеры:', 15, yPos);
@@ -316,9 +316,9 @@ async function generateCampaignsPDF(campaignIds?: string[], startDate?: string, 
       autoTable(doc, {
         startY: yPos,
         head: [['Имя', 'Ниша', 'Роль', 'Статус']],
-        body: campaign.influencers.map(ci => [
-          ci.influencer?.name || '-',
-          ci.influencer?.niche || '-',
+        body: campaign.CampaignInfluencer.map(ci => [
+          ci.Influencer?.name || '-',
+          ci.Influencer?.niche || '-',
           ci.role,
           ci.status,
         ]),
@@ -350,7 +350,7 @@ async function generateAccountsPDF(): Promise<Buffer> {
   
   const accounts = await db.account.findMany({
     include: {
-      influencers: true,
+      Influencer: true,
     },
   });
   
@@ -451,8 +451,8 @@ async function generateInfluencersPDF(): Promise<Buffer> {
   
   const influencers = await db.influencer.findMany({
     include: {
-      account: true,
-      posts: true,
+      Account: true,
+      Post: true,
     },
   });
   
@@ -569,7 +569,7 @@ async function generateAuditLogsPDF(startDate?: string, endDate?: string): Promi
   const logs = await db.actionLog.findMany({
     where: whereClause,
     include: {
-      user: true,
+      User: true,
     },
     orderBy: { createdAt: 'desc' },
     take: 500,
@@ -621,7 +621,7 @@ async function generateAuditLogsPDF(startDate?: string, endDate?: string): Promi
       formatDate(l.createdAt),
       l.action,
       l.entityType,
-      l.user?.name || l.user?.email || '-',
+      l.User?.name || l.User?.email || '-',
       l.details ? JSON.stringify(l.details).substring(0, 50) : '-',
     ]),
     theme: 'striped',

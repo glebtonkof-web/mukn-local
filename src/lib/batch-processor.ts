@@ -6,6 +6,7 @@
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { webhookDispatcher } from './webhook-dispatcher';
+import { nanoid } from 'nanoid';
 
 // Supported batch operation types
 export const BATCH_OPERATION_TYPES = [
@@ -107,6 +108,7 @@ export class BatchProcessor {
     // Create operation record
     const operation = await db.batchOperation.create({
       data: {
+        id: nanoid(),
         userId,
         operationType: type,
         type: type,
@@ -121,6 +123,7 @@ export class BatchProcessor {
         successItems: 0,
         failedItems: 0,
         progressPercent: 0,
+        updatedAt: new Date(),
       },
     });
 
@@ -441,6 +444,7 @@ export class BatchProcessor {
       case 'duplicate':
         const newCampaign = await db.campaign.create({
           data: {
+            id: nanoid(),
             userId: campaign.userId,
             name: `${campaign.name} (копия)`,
             description: campaign.description,
@@ -450,6 +454,7 @@ export class BatchProcessor {
             budget: campaign.budget,
             currency: campaign.currency,
             status: 'draft',
+            updatedAt: new Date(),
           },
         });
         return { status: 'duplicated', newCampaignId: newCampaign.id };
@@ -496,6 +501,7 @@ export class BatchProcessor {
         // Create pending comment
         const comment = await db.comment.create({
           data: {
+            id: nanoid(),
             influencerId: influencerId as string,
             content: '', // Will be filled by AI
             targetPlatform: targetPlatform as string,

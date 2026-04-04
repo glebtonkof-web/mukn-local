@@ -6,6 +6,7 @@
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import crypto from 'crypto';
+import { nanoid } from 'nanoid';
 
 // Supported webhook events
 export const WEBHOOK_EVENTS = [
@@ -131,12 +132,13 @@ export class WebhookDispatcher {
     // Create delivery log
     const deliveryLog = await db.webhookDeliveryLog.create({
       data: {
+        id: nanoid(),
         webhookId: webhook.id,
         eventType: event,
         payload: payloadString,
         status: 'pending',
         attemptCount: 1,
-        maxAttempts: webhook.retryCount + 1,
+        maxAttempts: webhook.retryCount + 1
       },
     });
 
@@ -398,6 +400,7 @@ export async function createWebhook(data: {
 }) {
   return db.webhook.create({
     data: {
+      id: nanoid(),
       userId: data.userId,
       name: data.name,
       url: data.url,
@@ -406,6 +409,7 @@ export async function createWebhook(data: {
       retryCount: data.retryCount || 3,
       retryDelay: data.retryDelay || 1000,
       timeout: data.timeout || 5000,
+      updatedAt: new Date()
     },
   });
 }
@@ -444,7 +448,7 @@ export async function getWebhook(webhookId: string) {
   return db.webhook.findUnique({
     where: { id: webhookId },
     include: {
-      deliveryLogs: {
+      WebhookDeliveryLog: {
         orderBy: { createdAt: 'desc' },
         take: 50,
       },
@@ -458,7 +462,7 @@ export async function listWebhooks(userId: string) {
     orderBy: { createdAt: 'desc' },
     include: {
       _count: {
-        select: { deliveryLogs: true },
+        select: { WebhookDeliveryLog: true },
       },
     },
   });

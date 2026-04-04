@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/monetization/neuro-coach - Получить информацию о Нейро-коуч
 export async function GET(request: NextRequest) {
@@ -79,9 +80,11 @@ export async function POST(request: NextRequest) {
     if (!coach) {
       coach = await db.neuroCoach.create({
         data: {
+          id: nanoid(),
           userId,
           subscriptionActive: false,
           sessionsCount: 0,
+          updatedAt: new Date(),
         },
       });
     }
@@ -137,12 +140,15 @@ export async function PUT(request: NextRequest) {
       update: {
         subscriptionActive: true,
         subscriptionEndsAt: new Date(Date.now() + months * 30 * 86400000),
+        updatedAt: new Date(),
       },
       create: {
+        id: nanoid(),
         userId,
         subscriptionActive: true,
         subscriptionEndsAt: new Date(Date.now() + months * 30 * 86400000),
         sessionsCount: 0,
+        updatedAt: new Date(),
       },
     });
 

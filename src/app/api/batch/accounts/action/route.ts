@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
       const accountsWithInfluencers = await db.account.findMany({
         where: {
           id: { in: accountIds },
-          influencers: { some: {} },
+          Influencer: { some: {} },
         },
         select: { id: true },
       });

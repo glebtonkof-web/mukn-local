@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 // GET /api/traffic/instagram-pour/templates - List content templates
 export async function GET(request: NextRequest) {
@@ -90,6 +91,7 @@ export async function POST(request: NextRequest) {
 
     const template = await db.instagramContentTemplate.create({
       data: {
+        id: nanoid(),
         name: body.name,
         type: body.type,
         description: body.description,

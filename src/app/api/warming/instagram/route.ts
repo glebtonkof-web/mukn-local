@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 // 21-day warming strategy configuration
 const WARMING_STRATEGY = {
@@ -224,6 +225,7 @@ export async function POST(request: NextRequest) {
 
       const warming = await db.instagramWarming.create({
         data: {
+          id: nanoid(),
           accountId,
           username,
           status: 'warming',
@@ -237,12 +239,14 @@ export async function POST(request: NextRequest) {
           maxPosts: limits.posts,
           maxDm: limits.dm,
           maxTimeSpent: limits.timeSpent,
+          updatedAt: new Date(),
         },
       });
 
       // Log start action
       await db.instagramWarmingAction.create({
         data: {
+          id: nanoid(),
           warmingId: warming.id,
           actionType: 'warming_started',
           result: 'success',
@@ -359,6 +363,7 @@ export async function POST(request: NextRequest) {
       // Log action
       await db.instagramWarmingAction.create({
         data: {
+          id: nanoid(),
           warmingId: warming.id,
           actionType,
           target: target || null,

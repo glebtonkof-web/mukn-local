@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 // GET /api/traffic/instagram-pour/analytics - Get Instagram traffic analytics
 export async function GET(request: NextRequest) {
@@ -12,13 +13,15 @@ export async function GET(request: NextRequest) {
     const campaignId = searchParams.get('campaignId');
 
     // Build where clause
-    const where: Record<string, string | Date | undefined> = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: Record<string, any> = {};
     
-    if (startDate) {
-      where.date = { gte: new Date(startDate) } as unknown as Date;
-    }
-    if (endDate) {
-      where.date = { ...where.date, lte: new Date(endDate) } as unknown as Date;
+    if (startDate && endDate) {
+      where.date = { gte: new Date(startDate), lte: new Date(endDate) };
+    } else if (startDate) {
+      where.date = { gte: new Date(startDate) };
+    } else if (endDate) {
+      where.date = { lte: new Date(endDate) };
     }
     if (sourceType) where.sourceType = sourceType;
     if (campaignId) where.campaignId = campaignId;
@@ -281,6 +284,7 @@ export async function POST(request: NextRequest) {
       // Create new record
       analytics = await db.instagramTrafficAnalytics.create({
         data: {
+          id: nanoid(),
           campaignId: campaignId || null,
           sourceType,
           date: recordDate,

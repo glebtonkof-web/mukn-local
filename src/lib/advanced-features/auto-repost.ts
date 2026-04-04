@@ -2,6 +2,7 @@
 // Софт находит вирусный пост, переписывает + меняет картинку
 
 import { db } from '../db';
+import { nanoid } from 'nanoid';
 
 export interface RepostSource {
   type: 'channel' | 'keyword' | 'competitor';
@@ -118,6 +119,7 @@ Return only the rewritten post text.`;
     // Создаём запись
     const autoRepost = await db.autoRepost.create({
       data: {
+        id: nanoid(),
         sourceType: config.source.type,
         sourceId: config.source.id,
         sourceUrl: selectedPost.sourceUrl,
@@ -130,6 +132,7 @@ Return only the rewritten post text.`;
         targetPlatform: config.targetPlatform,
         status: 'active',
         repostsCount: 0,
+        updatedAt: new Date(),
       },
     });
 
@@ -170,6 +173,7 @@ Return only the rewritten post text.`;
   async setupMonitoring(config: RepostConfig): Promise<string> {
     const autoRepost = await db.autoRepost.create({
       data: {
+        id: nanoid(),
         sourceType: config.source.type,
         sourceId: config.source.id,
         sourceUrl: config.source.url,
@@ -182,6 +186,7 @@ Return only the rewritten post text.`;
         targetPlatform: config.targetPlatform,
         status: 'active',
         repostsCount: 0,
+        updatedAt: new Date(),
       },
     });
 

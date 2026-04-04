@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/monetization/templates - Получить юридические шаблоны
 export async function GET(request: NextRequest) {
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
 
     const template = await db.legalTemplate.create({
       data: {
+        id: nanoid(),
         name,
         description,
         category: category || 'disclaimer',
@@ -82,6 +84,7 @@ export async function POST(request: NextRequest) {
         price: price || 0,
         currency: currency || 'USD',
         applicableNiches: applicableNiches ? JSON.stringify(applicableNiches) : null,
+        updatedAt: new Date(),
       },
     });
 
@@ -126,6 +129,7 @@ export async function PUT(request: NextRequest) {
     // Создаём запись о покупке
     const purchase = await db.legalTemplatePurchase.create({
       data: {
+        id: nanoid(),
         templateId,
         userId: userId || 'default',
         generatedContent,

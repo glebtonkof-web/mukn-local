@@ -31,8 +31,8 @@ export interface LearningExample {
 }
 
 export interface ModelWeights {
-  biases: number[];
-  weights: number[][];
+  biases: number[][];  // biases per layer
+  weights: number[][][];  // weights per layer
   features: string[]; // имена признаков
 }
 

@@ -419,4 +419,5 @@ export const accountRotation = {
   recoverAccount: (id: string) => getAccountRotation().recoverAccount(id),
   getAllAccountStates: () => getAccountRotation().getAllAccountStates(),
   getStats: () => getAccountRotation().getStats(),
+  getShifts: () => getAccountRotation().getShifts(),
 };

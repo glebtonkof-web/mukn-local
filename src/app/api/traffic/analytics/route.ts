@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 // GET /api/traffic/analytics - Get traffic funnel analytics
 export async function GET(request: NextRequest) {
@@ -214,6 +215,7 @@ export async function POST(request: NextRequest) {
       // Create new record with proper typing
       analytics = await db.trafficFunnelAnalytics.create({
         data: {
+          id: nanoid(),
           date: recordDate,
           comments: field === 'comments' ? count : 0,
           profileViews: field === 'profileViews' ? count : 0,

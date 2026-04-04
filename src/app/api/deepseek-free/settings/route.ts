@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
+import { nanoid } from 'nanoid'
 
 const prisma = new PrismaClient()
 
@@ -21,7 +22,10 @@ export async function GET(request: NextRequest) {
     // Если настроек нет — создаём дефолтные
     if (!settings) {
       settings = await prisma.deepSeekFreeSettings.create({
-        data: { userId }
+        data: {
+          id: nanoid(),
+          userId,
+        } as any
       })
     }
 
@@ -56,6 +60,7 @@ export async function POST(request: NextRequest) {
     const updated = await prisma.deepSeekFreeSettings.upsert({
       where: { userId },
       create: {
+        id: nanoid(),
         userId,
         ...settings
       },

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/monetization/auto-scaling - Получить настройки авто-масштабирования
 export async function GET(request: NextRequest) {
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
         enabled,
       },
       create: {
+        id: nanoid(),
         campaignId,
         roiThreshold,
         checkIntervalHours,
@@ -81,6 +83,7 @@ export async function POST(request: NextRequest) {
         maxBudget,
         maxChannels,
         enabled,
+        updatedAt: new Date(),
       },
     });
 

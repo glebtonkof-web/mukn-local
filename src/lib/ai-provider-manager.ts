@@ -4,6 +4,7 @@
 
 import { db } from './db';
 import { AIContextCache, getAICache, CacheEntry } from './ai-cache';
+import { nanoid } from 'nanoid';
 
 // Типы провайдеров
 export type ProviderName = 'openrouter' | 'gemini' | 'groq' | 'deepseek' | 'cerebras';
@@ -803,6 +804,7 @@ export class AIProviderManager {
     try {
       await db.actionLog.create({
         data: {
+          id: nanoid(),
           action: 'ai_provider_switch',
           entityType: 'ai_provider',
           details: JSON.stringify({

@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAIProviderManager, TaskType } from '@/lib/ai-provider-manager';
 import ZAI from 'z-ai-web-dev-sdk';
+import { nanoid } from 'nanoid';
 
 // Типы контента
 export type ContentType = 'post' | 'comment' | 'dm' | 'story';
@@ -388,7 +389,7 @@ export async function POST(request: NextRequest) {
       const influencer = await db.influencer.findUnique({
         where: { id: influencerId },
         include: {
-          account: true,
+          Account: true,
         },
       });
       if (influencer) {
@@ -473,6 +474,7 @@ export async function POST(request: NextRequest) {
     if (influencerId) {
       await db.aIGeneratedContent.create({
         data: {
+          id: nanoid(),
           influencerId,
           contentType,
           generatedText: generatedContent.content,

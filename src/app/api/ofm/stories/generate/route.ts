@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
+import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -167,6 +168,7 @@ ${customTextPrompt ? `Дополнительный контекст: ${customTex
     // Log the generation
     await db.actionLog.create({
       data: {
+        id: nanoid(),
         action: 'story_generated',
         entityType: 'story',
         entityId: storyId,

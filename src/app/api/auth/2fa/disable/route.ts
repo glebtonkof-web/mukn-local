@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { TOTP } from 'otplib'
+import { nanoid } from 'nanoid'
 import { db } from '@/lib/db'
 import { serverDecrypt, verifyBackupCode } from '@/lib/crypto'
 import { twoFaRateLimiter, getRateLimitHeaders } from '@/lib/rate-limiter'
@@ -103,6 +104,7 @@ export async function POST(request: NextRequest) {
       // Create audit log
       await db.actionLog.create({
         data: {
+          id: nanoid(),
           userId: adminUserId,
           action: 'DISABLE_2FA',
           entityType: 'user',
@@ -178,6 +180,7 @@ export async function POST(request: NextRequest) {
     // Create audit log
     await db.actionLog.create({
       data: {
+        id: nanoid(),
         userId,
         action: 'DISABLE_2FA_SELF',
         entityType: 'user',

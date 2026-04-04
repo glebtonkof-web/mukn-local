@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 import ZAI from 'z-ai-web-dev-sdk';
 
 // ============================================================================
@@ -674,6 +675,7 @@ export async function POST(request: NextRequest) {
       try {
         const execution = await db.trafficMethodExecution.create({
           data: {
+            id: nanoid(),
             methodId: `tiktok_v2_${method?.name || body.methodId}`,
             targetPlatform: 'tiktok',
             content: JSON.stringify(result.content),
@@ -726,21 +728,23 @@ export async function PUT(request: NextRequest) {
 
     // Обновить или создать конфигурацию метода
     const updatedConfig = await db.trafficMethod.upsert({
-      where: { methodNumber: methodId },
+      where: { methodNumber: Number(methodId) },
       update: {
         config: config ? JSON.stringify(config) : undefined,
         deepseekPrompt: DEEPSEEK_PROMPTS[method.name as TikTokV2MethodName],
         updatedAt: new Date(),
       },
       create: {
-        methodNumber: methodId,
-        name: method.name,
-        description: method.description,
+        id: nanoid(),
+        methodNumber: Number(methodId),
+        name: String(method.name),
+        description: String(method.description),
         platform: 'tiktok',
-        category: method.category,
+        category: String(method.category),
         config: config ? JSON.stringify(config) : null,
         deepseekPrompt: DEEPSEEK_PROMPTS[method.name as TikTokV2MethodName],
-        isActive: isActive ?? true,
+        isActive: Boolean(isActive ?? true),
+        updatedAt: new Date(),
       },
     });
 

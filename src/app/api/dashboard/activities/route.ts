@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/dashboard/activities - Get activity feed
 export async function GET(request: NextRequest) {
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
 
     const activity = await db.activityLog.create({
       data: {
+        id: nanoid(),
         type,
         message,
         campaignId,

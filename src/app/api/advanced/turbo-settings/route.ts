@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTurboProfitSettings } from '@/lib/advanced-ai-engine';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 export async function GET(request: NextRequest) {
   try {
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
     const turboSettings = await db.turboProfitSettings.upsert({
       where: { userId },
       create: {
+        id: nanoid(),
         userId,
         enabled: enabled ?? false,
         aggressionLevel: aggressionLevel ?? 50,
@@ -54,6 +56,7 @@ export async function POST(request: NextRequest) {
         maxBanRisk: settings?.maxBanRisk ?? 70,
         riskAcknowledged: acknowledgeRisk ?? false,
         acknowledgedAt: acknowledgeRisk ? new Date() : null,
+        updatedAt: new Date(),
       },
       update: {
         enabled: enabled ?? undefined,
@@ -64,6 +67,7 @@ export async function POST(request: NextRequest) {
         maxBanRisk: settings?.maxBanRisk ?? undefined,
         riskAcknowledged: acknowledgeRisk ?? undefined,
         acknowledgedAt: acknowledgeRisk ? new Date() : undefined,
+        updatedAt: new Date(),
       },
     });
     

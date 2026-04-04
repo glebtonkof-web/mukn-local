@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
         // Создаём прокси
         await db.proxy.create({
           data: {
+            id: nanoid(),
             type: proxy.type || 'socks5',
             host: proxy.host,
             port: proxy.port,
@@ -50,6 +52,7 @@ export async function POST(request: NextRequest) {
             password: proxy.password || null,
             status: 'active',
             userId: 'default-user',
+            updatedAt: new Date(),
           },
         });
 

@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { 
   Sparkles, Film, Download, Trash2, RefreshCw,
-  Casino, Globe, Gamepad2, Clock, CheckCircle2,
+  Dice5, Globe, Gamepad2, Clock, CheckCircle2,
   XCircle, Loader2, Eye
 } from 'lucide-react'
 
@@ -200,7 +200,7 @@ export function CreativeGeneratorPanel() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
-                    <Casino className="w-4 h-4" />
+                    <Dice5 className="w-4 h-4" />
                     Казино
                   </Label>
                   <Select value={selectedCasino} onValueChange={setSelectedCasino}>

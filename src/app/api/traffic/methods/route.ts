@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import ZAI from 'z-ai-web-dev-sdk';
+import { nanoid } from 'nanoid';
 
 // ==================== 130 TRAFFIC METHODS CONFIGURATION ====================
 
@@ -426,14 +427,16 @@ export async function POST(request: NextRequest) {
 
     // Update method usage count
     await db.trafficMethodExtended.upsert({
-      where: { methodId },
+      where: { methodId: Number(methodId) },
       update: {},
       create: {
-        methodId,
+        id: nanoid(),
+        methodId: Number(methodId),
         name: `Method ${methodId}`,
         category: 'general',
         description: '',
         riskLevel: 'medium',
+        updatedAt: new Date(),
       },
     });
 
@@ -469,7 +472,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const method = await db.trafficMethodExtended.upsert({
-      where: { methodId },
+      where: { methodId: Number(methodId) },
       update: {
         systemPrompt: config.systemPrompt,
         userPrompt: config.userPrompt,
@@ -480,18 +483,20 @@ export async function PUT(request: NextRequest) {
         isActive: config.isActive ?? true,
       },
       create: {
-        methodId,
-        name: config.name || `Method ${methodId}`,
-        category: config.category || 'general',
-        description: config.description || '',
-        riskLevel: config.riskLevel || 'medium',
+        id: nanoid(),
+        methodId: Number(methodId),
+        name: String(config.name || `Method ${methodId}`),
+        category: String(config.category || 'general'),
+        description: String(config.description || ''),
+        riskLevel: String(config.riskLevel || 'medium'),
         systemPrompt: config.systemPrompt,
         userPrompt: config.userPrompt,
         defaultConfig: config.defaultConfig ? JSON.stringify(config.defaultConfig) : undefined,
-        maxPerDay: config.maxPerDay || 100,
-        maxPerHour: config.maxPerHour || 20,
-        cooldownMinutes: config.cooldownMinutes || 5,
-        isActive: config.isActive ?? true,
+        maxPerDay: Number(config.maxPerDay) || 100,
+        maxPerHour: Number(config.maxPerHour) || 20,
+        cooldownMinutes: Number(config.cooldownMinutes) || 5,
+        isActive: Boolean(config.isActive ?? true),
+        updatedAt: new Date(),
       },
     });
 

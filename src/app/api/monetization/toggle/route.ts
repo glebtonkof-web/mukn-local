@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const { featureId, status, userId } = body;
 
     const newStatus = status === 'active' ? 'paused' : 'active';
-    let result = null;
+    let result: { count: number } | null = null;
 
     switch (featureId) {
       case 'marketplace':

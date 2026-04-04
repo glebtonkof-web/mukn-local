@@ -179,7 +179,7 @@ export async function GET(request: NextRequest) {
       // Cross Post
       db.crossPostEnrichment.count(),
       // Dynamic Offers - используем Offer как замену
-      db.offer.count({ where: { isActive: true } }),
+      db.offer.count({ where: { status: 'active' } }),
       // Emotion Analysis
       db.audienceEmotionAnalysis.count(),
       // Forgetfulness - используем настройки автоматизации
@@ -312,7 +312,7 @@ export async function GET(request: NextRequest) {
           metrics = {
             servers: loadBalancers,
             load: '67%',
-            optimized: enabled,
+            optimized: enabled ? 'yes' : 'no',
           };
           break;
 
@@ -393,7 +393,7 @@ export async function GET(request: NextRequest) {
       total: features.length,
       active: features.filter(f => f.status === 'active').length,
       paused: features.filter(f => f.status === 'paused').length,
-      error: features.filter(f => f.status === 'error').length,
+      error: 0,
     };
 
     return NextResponse.json({

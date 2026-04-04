@@ -1,6 +1,7 @@
 // API: Forgetfulness Simulation (УРОВЕНЬ 1, функция 4 - Имитация забывчивости)
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // Default "forgot" phrases in Russian
 const DEFAULT_FORGOT_PHRASES = [
@@ -174,11 +175,13 @@ export async function POST(request: NextRequest) {
     // Create settings
     const settings = await db.forgetfulnessSimulation.create({
       data: {
+        id: nanoid(),
         campaignId,
         influencerId,
         forgetProbability,
         rememberDelayDays,
-        forgotPhrases: forgotPhrases ? JSON.stringify(forgotPhrases) : JSON.stringify(DEFAULT_FORGOT_PHRASES)
+        forgotPhrases: forgotPhrases ? JSON.stringify(forgotPhrases) : JSON.stringify(DEFAULT_FORGOT_PHRASES),
+        updatedAt: new Date(),
       }
     });
     

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET: Get learning patterns with filtering
 export async function GET(request: NextRequest) {
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
         skip: offset,
         include: {
           _count: {
-            select: { samples: true }
+            select: { LearningSample: true }
           }
         }
       }),
@@ -41,7 +42,10 @@ export async function GET(request: NextRequest) {
     let globalStats = await db.globalLearningStats.findFirst();
     if (!globalStats) {
       globalStats = await db.globalLearningStats.create({
-        data: {}
+        data: {
+          id: nanoid(),
+          updatedAt: new Date(),
+        }
       });
     }
 
@@ -57,7 +61,7 @@ export async function GET(request: NextRequest) {
       success: true,
       patterns: patterns.map(p => ({
         ...p,
-        samplesCount: p._count.samples
+        samplesCount: p._count.LearningSample
       })),
       globalStats,
       patternsByType: patternsByType.map(pt => ({
@@ -125,6 +129,7 @@ export async function POST(request: NextRequest) {
     if (!pattern) {
       pattern = await db.learningPattern.create({
         data: {
+          id: nanoid(),
           patternType,
           patternData,
           niche,
@@ -136,7 +141,8 @@ export async function POST(request: NextRequest) {
           avgROI: wasSuccessful ? revenue : 0,
           avgConversion: conversionRate,
           totalRevenue: revenue,
-          lastUsedAt: new Date()
+          lastUsedAt: new Date(),
+          updatedAt: new Date()
         }
       });
     } else {
@@ -172,6 +178,7 @@ export async function POST(request: NextRequest) {
     // Create sample record
     const sample = await db.learningSample.create({
       data: {
+        id: nanoid(),
         patternId: pattern.id,
         campaignId,
         influencerId,
@@ -218,7 +225,7 @@ export async function PUT(request: NextRequest) {
     const patterns = await db.learningPattern.findMany({
       include: {
         _count: {
-          select: { samples: true }
+          select: { LearningSample: true }
         }
       }
     });
@@ -332,7 +339,7 @@ export async function PATCH(request: NextRequest) {
       ],
       take: limit,
       include: {
-        samples: {
+        LearningSample: {
           take: 3,
           orderBy: { createdAt: 'desc' },
           where: { wasSuccessful: true }
@@ -360,7 +367,7 @@ export async function PATCH(request: NextRequest) {
         failureCount: r.failureCount,
         niche: r.niche,
         geo: r.geo,
-        recentSuccessSamples: r.samples.map(s => ({
+        recentSuccessSamples: r.LearningSample.map(s => ({
           inputContext: JSON.parse(s.inputContext),
           action: JSON.parse(s.action),
           revenue: s.revenue

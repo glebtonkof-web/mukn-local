@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { calculateBudget, formatBudgetCalculation, BudgetSettings, getAIBudgetManager } from '@/lib/ai-budget-manager';
+import { nanoid } from 'nanoid';
 
 // GET - Получить текущий статус бюджета
 export async function GET(request: NextRequest) {
@@ -118,10 +119,12 @@ export async function POST(request: NextRequest) {
     const settings = await db.budgetSettings.upsert({
       where: { userId },
       create: {
+        id: nanoid(),
         userId,
         deepseekBudget: budgetUSD,
         deepseekSpent: 0,
         totalBudget: budgetUSD * 90, // Примерный курс USD to RUB
+        updatedAt: new Date(),
       },
       update: {
         deepseekBudget: budgetUSD,

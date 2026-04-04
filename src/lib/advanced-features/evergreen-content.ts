@@ -2,6 +2,7 @@
 // Старые успешные посты (6+ месяцев) AI переписывает под современность
 
 import { db } from '../db';
+import { nanoid } from 'nanoid';
 
 export interface EvergreenConfig {
   minAgeDays?: number; // Минимальный возраст поста (по умолчанию 180 дней)
@@ -116,6 +117,7 @@ Respond in JSON format:
     // Создаём запись об обновлении
     const evergreen = await db.evergreenContent.create({
       data: {
+        id: nanoid(),
         originalPostId: postId,
         originalContent: post.content,
         originalMetrics: JSON.stringify({ views: post.views, likes: post.likes }),
@@ -124,6 +126,7 @@ Respond in JSON format:
         status: 'updated',
         lastUpdated: new Date(),
         nextUpdate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000), // через 6 месяцев
+        updatedAt: new Date(),
       },
     });
 
@@ -154,6 +157,7 @@ Respond in JSON format:
     // Создаём новый пост с обновлённым контентом
     const newPost = await db.post.create({
       data: {
+        id: nanoid(),
         platform: originalPost.platform,
         content: evergreen.updatedContent,
         aiGenerated: true,
@@ -161,6 +165,7 @@ Respond in JSON format:
         status: 'draft',
         influencerId: originalPost.influencerId,
         campaignId: originalPost.campaignId,
+        updatedAt: new Date(),
       },
     });
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withRetry, createCircuitBreaker } from '@/lib/resilience';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 const dbCircuitBreaker = createCircuitBreaker('database', { circuitBreakerThreshold: 3 });
 
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
       db.contentQueue.findMany({
         where,
         include: {
-          influencer: {
+          Influencer: {
             select: {
               id: true,
               name: true,
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
               avatarUrl: true,
             },
           },
-          offer: {
+          Offer: {
             select: {
               id: true,
               name: true,
@@ -182,6 +183,7 @@ export async function POST(request: NextRequest) {
     const queueItem = await withRetry(() =>
       db.contentQueue.create({
         data: {
+          id: nanoid(),
           type: body.type,
           priority: body.priority || 5,
           scheduledAt: scheduledDate,
@@ -191,7 +193,7 @@ export async function POST(request: NextRequest) {
           error: body.metadata ? JSON.stringify(body.metadata) : null,
         },
         include: {
-          influencer: {
+          Influencer: {
             select: {
               id: true,
               name: true,
@@ -283,14 +285,14 @@ export async function PUT(request: NextRequest) {
       where: { id },
       data,
       include: {
-        influencer: {
+        Influencer: {
           select: {
             id: true,
             name: true,
             niche: true,
           },
         },
-        offer: {
+        Offer: {
           select: {
             id: true,
             name: true,

@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { generateSecureToken } from '@/lib/crypto'
 import { hasPermission } from '@/lib/rbac'
+import { nanoid } from 'nanoid'
 
 interface CreateSessionRequest {
   userId: string
@@ -60,9 +61,11 @@ export async function POST(request: NextRequest) {
     // Create session (only fields available in Prisma schema)
     const session = await db.session.create({
       data: {
+        id: nanoid(),
         userId,
         sessionToken,
-        expires
+        expires,
+        updatedAt: new Date()
       }
     })
 
@@ -219,6 +222,7 @@ export async function DELETE(request: NextRequest) {
     // Create audit log
     await db.actionLog.create({
       data: {
+        id: nanoid(),
         userId,
         action: terminateOthers ? 'TERMINATE_OTHER_SESSIONS' : 'TERMINATE_SESSION',
         entityType: 'session',
@@ -313,7 +317,7 @@ export async function PATCH(request: NextRequest) {
 
     const session = await db.session.findUnique({
       where: { sessionToken: token },
-      include: { user: true }
+      include: { User: true }
     })
 
     if (!session) {
@@ -342,11 +346,11 @@ export async function PATCH(request: NextRequest) {
         expires: session.expires
       },
       user: {
-        id: session.user.id,
-        email: session.user.email,
-        name: session.user.name,
-        role: session.user.role,
-        twoFactorEnabled: session.user.twoFactorEnabled
+        id: session.User.id,
+        email: session.User.email,
+        name: session.User.name,
+        role: session.User.role,
+        twoFactorEnabled: session.User.twoFactorEnabled
       }
     })
 

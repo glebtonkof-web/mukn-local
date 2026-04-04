@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
           lastError: webhook.lastError,
           createdAt: webhook.createdAt,
           updatedAt: webhook.updatedAt,
-          deliveryLogs: webhook.deliveryLogs.map(log => ({
+          deliveryLogs: webhook.WebhookDeliveryLog.map(log => ({
             id: log.id,
             eventType: log.eventType,
             status: log.status,
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
           totalSuccess: wh.totalSuccess,
           totalFailed: wh.totalFailed,
           lastSentAt: wh.lastSentAt,
-          deliveryLogsCount: wh._count.deliveryLogs,
+          deliveryLogsCount: wh._count.WebhookDeliveryLog,
           createdAt: wh.createdAt,
         };
       }),

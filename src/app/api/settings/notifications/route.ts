@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/settings/notifications - Получить настройки уведомлений
 export async function GET() {
@@ -11,7 +12,7 @@ export async function GET() {
     if (!settings) {
       // Создаём настройки по умолчанию
       settings = await db.notificationSettings.create({
-        data: { userId: 'default' }
+        data: { id: nanoid(), userId: 'default', updatedAt: new Date() }
       });
     }
 
@@ -44,8 +45,10 @@ export async function POST(request: NextRequest) {
     } else {
       settings = await db.notificationSettings.create({
         data: {
+          id: nanoid(),
           userId: 'default',
-          ...updateData
+          ...updateData,
+          updatedAt: new Date(),
         }
       });
     }

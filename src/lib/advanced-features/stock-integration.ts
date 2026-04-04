@@ -2,6 +2,7 @@
 // Pexels, Pixabay, Unsplash (бесплатные)
 
 import { db } from '../db';
+import { nanoid } from 'nanoid';
 
 export type StockProvider = 'pexels' | 'pixabay' | 'unsplash';
 
@@ -342,9 +343,11 @@ class StockIntegrationService {
     await db.stockIntegration.upsert({
       where: { provider },
       create: {
+        id: nanoid(),
         provider,
         apiKey,
         isActive: true,
+        updatedAt: new Date(),
       },
       update: {
         apiKey,

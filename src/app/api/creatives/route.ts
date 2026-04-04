@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import creativeGeneratorService from '@/lib/creative-generator'
+import creativeGeneratorService, { CreativeResult } from '@/lib/creative-generator'
 
 // GET /api/creatives
 export async function GET(request: NextRequest) {
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     // Массовая генерация для всех казино
     if (body.action === 'generate_all') {
       const casinos = creativeGeneratorService.getCasinos()
-      const allResults = []
+      const allResults: CreativeResult[] = []
 
       for (const casino of casinos) {
         const results = await creativeGeneratorService.generateBatch({

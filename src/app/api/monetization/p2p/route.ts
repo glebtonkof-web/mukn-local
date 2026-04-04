@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/monetization/p2p - Получить доступные аккаунты для аренды
 export async function GET(request: NextRequest) {
@@ -44,11 +45,13 @@ export async function POST(request: NextRequest) {
 
     const rental = await db.p2PAccountRental.create({
       data: {
+        id: nanoid(),
         ownerId,
         accountId,
         dailyRate,
         platformCommission: 0.15,
         status: 'available',
+        updatedAt: new Date(),
       },
     });
 

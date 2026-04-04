@@ -2,6 +2,7 @@
 // AI сам пишет сценарий воронки и создаёт все посты
 
 import { db } from '../db';
+import { nanoid } from 'nanoid';
 
 export interface FunnelStage {
   order: number;
@@ -34,6 +35,7 @@ class PostFunnelService {
     // Создаём запись воронки
     const funnel = await db.postFunnel.create({
       data: {
+        id: nanoid(),
         name: config.name,
         description: `Funnel for ${config.goal}`,
         stages: '[]',
@@ -44,6 +46,7 @@ class PostFunnelService {
         campaignId: config.campaignId,
         influencerId: config.influencerId,
         status: 'draft',
+        updatedAt: new Date(),
       },
     });
 

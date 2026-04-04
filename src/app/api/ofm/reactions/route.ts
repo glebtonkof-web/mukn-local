@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import ZAI from 'z-ai-web-dev-sdk';
+import { nanoid } from 'nanoid';
 
 // Доступные реакции для AI-выбора
 const AVAILABLE_REACTIONS = ['🔥', '💰', '🎰', '😍', '👍', '😱', '🤔', '❤️', '😂', '👏', '🤝', '💪', '🚀', '✨', '🎯'];
@@ -160,12 +161,14 @@ ${historicalContext}`,
     // Save to analytics
     const analytics = await db.reactionAnalytics.create({
       data: {
+        id: nanoid(),
         channelId: channelId || 'unknown',
         postId: body.postId,
         reaction: selectedReaction,
         count: 1,
         aiSelected: true,
         aiScore,
+        updatedAt: new Date(),
       },
     });
 
@@ -256,11 +259,13 @@ export async function PATCH(request: NextRequest) {
       } else {
         const created = await db.reactionAnalytics.create({
           data: {
+            id: nanoid(),
             channelId: channelId || 'unknown',
             postId: postId || null,
             reaction,
             count: 1,
             aiSelected: false,
+            updatedAt: new Date(),
           },
         });
         results.push(created);

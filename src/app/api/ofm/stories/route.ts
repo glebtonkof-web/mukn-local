@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import ZAI from 'z-ai-web-dev-sdk';
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
       db.oFMStory.findMany({
         where,
         include: {
-          profile: {
+          OFMProfile: {
             select: {
               id: true,
               name: true,
@@ -118,6 +119,7 @@ export async function POST(request: NextRequest) {
 
     const story = await db.oFMStory.create({
       data: {
+        id: nanoid(),
         profileId: body.profileId,
         text: storyText,
         imageUrl: body.imageUrl,

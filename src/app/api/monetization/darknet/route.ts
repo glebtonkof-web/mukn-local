@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/monetization/darknet - Получить дайджест даркнета
 export async function GET(request: NextRequest) {
@@ -55,6 +56,7 @@ export async function POST(request: NextRequest) {
     // Сохраняем дайджест
     const digest = await db.darknetDigest.create({
       data: {
+        id: nanoid(),
         source: forums?.[0] || 'multiple',
         schemes: JSON.stringify(foundSchemes),
         accessPrice: 49,

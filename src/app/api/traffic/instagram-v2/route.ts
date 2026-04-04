@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 import ZAI from 'z-ai-web-dev-sdk';
 
 // ==================== 17 INSTAGRAM METHODS ====================
@@ -279,13 +280,15 @@ async function getOrCreateMethod(methodId: number, methodName: string, methodTit
 
   return db.trafficMethod.create({
     data: {
-      methodNumber: methodId,
-      name: methodName,
-      description: methodTitle,
+      id: nanoid(),
+      methodNumber: Number(methodId),
+      name: String(methodName),
+      description: String(methodTitle),
       platform: 'instagram',
-      category: INSTAGRAM_V2_METHODS.find(m => m.id === methodId)?.category || 'basic',
+      category: String(INSTAGRAM_V2_METHODS.find(m => m.id === methodId)?.category || 'basic'),
       isActive: true,
       status: 'active',
+      updatedAt: new Date(),
     },
   });
 }
@@ -297,6 +300,7 @@ async function createExecution(
 ) {
   return db.trafficMethodExecution.create({
     data: {
+      id: nanoid(),
       methodId,
       targetPlatform: 'instagram',
       targetId: config.targetAccounts?.[0] || null,
@@ -327,7 +331,7 @@ export async function GET(request: NextRequest) {
       const methods = INSTAGRAM_V2_METHODS;
       const executions = await db.trafficMethodExecution.findMany({
         where: {
-          method: { platform: 'instagram' },
+          targetPlatform: 'instagram',
         },
         select: {
           methodId: true,
@@ -383,11 +387,9 @@ export async function GET(request: NextRequest) {
       const dbMethod = await db.trafficMethod.findFirst({
         where: { methodNumber: id },
         include: {
-          executions: {
-            take: 10,
-            orderBy: { createdAt: 'desc' },
+          _count: {
+            select: { TrafficMethodExecution: true },
           },
-          templates: true,
         },
       });
 

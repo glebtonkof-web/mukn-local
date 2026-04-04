@@ -3,6 +3,7 @@
 
 import { db } from '../db';
 import { stockIntegration } from './stock-integration';
+import { nanoid } from 'nanoid';
 
 export interface MemeTemplate {
   id: string;
@@ -106,6 +107,7 @@ class MemeGeneratorService {
     // Сохраняем в БД
     const meme = await db.generatedMeme.create({
       data: {
+        id: nanoid(),
         templateId: template.id,
         templateName: template.name,
         topText,
@@ -114,6 +116,7 @@ class MemeGeneratorService {
         topic: config.topic,
         aiPrompt: config.autoGenerate ? `Generate meme about ${config.topic}` : null,
         status: 'completed',
+        updatedAt: new Date(),
       },
     });
 

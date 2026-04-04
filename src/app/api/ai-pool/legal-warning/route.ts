@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // Системный промпт для юридического анализа
 const LEGAL_SYSTEM_PROMPT = `Ты — юридический эксперт по российскому праву. Оцени риски следующей рекламной схемы в Telegram с точки зрения УК РФ.
@@ -94,6 +95,7 @@ ${sampleText ? `ПРИМЕР ТЕКСТА: "${sampleText}"` : ''}`;
     // Сохраняем предупреждение в БД (но не подтверждённое)
     const warning = await db.legalWarningAck.create({
       data: {
+        id: nanoid(),
         userId,
         offerTheme,
         promotionMethod,
@@ -156,6 +158,7 @@ export async function PUT(request: NextRequest) {
     // Логируем действие
     await db.actionLog.create({
       data: {
+        id: nanoid(),
         action: 'legal_warning_acknowledged',
         entityType: 'legal_warning',
         entityId: warningId,

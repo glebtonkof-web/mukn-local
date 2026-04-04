@@ -2,6 +2,7 @@
 // Ежедневные отчёты о статистике, топ-постах, рекомендациях
 
 import { db } from '../db';
+import { nanoid } from 'nanoid';
 
 export type ReportChannel = 'telegram' | 'slack' | 'discord' | 'email';
 
@@ -373,6 +374,7 @@ class ReportSenderService {
     } else {
       await db.reportSettings.create({
         data: {
+          id: nanoid(),
           userId,
           telegramChatId: config.channels?.telegram,
           slackWebhook: config.channels?.slack,
@@ -386,6 +388,7 @@ class ReportSenderService {
           includeRecommendations: config.content?.recommendations ?? true,
           includeErrors: config.content?.errors ?? true,
           includeRevenue: config.content?.revenue ?? true,
+          updatedAt: new Date(),
         },
       });
     }

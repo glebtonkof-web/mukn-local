@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/monetization/partners - Получить партнёрские офферы
 export async function GET(request: NextRequest) {
@@ -77,6 +78,7 @@ export async function POST(request: NextRequest) {
 
     const offer = await db.partnerOffer.create({
       data: {
+        id: nanoid(),
         offerId: offerId || `offer_${Date.now()}`,
         network,
         networkOfferId,
@@ -89,6 +91,7 @@ export async function POST(request: NextRequest) {
         postbackUrl,
         isHot: isHot || false,
         isFeatured: isFeatured || false,
+        updatedAt: new Date(),
       },
     });
 
@@ -113,6 +116,7 @@ export async function PUT(request: NextRequest) {
 
     const click = await db.partnerOfferClick.create({
       data: {
+        id: nanoid(),
         offerId,
         userId: userId || 'default',
         clickId,

@@ -2,6 +2,7 @@
 // Создаёт защитные аккаунты для ответов на негативные комментарии
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET: Получить список теневых аккаунтов для основного аккаунта
 export async function GET(request: NextRequest) {
@@ -131,6 +132,7 @@ export async function POST(request: NextRequest) {
     // Создаём привязку
     const shadowSupportAccount = await db.shadowSupportAccount.create({
       data: {
+        id: nanoid(),
         primaryAccountId,
         primaryInfluencerId,
         shadowAccountId,
@@ -138,6 +140,7 @@ export async function POST(request: NextRequest) {
         triggerKeywords: JSON.stringify(triggerKeywords),
         responseTemplates: JSON.stringify(responseTemplates),
         isActive: true,
+        updatedAt: new Date(),
       },
     });
     

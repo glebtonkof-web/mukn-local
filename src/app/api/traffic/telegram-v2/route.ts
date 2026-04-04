@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 import ZAI from 'z-ai-web-dev-sdk';
 
 // ==================== 25 TELEGRAM METHODS DEFINITION ====================
@@ -618,12 +619,8 @@ export async function GET(request: NextRequest) {
       const dbMethod = await db.trafficMethod.findFirst({
         where: { methodNumber: id },
         include: {
-          executions: {
-            take: 10,
-            orderBy: { createdAt: 'desc' },
-          },
           _count: {
-            select: { executions: true },
+            select: { TrafficMethodExecution: true },
           },
         },
       });
@@ -639,7 +636,7 @@ export async function GET(request: NextRequest) {
           totalClicks: dbMethod.totalClicks,
           totalConversions: dbMethod.totalConversions,
           revenue: dbMethod.revenue,
-          executionsCount: dbMethod._count.executions,
+          executionsCount: dbMethod._count.TrafficMethodExecution,
         } : null,
       });
     }
@@ -700,7 +697,7 @@ export async function GET(request: NextRequest) {
       },
       include: {
         _count: {
-          select: { executions: true },
+          select: { TrafficMethodExecution: true },
         },
       },
     });
@@ -712,7 +709,7 @@ export async function GET(request: NextRequest) {
         ...method,
         prompt: DEEPSEEK_PROMPTS[method.name] || null,
         dbData: dbMethod || null,
-        executionsCount: dbMethod?._count.executions || 0,
+        executionsCount: dbMethod?._count?.TrafficMethodExecution || 0,
       };
     });
 
@@ -766,15 +763,17 @@ export async function POST(request: NextRequest) {
     if (!dbMethod) {
       dbMethod = await db.trafficMethod.create({
         data: {
-          methodNumber: body.methodId,
-          name: method.name,
-          description: method.title,
+          id: nanoid(),
+          methodNumber: Number(body.methodId),
+          name: String(method.name),
+          description: String(method.title),
           platform: 'telegram',
-          category: method.category,
+          category: String(method.category),
           status: 'active',
           isActive: true,
           riskLevel: method.riskLevel === 'high' ? 80 : method.riskLevel === 'medium' ? 50 : 20,
           deepseekPrompt: DEEPSEEK_PROMPTS[method.name] || null,
+          updatedAt: new Date(),
         },
       });
     }
@@ -782,6 +781,7 @@ export async function POST(request: NextRequest) {
     // Create execution record
     const execution = await db.trafficMethodExecution.create({
       data: {
+        id: nanoid(),
         methodId: dbMethod.id,
         targetPlatform: 'telegram',
         targetId: body.targetChannels?.[0] || null,
@@ -860,16 +860,18 @@ export async function PUT(request: NextRequest) {
     if (!dbMethod && method) {
       dbMethod = await db.trafficMethod.create({
         data: {
-          methodNumber: body.methodId,
-          name: method.name,
-          description: method.title,
+          id: nanoid(),
+          methodNumber: Number(body.methodId),
+          name: String(method.name),
+          description: String(method.title),
           platform: 'telegram',
-          category: method.category,
+          category: String(method.category),
           status: 'active',
-          isActive: body.isActive ?? true,
+          isActive: Boolean(body.isActive ?? true),
           riskLevel: method.riskLevel === 'high' ? 80 : method.riskLevel === 'medium' ? 50 : 20,
           deepseekPrompt: DEEPSEEK_PROMPTS[method.name] || null,
           config: body.config ? JSON.stringify(body.config) : null,
+          updatedAt: new Date(),
         },
       });
     } else if (dbMethod) {
@@ -929,7 +931,7 @@ export async function PATCH(request: NextRequest) {
         conversions: body.metrics?.conversions || 0,
         executedAt: new Date(),
       },
-      include: { method: true },
+      include: { TrafficMethod: true },
     });
 
     // Update method stats

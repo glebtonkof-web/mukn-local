@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/health/check-all - Get health check info
 export async function GET() {
@@ -95,6 +96,7 @@ export async function POST() {
     // Log activity
     await db.activityLog.create({
       data: {
+        id: nanoid(),
         type: 'info',
         message: `Проверка здоровья: ${results.healthy} OK, ${results.warnings} предупреждений, ${results.errors} ошибок`
       }

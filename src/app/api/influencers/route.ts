@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withRetry } from '@/lib/resilience';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 // Гарантируем существование пользователя по умолчанию
 async function ensureDefaultUser() {
@@ -16,6 +17,7 @@ async function ensureDefaultUser() {
         email: 'admin@mukn.traffic',
         name: 'Администратор',
         role: 'admin',
+        updatedAt: new Date(),
       },
     });
     logger.info('Default user created');
@@ -41,7 +43,7 @@ export async function GET(request: NextRequest) {
       db.influencer.findMany({
         where,
         include: {
-          account: {
+          Account: {
             select: {
               id: true,
               platform: true,
@@ -51,7 +53,7 @@ export async function GET(request: NextRequest) {
               banRisk: true,
             },
           },
-          simCard: {
+          SimCard: {
             select: {
               id: true,
               phoneNumber: true,
@@ -61,8 +63,8 @@ export async function GET(request: NextRequest) {
           },
           _count: {
             select: {
-              posts: true,
-              comments: true,
+              Post: true,
+              Comment: true,
             },
           },
         },
@@ -122,6 +124,7 @@ export async function POST(request: NextRequest) {
     const influencer = await withRetry(() =>
       db.influencer.create({
         data: {
+          id: nanoid(),
           name: body.name,
           age: body.age,
           gender: body.gender,
@@ -138,6 +141,7 @@ export async function POST(request: NextRequest) {
           instagramUsername: body.instagramUsername,
           tiktokUsername: body.tiktokUsername,
           youtubeChannelId: body.youtubeChannelId,
+          updatedAt: new Date(),
         },
       })
     );
@@ -151,6 +155,7 @@ export async function POST(request: NextRequest) {
     // Создаём запись в аналитике
     await db.influencerAnalytics.create({
       data: {
+        id: nanoid(),
         influencerId: influencer.id,
         date: new Date(),
         followers: 0,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withRetry, createCircuitBreaker } from '@/lib/resilience';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 const dbCircuitBreaker = createCircuitBreaker('database', { circuitBreakerThreshold: 3 });
 
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
       db.antidetectBrowser.findMany({
         where,
         include: {
-          account: {
+          Account: {
             select: {
               id: true,
               platform: true,
@@ -101,6 +102,7 @@ export async function POST(request: NextRequest) {
     const profile = await withRetry(() =>
       db.antidetectBrowser.create({
         data: {
+          id: nanoid(),
           browserType: body.browserType,
           profileId: body.profileId,
           profileName: body.profileName,
@@ -118,6 +120,7 @@ export async function POST(request: NextRequest) {
           fingerprint: body.fingerprint,
           status: body.status || 'available',
           sessionsCount: body.sessionsCount || 0,
+          updatedAt: new Date(),
         },
       })
     );
@@ -258,7 +261,7 @@ async function handleAssign(body: { profileId?: string; accountId?: string }) {
       updatedAt: new Date(),
     },
     include: {
-      account: {
+      Account: {
         select: {
           id: true,
           platform: true,

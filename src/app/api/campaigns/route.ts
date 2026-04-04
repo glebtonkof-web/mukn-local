@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withRetry } from '@/lib/resilience';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 // GET /api/campaigns - Получить все кампании
 export async function GET(request: NextRequest) {
@@ -19,9 +20,9 @@ export async function GET(request: NextRequest) {
     const campaigns = await db.campaign.findMany({
       where,
       include: {
-        influencers: {
+        CampaignInfluencer: {
           include: {
-            influencer: {
+            Influencer: {
               select: {
                 id: true,
                 name: true,
@@ -33,12 +34,12 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        offers: {
+        CampaignOffer: {
           include: {
-            offer: true,
+            Offer: true,
           },
         },
-        analytics: {
+        CampaignAnalytics: {
           orderBy: { date: 'desc' },
           take: 7,
         },
@@ -99,6 +100,7 @@ export async function POST(request: NextRequest) {
     const campaign = await withRetry(() =>
       db.campaign.create({
         data: {
+          id: nanoid(),
           name: body.name,
           description: body.description,
           type: body.type,
@@ -110,15 +112,16 @@ export async function POST(request: NextRequest) {
           startDate: body.startDate ? new Date(body.startDate) : undefined,
           endDate: body.endDate ? new Date(body.endDate) : undefined,
           userId: body.userId || 'default-user',
+          updatedAt: new Date(),
           // Привязка инфлюенсеров
-          influencers: body.influencerIds ? {
+          CampaignInfluencer: body.influencerIds ? {
             create: body.influencerIds.map((id: string) => ({
               influencerId: id,
               role: 'primary',
             })),
           } : undefined,
           // Привязка офферов
-          offers: body.offerIds ? {
+          CampaignOffer: body.offerIds ? {
             create: body.offerIds.map((id: string, index: number) => ({
               offerId: id,
               isPrimary: index === 0,
@@ -126,8 +129,8 @@ export async function POST(request: NextRequest) {
           } : undefined,
         },
         include: {
-          influencers: true,
-          offers: true,
+          CampaignInfluencer: true,
+          CampaignOffer: true,
         },
       })
     );

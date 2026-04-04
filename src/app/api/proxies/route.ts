@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { withRetry, createCircuitBreaker } from '@/lib/resilience';
 import { logger } from '@/lib/logger';
@@ -77,6 +78,7 @@ export async function POST(request: NextRequest) {
     const proxy = await withRetry(() =>
       db.proxy.create({
         data: {
+          id: nanoid(),
           type: body.type || 'socks5',
           host: body.host,
           port: body.port,
@@ -90,6 +92,7 @@ export async function POST(request: NextRequest) {
           expiryDate: body.expiryDate ? new Date(body.expiryDate) : undefined,
           notes: body.notes,
           userId: body.userId || 'default-user',
+          updatedAt: new Date(),
         },
       })
     );

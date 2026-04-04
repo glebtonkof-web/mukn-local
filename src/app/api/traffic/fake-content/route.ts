@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 import ZAI from 'z-ai-web-dev-sdk';
 
 // Типы фейкового контента
@@ -165,9 +166,11 @@ export async function POST(request: NextRequest) {
     try {
       await db.fakeContentGenerator.create({
         data: {
-          contentType,
+          id: nanoid(),
+          contentType: String(contentType),
           template: JSON.stringify(params),
-          methodId: params.methodId,
+          methodId: params?.methodId ? parseInt(String(params.methodId)) : null,
+          updatedAt: new Date(),
         },
       });
     } catch {

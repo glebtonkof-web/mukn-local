@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // Типы для сервера
 interface ServerInfo {
@@ -71,6 +72,7 @@ export async function POST(request: NextRequest) {
 
     const server = await db.loadBalancer.create({
       data: {
+        id: nanoid(),
         serverId,
         serverName,
         proxyHost,
@@ -80,6 +82,7 @@ export async function POST(request: NextRequest) {
         status: 'active',
         avgResponseTime: 0,
         errorRate: 0,
+        updatedAt: new Date(),
       },
     });
 

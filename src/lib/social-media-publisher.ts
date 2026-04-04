@@ -3,6 +3,7 @@
 
 import { db } from './db';
 import { logger } from './logger';
+import { nanoid } from 'nanoid';
 
 // Типы платформ
 export type SocialPlatform = 'telegram' | 'instagram' | 'tiktok' | 'youtube' | 'vk' | 'twitter';
@@ -120,11 +121,13 @@ export class SocialMediaPublisher {
     // Создаём расписание публикации
     const schedule = await db.publicationSchedule.create({
       data: {
+        id: nanoid(),
         contentId: options.contentId,
         platforms: JSON.stringify(options.platforms),
         scheduledAt: options.scheduledAt || new Date(),
         status: 'publishing',
-        campaignId: options.campaignId,
+        campaignId: options.campaignId || null,
+        updatedAt: new Date()
       },
     });
 

@@ -1,6 +1,7 @@
 // Остальные функции: Тренды, Анализ провалов, Идеи контента, Время публикации, Эмоции аудитории
 
 import { db } from '../db';
+import { nanoid } from 'nanoid';
 
 // ============================================
 // 15. АВТО-АДАПТАЦИЯ ПОД ТРЕНДЫ
@@ -181,6 +182,7 @@ Respond in JSON:
     // Сохраняем анализ
     await db.failureAnalysis.create({
       data: {
+        id: nanoid(),
         postId,
         views: post.views,
         likes: post.likes,
@@ -191,6 +193,7 @@ Respond in JSON:
         comparisonData: JSON.stringify(result.comparisonWithSuccessful),
         recommendations: JSON.stringify(result.recommendations),
         aiReport: response.choices[0]?.message?.content,
+        updatedAt: new Date(),
       },
     });
 
@@ -278,6 +281,7 @@ Format as JSON array:
 
         const saved = await db.contentIdea.create({
           data: {
+            id: nanoid(),
             title: idea.topic || `Idea ${i + 1}`,
             description: idea.description || '',
             contentType: idea.contentType || 'post',
@@ -287,6 +291,7 @@ Format as JSON array:
             niche,
             source: 'ai',
             status: 'pending',
+            updatedAt: new Date(),
           },
         });
 
@@ -300,6 +305,7 @@ Format as JSON array:
 
         const saved = await db.contentIdea.create({
           data: {
+            id: nanoid(),
             title: `${niche} content idea ${i + 1}`,
             description: 'AI-generated content idea',
             contentType: 'post',
@@ -308,6 +314,7 @@ Format as JSON array:
             niche,
             source: 'ai',
             status: 'pending',
+            updatedAt: new Date(),
           },
         });
 
@@ -453,6 +460,7 @@ class BestTimePredictorService {
     // Сохраняем анализ
     await db.bestTimePrediction.create({
       data: {
+        id: nanoid(),
         platform,
         influencerId,
         analysisPeriod: 30,
@@ -462,6 +470,7 @@ class BestTimePredictorService {
         recommendations: JSON.stringify(recommendations),
         postsAnalyzed: posts.length,
         lastAnalyzed: new Date(),
+        updatedAt: new Date(),
       },
     });
 
@@ -589,6 +598,7 @@ Respond in JSON:
 
       await db.audienceEmotionAnalysis.create({
         data: {
+          id: nanoid(),
           sourceType,
           sourceId,
           periodStart,
@@ -602,6 +612,7 @@ Respond in JSON:
           negativeTopics: JSON.stringify(parsed.negativeTopics || []),
           recommendedTone: parsed.recommendedTone,
           aiInsights: parsed.insights,
+          updatedAt: new Date(),
         },
       });
     } catch {

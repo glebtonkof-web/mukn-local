@@ -2,6 +2,7 @@
 // Автоматически переключает на резервный оффер при плохих метриках
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET: Получить настройки динамической замены для кампании
 export async function GET(request: NextRequest) {
@@ -116,18 +117,21 @@ export async function POST(request: NextRequest) {
     const settings = await db.dynamicOfferReplacement.upsert({
       where: { id: existingSettings?.id ?? 'non-existent' },
       create: {
+        id: nanoid(),
         campaignId,
         primaryOfferId,
         backupOfferId,
         minReactionThreshold,
         checkAfterMinutes,
         currentOfferId: primaryOfferId,
+        updatedAt: new Date(),
       },
       update: {
         primaryOfferId,
         backupOfferId,
         minReactionThreshold,
         checkAfterMinutes,
+        updatedAt: new Date(),
       },
     });
     

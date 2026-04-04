@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/monetization/subscription - Получить настройки подписки
 export async function GET(request: NextRequest) {
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
     const existingSubscription = await db.rOISubscription.findUnique({
       where: { userId },
       include: {
-        payments: {
+        SubscriptionPayment: {
           orderBy: { createdAt: 'desc' },
           take: 10,
         },
@@ -23,14 +24,16 @@ export async function GET(request: NextRequest) {
       // Создаём подписку по умолчанию
       subscription = await db.rOISubscription.create({
         data: {
+          id: nanoid(),
           userId,
           subscriptionType: 'roi_based',
           commissionRate: 0.05,
           status: 'active',
           minPayout: 10,
+          updatedAt: new Date(),
         },
         include: {
-          payments: true,
+          SubscriptionPayment: true,
         },
       });
     }
@@ -67,6 +70,7 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date(),
       },
       create: {
+        id: nanoid(),
         userId: userId || 'default',
         subscriptionType: data.subscriptionType || 'roi_based',
         commissionRate: data.commissionRate || 0.05,
@@ -76,6 +80,7 @@ export async function POST(request: NextRequest) {
         trackerPostbackUrl: data.trackerPostbackUrl,
         minPayout: data.minPayout || 10,
         maxCommission: data.maxCommission,
+        updatedAt: new Date(),
       },
     });
 

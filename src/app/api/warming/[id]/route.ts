@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 // DELETE /api/warming/:id - Stop warming for account
 export async function DELETE(
@@ -53,6 +54,7 @@ export async function DELETE(
     // Log action
     await db.accountAction.create({
       data: {
+        id: nanoid(),
         actionType: complete ? 'warming_completed' : 'warming_stopped',
         result: 'success',
         accountId,

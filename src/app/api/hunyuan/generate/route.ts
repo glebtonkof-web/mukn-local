@@ -192,7 +192,6 @@ async function generateImage(prompt: string, imageStyle: string) {
     return NextResponse.json({
       success: true,
       image: imageBase64 ? `data:image/png;base64,${imageBase64}` : null,
-      url: response.data[0]?.url || null,
       prompt: enhancedPrompt,
       style: imageStyle,
       generationTime: Date.now() - startTime,

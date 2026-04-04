@@ -2,6 +2,7 @@
 // Управляет распределением бюджета и рассчитывает лимиты
 
 import { db } from './db';
+import { nanoid } from 'nanoid';
 
 // Цены DeepSeek (март 2026)
 const DEEPSEEK_PRICES = {
@@ -191,6 +192,7 @@ export class AIBudgetManager {
     // Логируем использование
     await db.aIQuotaLog.create({
       data: {
+        id: nanoid(),
         provider: 'deepseek',
         requestsCount: 1,
         tokensIn,
@@ -241,9 +243,11 @@ export class AIBudgetManager {
     await db.budgetSettings.upsert({
       where: { userId: this.userId },
       create: {
+        id: nanoid(),
         userId: this.userId,
         deepseekBudget: budgetUSD,
         deepseekSpent: 0,
+        updatedAt: new Date(),
       },
       update: {
         deepseekBudget: budgetUSD,

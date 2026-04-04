@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withRetry, createCircuitBreaker } from '@/lib/resilience';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 const dbCircuitBreaker = createCircuitBreaker('database', { circuitBreakerThreshold: 3 });
 
@@ -22,9 +23,9 @@ export async function GET(request: NextRequest) {
       db.account.findMany({
         where,
         include: {
-          simCard: true,
-          influencers: true,
-          riskHistory: {
+          SimCard: true,
+          Influencer: true,
+          AccountRiskHistory: {
             orderBy: { date: 'desc' },
             take: 7,
           },
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
     const account = await withRetry(() =>
       db.account.create({
         data: {
+          id: nanoid(),
           platform: body.platform,
           username: body.username,
           phone: body.phone,
@@ -93,6 +95,7 @@ export async function POST(request: NextRequest) {
           maxComments: body.maxComments || 50,
           maxDm: body.maxDm || 20,
           maxFollows: body.maxFollows || 100,
+          updatedAt: new Date(),
         },
       })
     );
@@ -102,6 +105,7 @@ export async function POST(request: NextRequest) {
     // Создаём запись в истории риска
     await db.accountRiskHistory.create({
       data: {
+        id: nanoid(),
         accountId: account.id,
         date: new Date(),
         riskScore: 0,

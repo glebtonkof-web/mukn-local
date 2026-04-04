@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/settings/presets - Получить пресеты настроек
 export async function GET(request: NextRequest) {
@@ -38,12 +39,14 @@ export async function POST(request: NextRequest) {
 
     const preset = await db.settingsPreset.create({
       data: {
+        id: nanoid(),
         name,
         type,
         category,
         settings: typeof settings === 'string' ? settings : JSON.stringify(settings),
         isDefault: isDefault || false,
-        userId: 'default'
+        userId: 'default',
+        updatedAt: new Date(),
       }
     });
 

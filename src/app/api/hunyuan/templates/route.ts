@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/hunyuan/templates - Получение шаблонов
 export async function GET(request: NextRequest) {
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
     
     const template = await db.contentTemplate.create({
       data: {
+        id: nanoid(),
         name: body.name,
         description: body.description,
         contentType: body.contentType,
@@ -55,6 +57,7 @@ export async function POST(request: NextRequest) {
         userId: body.userId,
         isPublic: body.isPublic || false,
         tags: JSON.stringify(body.tags || []),
+        updatedAt: new Date(),
       },
     });
 

@@ -3,6 +3,7 @@
 
 import { EventEmitter } from 'events';
 import { db } from '../db';
+import { nanoid } from 'nanoid';
 
 export type ContentType = 'post' | 'image' | 'video' | 'story';
 export type GenerationStep = 
@@ -44,6 +45,7 @@ export class StepByStepGenerator extends EventEmitter {
   async startGeneration(config: StepConfig): Promise<string> {
     const generation = await db.stepByStepGeneration.create({
       data: {
+        id: nanoid(),
         contentType: config.contentType,
         prompt: config.prompt,
         platform: config.platform,
@@ -51,6 +53,7 @@ export class StepByStepGenerator extends EventEmitter {
         status: 'generating',
         totalSteps: this.steps.length,
         startedAt: new Date(),
+        updatedAt: new Date(),
       },
     });
 

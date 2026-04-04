@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAIDispatcher } from '@/lib/ai-dispatcher';
+import { nanoid } from 'nanoid';
 
 // POST: Создать кросспост с AI-адаптацией
 export async function POST(request: NextRequest) {
@@ -80,6 +81,7 @@ ${targetPostContent ? `КОНТЕКСТ ЦЕЛЕВОГО ПОСТА: ${targetPos
     // Сохраняем кросспост в базу
     const crossPost = await db.crossPostEnrichment.create({
       data: {
+        id: nanoid(),
         sourceChannelId,
         sourcePostId,
         sourcePostUrl,

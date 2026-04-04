@@ -73,8 +73,8 @@ export async function GET(request: NextRequest) {
         endDate: true,
         _count: {
           select: {
-            influencers: true,
-            posts: true,
+            CampaignInfluencer: true,
+            Post: true,
           },
         },
       },

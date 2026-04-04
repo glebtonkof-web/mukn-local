@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/settings/automation - Получить правила автоматизации
 export async function GET(request: NextRequest) {
@@ -40,6 +41,7 @@ export async function POST(request: NextRequest) {
 
     const rule = await db.automationRule.create({
       data: {
+        id: nanoid(),
         name,
         conditionType,
         conditionConfig: typeof conditionConfig === 'string' ? conditionConfig : JSON.stringify(conditionConfig),
@@ -47,7 +49,8 @@ export async function POST(request: NextRequest) {
         actionConfig: typeof actionConfig === 'string' ? actionConfig : JSON.stringify(actionConfig),
         campaignId,
         isActive: isActive ?? true,
-        userId: 'default'
+        userId: 'default',
+        updatedAt: new Date(),
       }
     });
 

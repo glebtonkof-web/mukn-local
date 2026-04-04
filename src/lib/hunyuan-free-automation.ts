@@ -5,6 +5,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { db } from './db';
+import { nanoid } from 'nanoid';
 
 // Playwright types (optional - for type hints only)
 type Browser = any;
@@ -124,13 +125,15 @@ export class HunyuanFreeAutomation {
       // Создаём запись в БД
       const content = await db.generatedContent.create({
         data: {
+          id: nanoid(),
           type: 'image',
           platform: 'telegram',
           source: 'hunyuan-free',
           prompt: options.prompt,
-          negativePrompt: options.negativePrompt,
+          negativePrompt: options.negativePrompt || null,
           status: 'generating',
           generationParams: JSON.stringify(options),
+          updatedAt: new Date()
         },
       });
 
@@ -195,12 +198,14 @@ export class HunyuanFreeAutomation {
       // Создаём запись в БД
       const content = await db.generatedContent.create({
         data: {
+          id: nanoid(),
           type: 'video',
           platform: 'telegram',
           source: 'hunyuan-free',
           prompt: options.text,
           status: 'generating',
           generationParams: JSON.stringify(options),
+          updatedAt: new Date()
         },
       });
 
@@ -294,12 +299,14 @@ export class HunyuanFreeAutomation {
       // Создаём запись в БД
       const content = await db.generatedContent.create({
         data: {
+          id: nanoid(),
           type: 'image',
           platform: 'telegram',
           source: 'hunyuan-free',
           prompt: `Edit: ${options.command}`,
           status: 'generating',
           editCommand: options.command,
+          updatedAt: new Date()
         },
       });
 
@@ -329,13 +336,14 @@ export class HunyuanFreeAutomation {
       // Записываем в историю правок
       await db.userEditHistory.create({
         data: {
+          id: nanoid(),
           contentId: content.id,
           editType: 'image',
           userCommand: options.command,
           beforeState: JSON.stringify({ originalImage: options.imagePath }),
           afterState: JSON.stringify({ editedImage: `/download/hunyuan-free/edits/${filename}` }),
           understood: true,
-          satisfied: true,
+          satisfied: true
         },
       });
 
@@ -377,12 +385,14 @@ export class HunyuanFreeAutomation {
       // Создаём запись в БД
       const content = await db.generatedContent.create({
         data: {
+          id: nanoid(),
           type: 'audio',
           platform: 'telegram',
           source: 'hunyuan-free',
           prompt: options.text,
           status: 'generating',
           generationParams: JSON.stringify(options),
+          updatedAt: new Date()
         },
       });
 

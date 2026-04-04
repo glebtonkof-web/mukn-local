@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withRetry, createCircuitBreaker } from '@/lib/resilience';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 const dbCircuitBreaker = createCircuitBreaker('database', { circuitBreakerThreshold: 3 });
 
@@ -206,7 +207,7 @@ export async function POST(request: NextRequest) {
       db.account.findUnique({
         where: { id: body.accountId },
         include: {
-          actions: {
+          AccountAction: {
             where: {
               createdAt: {
                 gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
@@ -215,7 +216,7 @@ export async function POST(request: NextRequest) {
             orderBy: { createdAt: 'desc' },
             take: 100,
           },
-          riskHistory: {
+          AccountRiskHistory: {
             orderBy: { date: 'desc' },
             take: 7,
           },
@@ -237,6 +238,7 @@ export async function POST(request: NextRequest) {
     await withRetry(() =>
       db.accountRiskHistory.create({
         data: {
+          id: nanoid(),
           accountId: body.accountId,
           date: new Date(),
           riskScore: result.score,
@@ -257,6 +259,7 @@ export async function POST(request: NextRequest) {
     // Log action
     await db.accountAction.create({
       data: {
+        id: nanoid(),
         actionType: 'shadow_ban_check',
         result: 'success',
         accountId: body.accountId,

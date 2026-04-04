@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
+import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -96,6 +97,7 @@ ${targetChannel ? `Целевой канал: ${targetChannel}` : ''}`;
     // Log the generation
     await db.actionLog.create({
       data: {
+        id: nanoid(),
         action: 'voice_comment_generated',
         entityType: 'voice_comment',
         entityId: voiceComment.id,

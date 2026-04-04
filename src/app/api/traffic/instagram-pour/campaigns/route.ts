@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 // GET /api/traffic/instagram-pour/campaigns - List Instagram traffic campaigns
 export async function GET(request: NextRequest) {
@@ -89,6 +90,7 @@ export async function POST(request: NextRequest) {
 
     const campaign = await db.instagramTrafficCampaign.create({
       data: {
+        id: nanoid(),
         name: body.name,
         description: body.description,
         sourceType: body.sourceType,

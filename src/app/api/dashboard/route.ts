@@ -16,8 +16,8 @@ export async function GET() {
     ] = await Promise.all([
       db.influencer.findMany({
         include: {
-          account: true,
-          analytics: {
+          Account: true,
+          InfluencerAnalytics: {
             orderBy: { date: 'desc' },
             take: 7,
           },
@@ -26,7 +26,7 @@ export async function GET() {
       db.account.findMany(),
       db.campaign.findMany({
         include: {
-          influencers: true,
+          CampaignInfluencer: true,
         },
       }),
       db.offer.findMany(),
@@ -39,7 +39,7 @@ export async function GET() {
         take: 20,
         orderBy: { createdAt: 'desc' },
         include: {
-          account: true,
+          Account: true,
         },
       }),
     ]);
@@ -152,7 +152,7 @@ export async function GET() {
       result: a.result,
       error: a.error,
       createdAt: a.createdAt,
-      platform: a.account?.platform,
+      platform: a.Account?.platform,
     }));
 
     return NextResponse.json({

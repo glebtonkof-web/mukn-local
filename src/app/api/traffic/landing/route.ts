@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import ZAI from 'z-ai-web-dev-sdk';
+import { nanoid } from 'nanoid';
 
 // HTML шаблоны для лендингов
 const LANDING_TEMPLATES = {
@@ -249,6 +250,7 @@ export async function POST(request: NextRequest) {
     // Save to database
     const landing = await db.landingPageProxy.create({
       data: {
+        id: nanoid(),
         title: generatedContent.title || params.topic || 'Landing',
         description: generatedContent.description,
         htmlContent,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/monetization/accounts - Получить аккаунты для продажи
 export async function GET(request: NextRequest) {
@@ -68,18 +69,21 @@ export async function POST(request: NextRequest) {
       // Создаём фиктивный аккаунт
       const account = await db.account.create({
         data: {
+          id: nanoid(),
           platform,
           userId: 'default',
           status: 'warming',
           warmingStartedAt: new Date(),
           warmingEndsAt: new Date(Date.now() + (warmingDays || 3) * 24 * 60 * 60 * 1000),
           warmingProgress: 0,
+          updatedAt: new Date(),
         },
       });
 
       // Создаём запись для продажи
       const forSale = await db.accountForSale.create({
         data: {
+          id: nanoid(),
           accountId: account.id,
           platform,
           niche,
@@ -93,6 +97,7 @@ export async function POST(request: NextRequest) {
           salePrice: 5, // $5 цена продажи
           currency: 'USD',
           status: 'warming',
+          updatedAt: new Date(),
         },
       });
 

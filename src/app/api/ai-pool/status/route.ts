@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAIDispatcher, ProviderName } from '@/lib/ai-dispatcher';
+import { nanoid } from 'nanoid';
 
 interface ProviderStatus {
   provider: string;
@@ -128,6 +129,7 @@ export async function POST(request: NextRequest) {
         provider_userId: { provider, userId } 
       },
       create: {
+        id: nanoid(),
         userId,
         provider,
         apiKey: apiKey || null,
@@ -137,12 +139,14 @@ export async function POST(request: NextRequest) {
         isFree: quota.isFree,
         dailyQuota: quota.daily,
         dailyUsed: 0,
+        updatedAt: new Date(),
       },
       update: {
         ...(apiKey !== undefined && { apiKey }),
         ...(isActive !== undefined && { isActive }),
         ...(priority !== undefined && { priority }),
         ...(defaultModel !== undefined && { defaultModel }),
+        updatedAt: new Date(),
       },
     });
     

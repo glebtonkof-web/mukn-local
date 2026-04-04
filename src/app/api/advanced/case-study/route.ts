@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateCaseStudy } from '@/lib/advanced-ai-engine';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,6 +23,7 @@ export async function POST(request: NextRequest) {
     if (saveToDb) {
       savedCase = await db.caseStudy.create({
         data: {
+          id: nanoid(),
           title: caseStudy.title,
           summary: caseStudy.summary,
           screenshots: JSON.stringify(caseStudy.screenshots),
@@ -32,6 +34,7 @@ export async function POST(request: NextRequest) {
             ? (campaignData.revenue - campaignData.spent) / campaignData.spent 
             : 0,
           status: 'draft',
+          updatedAt: new Date(),
         },
       });
     }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 // GET /api/traffic/utm - Get UTM campaigns
 export async function GET(request: NextRequest) {
@@ -116,14 +117,16 @@ export async function POST(request: NextRequest) {
         sourceId: body.sourceId,
       },
       create: {
-        source: body.source,
-        medium: body.medium,
-        campaign: body.campaign,
+        id: nanoid(),
+        source: String(body.source),
+        medium: String(body.medium),
+        campaign: String(body.campaign),
         content: body.content,
         term: body.term,
         fullUrl,
-        methodId: body.methodId,
-        sourceId: body.sourceId,
+        methodId: body.methodId ? Number(body.methodId) : null,
+        sourceId: body.sourceId ? String(body.sourceId) : null,
+        updatedAt: new Date(),
       },
     });
 
@@ -264,14 +267,16 @@ export async function PATCH(request: NextRequest) {
     // Save to database
     const utmCampaign = await db.uTMCampaign.create({
       data: {
-        source: mapping.source,
-        medium: mapping.medium,
-        campaign: campaignName,
+        id: nanoid(),
+        source: String(mapping.source),
+        medium: String(mapping.medium),
+        campaign: String(campaignName),
         content: customParams?.content,
         term: customParams?.term,
         fullUrl,
-        methodId,
-        sourceId: customParams?.sourceId,
+        methodId: methodId ? Number(methodId) : null,
+        sourceId: customParams?.sourceId ? String(customParams.sourceId) : null,
+        updatedAt: new Date(),
       },
     });
 

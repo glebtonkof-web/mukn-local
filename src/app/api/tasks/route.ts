@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withRetry } from '@/lib/resilience';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 // GET /api/tasks - Получить задачи из очереди
 export async function GET(request: NextRequest) {
@@ -17,14 +18,14 @@ export async function GET(request: NextRequest) {
     const tasks = await db.contentQueue.findMany({
       where,
       include: {
-        influencer: {
+        Influencer: {
           select: {
             id: true,
             name: true,
             niche: true,
           },
         },
-        offer: {
+        Offer: {
           select: {
             id: true,
             name: true,
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
     const task = await withRetry(() =>
       db.contentQueue.create({
         data: {
+          id: nanoid(),
           type: body.type,
           priority: body.priority || 5,
           scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : new Date(),

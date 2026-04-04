@@ -115,8 +115,9 @@ class EncryptedAIClientService extends EventEmitter {
     
     // Ограничиваем историю ключей (хранить не более 10 старых ключей)
     if (this.keyHistory.size > 11) {
-      const oldestKey = this.keyHistory.keys().next().value;
-      if (oldestKey !== this.currentKeyId) {
+      const keys = Array.from(this.keyHistory.keys());
+      const oldestKey = keys[0];
+      if (oldestKey && oldestKey !== this.currentKeyId) {
         this.keyHistory.delete(oldestKey);
       }
     }
@@ -136,9 +137,8 @@ class EncryptedAIClientService extends EventEmitter {
     const cipher = crypto.createCipheriv(
       this.config.algorithm,
       this.currentKey,
-      iv,
-      { authTagLength: this.config.authTagLength }
-    );
+      iv
+    ) as crypto.CipherGCM;
     
     let encrypted = cipher.update(plaintext, 'utf8', 'base64');
     encrypted += cipher.final('base64');
@@ -170,9 +170,8 @@ class EncryptedAIClientService extends EventEmitter {
     const decipher = crypto.createDecipheriv(
       this.config.algorithm,
       key,
-      iv,
-      { authTagLength: this.config.authTagLength }
-    );
+      iv
+    ) as crypto.DecipherGCM;
     
     decipher.setAuthTag(authTag);
     
@@ -287,5 +286,6 @@ export const encryptedAI = {
   createHmac: (data: string) => getEncryptedAIClient().createHmac(data),
   verifyHmac: (data: string, hmac: string) => getEncryptedAIClient().verifyHmac(data, hmac),
   getStats: () => getEncryptedAIClient().getStats(),
+  getCurrentKeyId: () => getEncryptedAIClient().getCurrentKeyId(),
   rotateKey: () => getEncryptedAIClient().rotateKey(),
 };

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 // Default AI services
 const DEFAULT_AI_SERVICES = [
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
       for (const service of DEFAULT_AI_SERVICES) {
         await db.instagramAIService.create({
           data: {
+            id: nanoid(),
             name: service.name,
             displayName: service.displayName,
             description: service.description,

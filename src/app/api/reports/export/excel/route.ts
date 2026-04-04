@@ -238,12 +238,12 @@ async function generateCampaignsExcel(campaignIds?: string[], startDate?: string
   const campaigns = await db.campaign.findMany({
     where: whereClause,
     include: {
-      influencers: {
+      CampaignInfluencer: {
         include: {
-          influencer: true,
+          Influencer: true,
         },
       },
-      analytics: {
+      CampaignAnalytics: {
         orderBy: { date: 'desc' },
         take: 30,
       },
@@ -304,20 +304,20 @@ async function generateCampaignsExcel(campaignIds?: string[], startDate?: string
     const influencersData = [
       ['Инфлюенсеры кампании'],
       ['Имя', 'Ниша', 'Роль в кампании', 'Статус'],
-      ...campaign.influencers.map(ci => [
-        ci.influencer?.name || '-',
-        ci.influencer?.niche || '-',
+      ...campaign.CampaignInfluencer.map(ci => [
+        ci.Influencer?.name || '-',
+        ci.Influencer?.niche || '-',
         ci.role,
         ci.status,
       ]),
     ];
     
     // Campaign analytics
-    if (campaign.analytics.length > 0) {
+    if (campaign.CampaignAnalytics.length > 0) {
       influencersData.push([]);
       influencersData.push(['Аналитика за последние 30 дней']);
       influencersData.push(['Дата', 'Показы', 'Клики', 'Лиды', 'Конверсии', 'Расход', 'Доход']);
-      campaign.analytics.forEach(a => {
+      campaign.CampaignAnalytics.forEach(a => {
       influencersData.push([
         formatDate(a.date),
         String(a.impressions),
@@ -344,9 +344,9 @@ async function generateAccountsExcel(): Promise<Buffer> {
   
   const accounts = await db.account.findMany({
     include: {
-      influencers: true,
-      riskHistory: {
-        orderBy: { date: 'desc' },
+      Influencer: true,
+      AccountRiskHistory: {
+        orderBy: { createdAt: 'desc' },
         take: 10,
       },
     },
@@ -445,9 +445,9 @@ async function generateInfluencersExcel(): Promise<Buffer> {
   
   const influencers = await db.influencer.findMany({
     include: {
-      account: true,
-      posts: { take: 20, orderBy: { createdAt: 'desc' } },
-      analytics: { take: 30, orderBy: { date: 'desc' } },
+      Account: true,
+      Post: { take: 20, orderBy: { createdAt: 'desc' } },
+      InfluencerAnalytics: { take: 30, orderBy: { date: 'desc' } },
     },
   });
   
@@ -509,7 +509,7 @@ async function generateInfluencersExcel(): Promise<Buffer> {
       i.instagramUsername || '-',
       i.tiktokUsername || '-',
       i.youtubeChannelId || '-',
-      i.account?.username || '-',
+      i.Account?.username || '-',
       formatDate(i.createdAt),
     ]),
   ];
@@ -560,7 +560,7 @@ async function generateAuditLogsExcel(startDate?: string, endDate?: string): Pro
   const logs = await db.actionLog.findMany({
     where: whereClause,
     include: {
-      user: true,
+      User: true,
     },
     orderBy: { createdAt: 'desc' },
     take: 1000,
@@ -607,8 +607,8 @@ async function generateAuditLogsExcel(startDate?: string, endDate?: string): Pro
       l.action,
       l.entityType,
       l.entityId || '-',
-      l.user?.name || '-',
-      l.user?.email || '-',
+      l.User?.name || '-',
+      l.User?.email || '-',
       l.details ? JSON.stringify(l.details) : '-',
     ]),
   ];

@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // GET /api/widgets - Get all widgets for a user
 export async function GET(request: NextRequest) {
@@ -90,6 +91,7 @@ export async function POST(request: NextRequest) {
     
     const widget = await db.dashboardWidget.create({
       data: {
+        id: nanoid(),
         userId,
         widgetType: type,
         type: type,
@@ -104,6 +106,7 @@ export async function POST(request: NextRequest) {
         refreshInterval,
         isVisible,
         isPinned,
+        updatedAt: new Date(),
       },
     });
     

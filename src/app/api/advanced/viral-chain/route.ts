@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateViralChain } from '@/lib/advanced-ai-engine';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,11 +23,13 @@ export async function POST(request: NextRequest) {
     if (autoStart && scenario.steps.length > 0) {
       const chain = await db.viralCommentChain.create({
         data: {
+          id: nanoid(),
           scenario: JSON.stringify(scenario.steps),
           totalSteps: scenario.steps.length,
           status: 'running',
           startedAt: new Date(),
           targetChannelId: targetChannelId || 'unknown',
+          updatedAt: new Date(),
         },
       });
       chainId = chain.id;
@@ -54,7 +57,7 @@ export async function GET(request: NextRequest) {
     
     const chains = await db.viralCommentChain.findMany({
       where: { status },
-      include: { comments: true },
+      include: { ViralChainComment: true },
       orderBy: { createdAt: 'desc' },
       take: 20,
     });

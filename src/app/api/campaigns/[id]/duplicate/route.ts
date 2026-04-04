@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // POST /api/campaigns/[id]/duplicate - Duplicate a campaign
 export async function POST(
@@ -13,8 +14,8 @@ export async function POST(
     const originalCampaign = await db.campaign.findUnique({
       where: { id },
       include: {
-        influencers: true,
-        offers: true,
+        CampaignInfluencer: true,
+        CampaignOffer: true,
       },
     });
 
@@ -28,6 +29,7 @@ export async function POST(
     // Create duplicated campaign
     const duplicatedCampaign = await db.campaign.create({
       data: {
+        id: nanoid(),
         name: `${originalCampaign.name} (копия)`,
         description: originalCampaign.description,
         type: originalCampaign.type,
@@ -43,31 +45,35 @@ export async function POST(
         startDate: undefined, // Reset dates
         endDate: undefined,
         userId: originalCampaign.userId,
+        updatedAt: new Date(),
         // Copy influencer relations
-        influencers: originalCampaign.influencers.length > 0 ? {
-          create: originalCampaign.influencers.map(inf => ({
+        CampaignInfluencer: originalCampaign.CampaignInfluencer && originalCampaign.CampaignInfluencer.length > 0 ? {
+          create: originalCampaign.CampaignInfluencer.map(inf => ({
+            id: nanoid(),
             influencerId: inf.influencerId,
             role: inf.role,
             status: 'pending',
           })),
         } : undefined,
         // Copy offer relations
-        offers: originalCampaign.offers.length > 0 ? {
-          create: originalCampaign.offers.map((offer, index) => ({
+        CampaignOffer: originalCampaign.CampaignOffer && originalCampaign.CampaignOffer.length > 0 ? {
+          create: originalCampaign.CampaignOffer.map((offer, index) => ({
+            id: nanoid(),
             offerId: offer.offerId,
             isPrimary: offer.isPrimary || index === 0,
           })),
         } : undefined,
       },
       include: {
-        influencers: true,
-        offers: true,
+        CampaignInfluencer: true,
+        CampaignOffer: true,
       },
     });
 
     // Log activity
     await db.activityLog.create({
       data: {
+        id: nanoid(),
         type: 'success',
         message: `Кампания "${originalCampaign.name}" скопирована`,
         campaignId: duplicatedCampaign.id,

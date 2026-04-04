@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import ZAI from 'z-ai-web-dev-sdk';
+import { nanoid } from 'nanoid';
 
 // ==================== 17 CROSS-PLATFORM METHODS CONFIGURATION ====================
 
@@ -705,7 +706,7 @@ export async function GET(request: NextRequest) {
       // Get executions count
       const executionsCount = await db.trafficMethodExecution.count({
         where: {
-          method: { methodNumber: { in: [...CROSS_PLATFORM_V2_METHODS.map(m => m.id)] } },
+          TrafficMethod: { methodNumber: { in: [...CROSS_PLATFORM_V2_METHODS.map(m => m.id)] } },
         },
       });
 
@@ -738,11 +739,11 @@ export async function GET(request: NextRequest) {
       const dbMethod = await db.trafficMethod.findUnique({
         where: { methodNumber: id },
         include: {
-          executions: {
+          TrafficMethodExecution: {
             take: 10,
             orderBy: { createdAt: 'desc' },
           },
-          templates: true,
+          TrafficMethodTemplate: true,
         },
       });
 
@@ -768,12 +769,12 @@ export async function GET(request: NextRequest) {
       db.trafficSource.findMany({
         where,
         include: {
-          campaigns: {
+          TrafficCampaign: {
             take: 5,
             orderBy: { createdAt: 'desc' },
           },
           _count: {
-            select: { campaigns: true },
+            select: { TrafficCampaign: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -868,10 +869,11 @@ export async function POST(request: NextRequest) {
     } else {
       source = await db.trafficSource.create({
         data: {
+          id: nanoid(),
           name: `${method.title} - ${new Date().toISOString().split('T')[0]}`,
           platform: 'cross-platform-v2',
-          methodId: body.methodId,
-          methodName: method.name,
+          methodId: Number(body.methodId),
+          methodName: String(method.name),
           config: JSON.stringify({
             ...body.settings,
             lastResult: generatedContent,
@@ -880,6 +882,7 @@ export async function POST(request: NextRequest) {
             geo: body.geo,
           }),
           status: 'active',
+          updatedAt: new Date(),
         },
       });
 
@@ -887,10 +890,12 @@ export async function POST(request: NextRequest) {
       if (body.campaignName) {
         await db.trafficCampaign.create({
           data: {
-            sourceId: source.id,
+            id: nanoid(),
+            sourceId: String(source.id),
             name: body.campaignName,
             status: 'active',
             startDate: new Date(),
+            updatedAt: new Date(),
           },
         });
       }
@@ -899,7 +904,8 @@ export async function POST(request: NextRequest) {
     // Create execution record
     const execution = await db.trafficMethodExecution.create({
       data: {
-        methodId: source.id,
+        id: nanoid(),
+        methodId: String(source.id),
         targetPlatform: body.targetPlatform || method.targetPlatform,
         targetId: body.targetTelegramChannel,
         content: JSON.stringify(generatedContent),
@@ -912,21 +918,23 @@ export async function POST(request: NextRequest) {
 
     // Update method in database
     await db.trafficMethod.upsert({
-      where: { methodNumber: body.methodId },
+      where: { methodNumber: Number(body.methodId) },
       update: {
         totalActions: { increment: 1 },
         updatedAt: new Date(),
       },
       create: {
-        methodNumber: body.methodId,
-        name: method.name,
-        description: method.description,
-        platform: method.sourcePlatform,
-        category: method.category,
+        id: nanoid(),
+        methodNumber: Number(body.methodId),
+        name: String(method.name),
+        description: String(method.description),
+        platform: String(method.sourcePlatform),
+        category: String(method.category),
         isActive: true,
         status: 'active',
         riskLevel: method.risk === 'low' ? 20 : method.risk === 'medium' ? 50 : 80,
         config: JSON.stringify({ sourcePlatform: method.sourcePlatform, targetPlatform: method.targetPlatform }),
+        updatedAt: new Date(),
       },
     });
 
@@ -1003,21 +1011,23 @@ export async function PUT(request: NextRequest) {
     // Update method configuration
     if (methodId) {
       const method = await db.trafficMethod.upsert({
-        where: { methodNumber: methodId },
+        where: { methodNumber: Number(methodId) },
         update: {
           config: config ? JSON.stringify(config) : undefined,
           isActive: isActive ?? undefined,
           updatedAt: new Date(),
         },
         create: {
-          methodNumber: methodId,
-          name: config?.name || `Method ${methodId}`,
-          description: config?.description || '',
-          platform: config?.platform || 'cross-platform-v2',
-          category: config?.category || 'general',
-          isActive: isActive ?? true,
+          id: nanoid(),
+          methodNumber: Number(methodId),
+          name: String(config?.name || `Method ${methodId}`),
+          description: String(config?.description || ''),
+          platform: String(config?.platform || 'cross-platform-v2'),
+          category: String(config?.category || 'general'),
+          isActive: Boolean(isActive ?? true),
           status: 'active',
           config: config ? JSON.stringify(config) : undefined,
+          updatedAt: new Date(),
         },
       });
 

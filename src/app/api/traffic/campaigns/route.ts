@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { nanoid } from 'nanoid';
 
 // GET /api/traffic/campaigns - List campaigns
 export async function GET(request: NextRequest) {
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
       db.trafficCampaign.findMany({
         where,
         include: {
-          source: {
+          TrafficSource: {
             select: {
               id: true,
               name: true,
@@ -90,17 +91,19 @@ export async function POST(request: NextRequest) {
 
     const campaign = await db.trafficCampaign.create({
       data: {
-        sourceId: body.sourceId,
-        name: body.name,
+        id: nanoid(),
+        sourceId: String(body.sourceId),
+        name: String(body.name),
         funnelSteps: body.funnelSteps,
-        budget: body.budget || 0,
-        spent: body.spent || 0,
-        status: body.status || 'draft',
+        budget: Number(body.budget) || 0,
+        spent: Number(body.spent) || 0,
+        status: String(body.status || 'draft'),
         startDate: body.startDate ? new Date(body.startDate) : undefined,
         endDate: body.endDate ? new Date(body.endDate) : undefined,
+        updatedAt: new Date(),
       },
       include: {
-        source: {
+        TrafficSource: {
           select: {
             id: true,
             name: true,
@@ -154,7 +157,7 @@ export async function PUT(request: NextRequest) {
         updatedAt: new Date(),
       },
       include: {
-        source: {
+        TrafficSource: {
           select: {
             id: true,
             name: true,

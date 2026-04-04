@@ -80,7 +80,7 @@ export const LazyContentView = dynamic(
 
 // Video Generator View - lazy loaded
 export const LazyVideoGeneratorView = dynamic(
-  () => import('./content-view').then(mod => ({ default: mod.VideoGeneratorView })),
+  () => import('./video-generator-view').then(mod => ({ default: mod.VideoGeneratorView })),
   {
     loading: () => <ViewSkeleton />,
     ssr: false,
@@ -231,7 +231,7 @@ export function useViewLoader(
         clearTimeout(timeoutRef.current);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [loadOnMount]);
   
   return {

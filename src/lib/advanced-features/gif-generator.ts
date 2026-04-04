@@ -2,6 +2,7 @@
 // Hunyuan создаёт короткие зацикленные GIF (3-5 секунд)
 
 import { db } from '../db';
+import { nanoid } from 'nanoid';
 
 export interface GIFConfig {
   prompt: string;
@@ -33,6 +34,7 @@ class GIFGeneratorService {
     // Создаём запись
     const gifRecord = await db.generatedGIF.create({
       data: {
+        id: nanoid(),
         name: config.prompt.substring(0, 100),
         prompt: config.prompt,
         width,
@@ -42,6 +44,7 @@ class GIFGeneratorService {
         frames: duration * fps,
         type: config.type || 'animation',
         status: 'generating',
+        updatedAt: new Date(),
       },
     });
 

@@ -1,6 +1,7 @@
 // API: A/B Testing for Comments (УРОВЕНЬ 1, функция 4 - A/B тестирование комментариев)
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // Comment styles available for testing
 const AVAILABLE_STYLES = ['casual', 'expert', 'friendly', 'provocative', 'storytelling', 'humor'] as const;
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
       const test = await db.commentABTest.findUnique({
         where: { id: testId },
         include: {
-          variants: {
+          CommentABTestVariant: {
             orderBy: { createdAt: 'asc' }
           }
         }
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
       }
       
       // Calculate results for each variant
-      const variantsWithResults = test.variants.map(variant => ({
+      const variantsWithResults = test.CommentABTestVariant.map(variant => ({
         ...variant,
         conversionRate: variant.views > 0 
           ? (variant.conversions / variant.views) * 100 
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
       
       // Calculate winner if test is completed or running
       let winner: { style: string; conversionRate: number; reason: string } | null = null;
-      if (test.status !== 'draft' && test.variants.length > 0) {
+      if (test.status !== 'draft' && test.CommentABTestVariant.length > 0) {
         winner = calculateWinner(variantsWithResults);
       }
       
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
         success: true,
         test: {
           ...test,
-          variants: variantsWithResults,
+          CommentABTestVariant: variantsWithResults,
           winner,
           overallStats: {
             totalComments: test.totalComments,
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest) {
     const tests = await db.commentABTest.findMany({
       where,
       include: {
-        variants: true
+        CommentABTestVariant: true
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -108,7 +109,7 @@ export async function GET(request: NextRequest) {
       description: test.description,
       status: test.status,
       styles: JSON.parse(test.styles),
-      variantsCount: test.variants.length,
+      variantsCount: test.CommentABTestVariant.length,
       totalComments: test.totalComments,
       totalViews: test.totalViews,
       totalClicks: test.totalClicks,
@@ -168,14 +169,17 @@ export async function POST(request: NextRequest) {
     // Create test with variants
     const test = await db.commentABTest.create({
       data: {
+        id: nanoid(),
         name,
         description,
         styles: JSON.stringify(styles),
         status: 'draft',
-        variants: {
+        updatedAt: new Date(),
+        CommentABTestVariant: {
           create: styles.map(style => {
             const variantData = variants?.find(v => v.style === style);
             return {
+              id: nanoid(),
               style,
               comments: variantData?.comments ?? 0,
               views: variantData?.views ?? 0,
@@ -187,7 +191,7 @@ export async function POST(request: NextRequest) {
         }
       },
       include: {
-        variants: true
+        CommentABTestVariant: true
       }
     });
     
@@ -221,7 +225,7 @@ export async function PUT(request: NextRequest) {
     // Check if test exists
     const existingTest = await db.commentABTest.findUnique({
       where: { id: testId },
-      include: { variants: true }
+      include: { CommentABTestVariant: true }
     });
     
     if (!existingTest) {
@@ -302,7 +306,7 @@ export async function PUT(request: NextRequest) {
         
         // Auto-calculate winner if not provided
         if (!winnerStyle) {
-          const variantsWithResults = existingTest.variants.map(v => ({
+          const variantsWithResults = existingTest.CommentABTestVariant.map(v => ({
             ...v,
             conversionRate: v.views > 0 ? (v.conversions / v.views) * 100 : 0
           }));
@@ -328,12 +332,12 @@ export async function PUT(request: NextRequest) {
       where: { id: testId },
       data: updateData,
       include: {
-        variants: true
+        CommentABTestVariant: true
       }
     });
     
     // Calculate final winner info
-    const variantsWithResults = updatedTest.variants.map(v => ({
+    const variantsWithResults = updatedTest.CommentABTestVariant.map(v => ({
       ...v,
       conversionRate: v.views > 0 ? (v.conversions / v.views) * 100 : 0
     }));

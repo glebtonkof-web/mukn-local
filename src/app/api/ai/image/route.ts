@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
 
     // Возвращаем base64 изображение
     if (response.data && response.data.length > 0) {
-      const imageData = response.data[0];
-      
+      const imageData = response.data[0] as { base64?: string; url?: string };
+
       return NextResponse.json({
         success: true,
         image: imageData.base64 ? `data:image/png;base64,${imageData.base64}` : null,

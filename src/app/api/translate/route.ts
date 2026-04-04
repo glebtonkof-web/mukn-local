@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 import { db } from '@/lib/db';
+import { nanoid } from 'nanoid';
 
 // Supported languages with their codes and names
 export const SUPPORTED_LANGUAGES = [
@@ -274,6 +275,7 @@ async function handleSingleTranslate(body: TranslateRequest) {
   // Save to cache
   const savedTranslation = await db.translationCache.create({
     data: {
+      id: nanoid(),
       sourceText: text,
       sourceLanguage: detectedSource,
       targetLanguage,
@@ -381,6 +383,7 @@ async function handleBatchTranslate(body: BatchTranslateRequest) {
     // Save to cache
     await db.translationCache.create({
       data: {
+        id: nanoid(),
         sourceText: text,
         sourceLanguage: detectedSource,
         targetLanguage,

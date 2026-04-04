@@ -25,7 +25,7 @@ export interface MassActionTarget {
   id: string
   url: string
   platform: 'telegram' | 'instagram' | 'tiktok' | 'youtube'
-  action: 'like' | 'heart' | 'fire' | 'view' | 'subscribe' | 'comment'
+  action: 'like' | 'heart' | 'fire' | 'view' | 'subscribe' | 'comment' | 'thumbsup' | 'thumbsdown' | 'laugh' | 'sad' | 'angry'
   status: 'pending' | 'completed' | 'failed'
   error?: string
 }

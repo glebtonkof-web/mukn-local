@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
       db.oFMProfile.findMany({
         where,
         include: {
-          account: {
+          Account: {
             select: {
               id: true,
               platform: true,
@@ -29,8 +30,8 @@ export async function GET(request: NextRequest) {
           },
           _count: {
             select: {
-              stories: true,
-              comments: true,
+              OFMStory: true,
+              OFMComment: true,
             },
           },
         },
@@ -76,6 +77,7 @@ export async function POST(request: NextRequest) {
 
     const profile = await db.oFMProfile.create({
       data: {
+        id: nanoid(),
         name: body.name,
         age: body.age || 23,
         bio: body.bio,
@@ -88,6 +90,7 @@ export async function POST(request: NextRequest) {
         commentPrompt: body.commentPrompt,
         storyPrompt: body.storyPrompt,
         status: body.status || 'active',
+        updatedAt: new Date(),
       },
     });
 

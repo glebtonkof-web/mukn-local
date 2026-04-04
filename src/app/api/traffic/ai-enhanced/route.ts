@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import ZAI from 'z-ai-web-dev-sdk';
+import { nanoid } from 'nanoid';
 
 // ==================== AI-ENHANCED TRAFFIC METHODS ====================
 
@@ -646,6 +647,7 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date(),
       },
       create: {
+        id: nanoid(),
         methodNumber: method.id,
         name: method.name,
         description: method.description,
@@ -657,12 +659,14 @@ export async function POST(request: NextRequest) {
         riskLevel: method.riskLevel === 'extreme' ? 100 : 
                    method.riskLevel === 'high' ? 75 : 
                    method.riskLevel === 'medium' ? 50 : 25,
+        updatedAt: new Date(),
       },
     });
 
     // Создать запись выполнения
     const execution = await db.trafficMethodExecution.create({
       data: {
+        id: nanoid(),
         methodId: dbMethod.id,
         targetPlatform: params?.platform || 'telegram',
         content: generatedText,
@@ -682,12 +686,14 @@ export async function POST(request: NextRequest) {
     if (method.category === 'fake_content' || method.category === 'landing') {
       await db.fakeContentGenerator.create({
         data: {
+          id: nanoid(),
           contentType: methodKey.replace('fake_', '').replace('_gen', ''),
           template: JSON.stringify(params),
           imagePrompt: method.imagePrompt,
           platform: params?.platform || 'telegram',
           style: params?.style || 'real',
           methodId: method.id,
+          updatedAt: new Date(),
         },
       });
     }
@@ -696,6 +702,7 @@ export async function POST(request: NextRequest) {
     if (methodKey === 'ai_landing' && generatedText) {
       await db.landingPageProxy.create({
         data: {
+          id: nanoid(),
           title: params?.topic || 'Auto-generated Landing',
           htmlContent: generatedText,
           telegramLink: params?.channel ? `https://t.me/${params.channel.replace('@', '')}` : null,
@@ -788,6 +795,7 @@ async function generateTelegramMethodContent(
       updatedAt: new Date(),
     },
     create: {
+      id: nanoid(),
       methodNumber: method.id,
       name: method.name,
       description: method.description,
@@ -799,6 +807,7 @@ async function generateTelegramMethodContent(
       riskLevel: method.riskLevel === 'extreme' ? 100 :
                  method.riskLevel === 'high' ? 75 :
                  method.riskLevel === 'medium' ? 50 : 25,
+      updatedAt: new Date(),
     },
   });
 
@@ -862,6 +871,7 @@ export async function PUT(request: NextRequest) {
         updatedAt: new Date(),
       },
       create: {
+        id: nanoid(),
         methodNumber: methodId,
         name: config?.name || method.name,
         description: config?.description || method.description,
@@ -874,6 +884,7 @@ export async function PUT(request: NextRequest) {
         riskLevel: method.riskLevel === 'extreme' ? 100 :
                    method.riskLevel === 'high' ? 75 :
                    method.riskLevel === 'medium' ? 50 : 25,
+        updatedAt: new Date(),
       },
     });
 

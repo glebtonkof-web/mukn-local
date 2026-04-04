@@ -12,27 +12,27 @@ export async function GET(
     const influencer = await db.influencer.findUnique({
       where: { id },
       include: {
-        account: true,
-        simCard: true,
-        posts: {
+        Account: true,
+        SimCard: true,
+        Post: {
           take: 20,
           orderBy: { createdAt: 'desc' },
         },
-        comments: {
+        Comment: {
           take: 20,
           orderBy: { createdAt: 'desc' },
         },
-        directMessages: {
+        DirectMessage: {
           take: 20,
           orderBy: { createdAt: 'desc' },
         },
-        analytics: {
+        InfluencerAnalytics: {
           take: 30,
           orderBy: { date: 'desc' },
         },
-        campaigns: {
+        CampaignInfluencer: {
           include: {
-            campaign: true,
+            Campaign: true,
           },
         },
       },
