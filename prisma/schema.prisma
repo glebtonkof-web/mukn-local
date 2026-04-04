@@ -4241,3 +4241,301 @@ model UserGamification {
   @@index([userId])
   @@index([totalPoints])
 }
+
+// ==================== HUNYUAN CONTENT STUDIO ====================
+
+// Сгенерированный контент (изображения, видео, аудио)
+model GeneratedContent {
+  id              String   @id @default(cuid())
+  
+  // Тип контента
+  type            String   // image, video, audio, avatar
+  
+  // Платформа назначения
+  platform        String   // telegram, instagram, tiktok, youtube, vk, twitter
+  
+  // Источник генерации
+  source          String   @default("hunyuan") // hunyuan, deepseek, z-ai-sdk
+  
+  // Промпт/описание
+  prompt          String
+  negativePrompt  String?
+  
+  // Результат
+  mediaUrl        String?  // URL к файлу
+  mediaBase64     String?  // Base64 для маленьких файлов
+  thumbnailUrl    String?
+  
+  // Размеры (для изображений/видео)
+  width           Int?
+  height          Int?
+  duration        Int?     // Длительность в секундах (для видео/аудио)
+  fileSize        Int?     // Размер в байтах
+  
+  // Параметры генерации
+  generationParams String? // JSON с параметрами
+  
+  // Статус
+  status          String   @default("pending") // pending, generating, completed, failed, editing
+  error           String?
+  generationTime  Int?     // Время генерации в мс
+  
+  // Связь с инфлюенсером/аккаунтом
+  influencerId    String?
+  accountId       String?
+  
+  // Редактирование
+  originalContentId String? // Если это отредактированная версия
+  editCommand     String?  // Команда редактирования
+  editHistory     String?  // JSON массив истории правок
+  
+  // Публикация
+  isPublished     Boolean  @default(false)
+  publishedAt     DateTime?
+  publishedPlatform String?
+  publishedPostId  String?
+  
+  // Метрики после публикации
+  views           Int      @default(0)
+  likes           Int      @default(0)
+  comments        Int      @default(0)
+  shares          Int      @default(0)
+  ctr             Float    @default(0)
+  conversions     Int      @default(0)
+  
+  // Шаблон
+  templateId      String?
+  
+  // Метаданные
+  metadata        String?  // JSON для дополнительных данных
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([type])
+  @@index([platform])
+  @@index([status])
+  @@index([source])
+  @@index([influencerId])
+  @@index([createdAt])
+}
+
+// Шаблоны стилей контента
+model ContentTemplate {
+  id              String   @id @default(cuid())
+  
+  // Название
+  name            String
+  description     String?
+  
+  // Тип контента
+  contentType     String   // image, video, audio, post
+  
+  // Платформа
+  platform        String?  // null = универсальный
+  
+  // Тема/ниша
+  niche           String?  // crypto, gambling, lifestyle, bait
+  
+  // Стиль
+  style           String?  // dark, neon, professional, casual
+  
+  // Параметры шаблона (JSON)
+  styleParams     String   // {фон: "тёмный", субтитры: "жёлтые", ...}
+  
+  // Промпт-шаблон
+  promptTemplate  String?  // Шаблон промпта с плейсхолдерами
+  
+  // Превью
+  previewUrl      String?
+  
+  // Статистика использования
+  usageCount      Int      @default(0)
+  successRate     Float    @default(0)
+  avgEngagement   Float    @default(0)
+  
+  // Рейтинг
+  avgRating       Float    @default(0)
+  ratingsCount    Int      @default(0)
+  
+  // Пользователь
+  userId          String?
+  isPublic        Boolean  @default(false)
+  
+  // Теги
+  tags            String?  // JSON массив тегов
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([contentType])
+  @@index([platform])
+  @@index([niche])
+  @@index([userId])
+}
+
+// История правок пользователя (для обучения AI)
+model UserEditHistory {
+  id              String   @id @default(cuid())
+  
+  // Контент
+  contentId       String
+  
+  // Тип правки
+  editType        String   // background, text, color, voice, duration, style
+  
+  // Команда пользователя
+  userCommand     String   // "сделай фон темнее"
+  
+  // Что было изменено (JSON)
+  beforeState     String?  // {background: "light"}
+  afterState      String?  // {background: "dark"}
+  
+  // AI понял команду правильно?
+  understood      Boolean  @default(true)
+  
+  // Пользователь доволен?
+  satisfied       Boolean  @default(true)
+  
+  // Применён к шаблону?
+  appliedToTemplate Boolean @default(false)
+  templateId      String?
+  
+  // Метаданные
+  provider        String   @default("deepseek") // deepseek, hunyuan
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([contentId])
+  @@index([editType])
+  @@index([createdAt])
+}
+
+// Расписание публикаций
+model PublicationSchedule {
+  id              String   @id @default(cuid())
+  
+  // Контент
+  contentId       String
+  
+  // Платформы для публикации
+  platforms       String   // JSON массив: ["instagram", "tiktok"]
+  
+  // Время публикации
+  scheduledAt     DateTime
+  publishedAt     DateTime?
+  
+  // Статус
+  status          String   @default("pending") // pending, publishing, published, failed
+  
+  // Результаты публикации по платформам (JSON)
+  publishResults  String?  // {instagram: {postId: "...", status: "success"}, ...}
+  
+  // Повторяющееся расписание
+  isRecurring     Boolean  @default(false)
+  recurrenceRule  String?  // cron-формат или JSON
+  
+  // Очередь
+  priority        Int      @default(5) // 1-10
+  
+  // Метаданные
+  campaignId      String?
+  influencerId    String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([contentId])
+}
+
+// Аватары для видео-генерации (AI口播)
+model VideoAvatar {
+  id              String   @id @default(cuid())
+  
+  // Название
+  name            String
+  
+  // Описание
+  description     String?
+  
+  // Изображение аватара
+  imageUrl        String
+  
+  // Тип
+  gender          String   // male, female
+  age             String?  // young, middle, senior
+  
+  // Стиль
+  style           String?  // professional, casual, friendly
+  
+  // Голос
+  voiceId         String?
+  voiceProvider   String?  // elevenlabs, hunyuan
+  
+  // Языки
+  languages       String?  // JSON массив: ["ru", "en"]
+  
+  // Превью видео
+  previewVideoUrl String?
+  
+  // Статистика
+  usageCount      Int      @default(0)
+  avgEngagement   Float    @default(0)
+  
+  // Пользователь
+  userId          String?
+  isPublic        Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([gender])
+  @@index([userId])
+}
+
+// AI-подкасты (AI播客)
+model AIPodcast {
+  id              String   @id @default(cuid())
+  
+  // Название
+  title           String
+  description     String?
+  
+  // Аудио файл
+  audioUrl        String?
+  duration        Int?     // секунды
+  
+  // Текст/скрипт
+  script          String?
+  language        String   @default("ru")
+  
+  // Голоса
+  voices          String?  // JSON: [{speaker: "Ведущий", voiceId: "..."}]
+  
+  // Параметры
+  backgroundMusic String?
+  introOutro      Boolean  @default(false)
+  
+  // Статус
+  status          String   @default("draft") // draft, generating, completed, failed
+  
+  // Публикация
+  isPublished     Boolean  @default(false)
+  publishedAt     DateTime?
+  
+  // Метрики
+  plays           Int      @default(0)
+  likes           Int      @default(0)
+  shares          Int      @default(0)
+  
+  // Пользователь
+  userId          String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status])
+  @@index([userId])
+}

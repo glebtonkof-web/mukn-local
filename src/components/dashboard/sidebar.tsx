@@ -61,6 +61,7 @@ const navSections = [
   {
     title: 'AI & Автоматизация',
     items: [
+      { id: 'hunyuan', label: 'Hunyuan Studio', icon: Sparkles, badge: 'NEW' },
       { id: 'ai-comments', label: 'AI Комментарии', icon: MessageSquare },
       { id: 'ai-pool', label: 'AI Pool', icon: Brain },
       { id: 'content', label: 'Контент', icon: Calendar },
