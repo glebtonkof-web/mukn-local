@@ -20,6 +20,9 @@ import { AdvancedAIPanel } from '@/components/advanced/advanced-ai-panel';
 import { MonetizationPanel } from '@/components/monetization/monetization-panel';
 import { OFMPanel } from '@/components/ofm/ofm-panel';
 import { TrafficMethods130Panel } from '@/components/traffic/traffic-methods-130-panel';
+import { AccountsPanel } from '@/components/infrastructure/accounts-panel';
+import { SimCardsPanel } from '@/components/infrastructure/sim-cards-panel';
+import { ProxyPanel } from '@/components/infrastructure/proxy-panel';
 import {
   useInfluencers,
   useDashboardMetrics,
@@ -883,42 +886,53 @@ function MonetizationView() {
 
 // Компонент Infrastructure View
 function InfrastructureView() {
-  const { metrics, loading } = useDashboardMetrics();
-
-  const stats = [
-    { icon: Smartphone, label: 'SIM-карты', value: metrics?.totalSimCards ?? 0, max: 100, color: '#6C63FF' },
-    { icon: Users, label: 'Аккаунты', value: metrics?.totalAccounts ?? 0, max: 100, color: '#00D26A' },
-    { icon: Globe, label: 'Прокси', value: 0, max: 100, color: '#FFB800' },
-    { icon: Shield, label: 'API ключи', value: 0, max: 10, color: '#00B4D8' },
-  ];
+  const [activeTab, setActiveTab] = useState('accounts');
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Инфраструктура</h1>
-          <p className="text-[#8A8A8A]">SIM-карты, аккаунты, прогрев, прокси</p>
+          <p className="text-[#8A8A8A]">Управление аккаунтами, SIM-картами и прокси</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, i) => (
-          <Card key={i} className="bg-[#14151A] border-[#2A2B32]">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <stat.icon className="w-6 h-6" style={{ color: stat.color }} />
-                <Badge variant="outline" className="border-[#2A2B32] text-[#8A8A8A]">
-                  {stat.value}/{stat.max}
-                </Badge>
-              </div>
-              <p className="text-xl font-bold text-white">{stat.label}</p>
-              <Progress value={(stat.value / stat.max) * 100} className="h-2 mt-3" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="bg-[#1E1F26] border-[#2A2B32]">
+          <TabsTrigger value="accounts" className="data-[state=active]:bg-[#6C63FF]">
+            <Users className="w-4 h-4 mr-2" />
+            Аккаунты
+          </TabsTrigger>
+          <TabsTrigger value="sim-cards" className="data-[state=active]:bg-[#6C63FF]">
+            <Smartphone className="w-4 h-4 mr-2" />
+            SIM-карты
+          </TabsTrigger>
+          <TabsTrigger value="proxies" className="data-[state=active]:bg-[#6C63FF]">
+            <Globe className="w-4 h-4 mr-2" />
+            Прокси
+          </TabsTrigger>
+          <TabsTrigger value="warming" className="data-[state=active]:bg-[#6C63FF]">
+            <Flame className="w-4 h-4 mr-2" />
+            Прогрев
+          </TabsTrigger>
+        </TabsList>
 
-      <WarmingDashboard />
+        <TabsContent value="accounts" className="mt-6">
+          <AccountsPanel />
+        </TabsContent>
+
+        <TabsContent value="sim-cards" className="mt-6">
+          <SimCardsPanel />
+        </TabsContent>
+
+        <TabsContent value="proxies" className="mt-6">
+          <ProxyPanel />
+        </TabsContent>
+
+        <TabsContent value="warming" className="mt-6">
+          <WarmingDashboard />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
