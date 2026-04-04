@@ -13,7 +13,7 @@ import { ContentView } from '@/components/views/content-view';
 import { VideoGeneratorView } from '@/components/views/video-generator-view';
 import { OffersView } from '@/components/views/offers-view';
 import { InfluencersView } from '@/components/views/influencers-view';
-import { WarmingView } from '@/components/views/warming-view';
+import { WarmingViewEnhanced } from '@/components/views/warming-view-enhanced';
 import { ShadowBanView } from '@/components/views/shadow-ban-view';
 import { AIPoolView } from '@/components/views/ai-pool-view';
 import { SettingsView } from '@/components/views/settings-view';
@@ -1637,7 +1637,7 @@ export default function MUKNTrafficApp() {
       case 'advanced':
         return <AdvancedView />;
       case 'warming':
-        return <WarmingView />;
+        return <WarmingViewEnhanced />;
       case 'shadow-ban':
         return <ShadowBanView />;
       case 'monetization':

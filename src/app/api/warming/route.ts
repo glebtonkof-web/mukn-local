@@ -1,432 +1,530 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { withRetry, createCircuitBreaker } from '@/lib/resilience';
-import { logger } from '@/lib/logger';
+import {
+  getPlatformConfig,
+  getCurrentPhase,
+  getDailyLimits,
+  calculateProgress,
+  isTrafficReady,
+} from '@/lib/warming/platform-configs';
+import { generateHumanDelay } from '@/lib/warming/behavior-monitor';
 
-const dbCircuitBreaker = createCircuitBreaker('database', { circuitBreakerThreshold: 3 });
-
-// Warming modes configuration
-const WARMING_MODES = {
-  fast: {
-    durationDays: 3,
-    actionsPerDay: 100,
-    maxChannelsJoin: 10,
-    messageDelayMin: 15,
-    messageDelayMax: 60,
-    description: 'Быстрый прогрев - высокий риск бана',
-    riskLevel: 'high',
-  },
-  standard: {
-    durationDays: 7,
-    actionsPerDay: 50,
-    maxChannelsJoin: 5,
-    messageDelayMin: 30,
-    messageDelayMax: 120,
-    description: 'Стандартный прогрев - рекомендуемый режим',
-    riskLevel: 'medium',
-  },
-  maximum: {
-    durationDays: 14,
-    actionsPerDay: 30,
-    maxChannelsJoin: 3,
-    messageDelayMin: 60,
-    messageDelayMax: 300,
-    description: 'Максимальный прогрев - низкий риск бана',
-    riskLevel: 'low',
-  },
-  premium: {
-    durationDays: 21,
-    actionsPerDay: 20,
-    maxChannelsJoin: 2,
-    messageDelayMin: 120,
-    messageDelayMax: 600,
-    description: 'Премиум прогрев - минимальный риск бана',
-    riskLevel: 'very_low',
-  },
-} as const;
-
-type WarmingMode = keyof typeof WARMING_MODES;
-
-interface WarmingSettingsRequest {
-  accountId: string;
-  mode?: WarmingMode;
-  enabled?: boolean;
-  durationDays?: number;
-  actionsPerDay?: number;
-  maxChannelsJoin?: number;
-  messageDelayMin?: number;
-  messageDelayMax?: number;
-  joinChannels?: string[];
-  userId?: string;
-}
-
-// Calculate warming progress
-function calculateProgress(startDate: Date, endDate: Date, actionsCompleted: number, targetActions: number): number {
-  const now = new Date();
-  
-  // If warming hasn't started yet
-  if (now < startDate) return 0;
-  
-  // If warming is complete
-  if (now >= endDate) {
-    return Math.min(100, Math.round((actionsCompleted / targetActions) * 100));
-  }
-  
-  // Calculate time-based progress
-  const totalDuration = endDate.getTime() - startDate.getTime();
-  const elapsed = now.getTime() - startDate.getTime();
-  const timeProgress = (elapsed / totalDuration) * 100;
-  
-  // Calculate action-based progress
-  const actionProgress = (actionsCompleted / targetActions) * 100;
-  
-  // Weight: 60% time, 40% actions
-  return Math.round(timeProgress * 0.6 + actionProgress * 0.4);
-}
-
-// GET /api/warming - Get warming settings and status
+// GET - Fetch all warming accounts
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const accountId = searchParams.get('accountId');
-    const userId = searchParams.get('userId') || 'default-user';
-    const includeStats = searchParams.get('stats') === 'true';
+    const { searchParams } = new URL(request.url);
+    const platform = searchParams.get('platform');
+    const status = searchParams.get('status');
 
-    // Get warming settings
-    const whereClause: Record<string, unknown> = { userId };
-    if (accountId) whereClause.accountId = accountId;
+    const where: Record<string, unknown> = {};
+    if (platform) where.platform = platform;
+    if (status) where.status = status;
 
-    const warmingSettings = await dbCircuitBreaker.execute(() =>
-      db.warmingSettings.findMany({
-        where: whereClause,
-        orderBy: { createdAt: 'desc' },
-      })
-    );
-
-    // Get accounts with warming status
     const accounts = await db.account.findMany({
-      where: { userId, status: { in: ['warming', 'active', 'pending'] } },
+      where,
       include: {
-        influencers: {
-          select: { id: true, name: true },
+        warming: {
+          include: {
+            actions: {
+              orderBy: { createdAt: 'desc' },
+              take: 50,
+            },
+          },
         },
-        _count: {
-          select: { actions: true },
-        },
+        proxy: true,
       },
+      orderBy: { createdAt: 'desc' },
     });
 
-    // Calculate warming progress for each account
-    const accountsWithProgress = accounts.map((account) => {
-      let progress = 0;
-      let status = 'not_started';
-      let daysRemaining = 0;
+    // Calculate stats
+    const stats = {
+      total: accounts.length,
+      byPlatform: {} as Record<string, number>,
+      byPhase: {} as Record<string, number>,
+      warming: 0,
+      stable: 0,
+      trafficReady: 0,
+    };
 
-      if (account.status === 'warming' && account.warmingStartedAt && account.warmingEndsAt) {
-        status = 'in_progress';
-        progress = calculateProgress(
-          account.warmingStartedAt,
-          account.warmingEndsAt,
-          account._count.actions,
-          (account.maxComments + account.maxDm + account.maxFollows) * 7
-        );
-        daysRemaining = Math.max(0, Math.ceil(
-          (account.warmingEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-        ));
-      } else if (account.status === 'active') {
-        status = 'completed';
-        progress = 100;
+    const enrichedAccounts = accounts.map(account => {
+      const platformConfig = getPlatformConfig(account.platform);
+      const warming = account.warming?.[0];
+      
+      // Count by platform
+      stats.byPlatform[account.platform] = (stats.byPlatform[account.platform] || 0) + 1;
+
+      if (!warming) {
+        return {
+          ...account,
+          currentDay: 0,
+          currentPhase: 'not_started',
+          todayLikes: 0,
+          todayFollows: 0,
+          todayComments: 0,
+          todayPosts: 0,
+          todayDm: 0,
+          todayStoriesViews: 0,
+          todayInvites: 0,
+          todayRetweets: 0,
+          todayTimeSpent: 0,
+          banRisk: 0,
+          progress: 0,
+          phase: 'not_started',
+          phaseConfig: null,
+          maxLimits: null,
+          proxyHost: account.proxy?.host,
+          proxyCountry: account.proxy?.country,
+        };
+      }
+
+      const currentDay = warming.currentDay;
+      const phase = getCurrentPhase(account.platform, currentDay);
+      const progress = calculateProgress(account.platform, currentDay);
+      const trafficReady = isTrafficReady(account.platform, currentDay);
+      const limits = getDailyLimits(account.platform, currentDay);
+
+      // Count by phase
+      if (phase) {
+        stats.byPhase[phase.name] = (stats.byPhase[phase.name] || 0) + 1;
+      }
+
+      // Count status
+      if (trafficReady) {
+        stats.trafficReady++;
+        stats.stable++;
+      } else if (warming.status === 'warming') {
+        stats.warming++;
+      }
+
+      // Calculate ban risk based on behavior
+      let banRisk = warming.banRisk || 0;
+      
+      // Increase risk if over limits
+      const todayActions = warming.todayLikes + warming.todayFollows + warming.todayComments;
+      const maxActions = (limits?.likes.max || 0) + (limits?.follows.max || 0) + (limits?.comments.max || 0);
+      if (maxActions > 0 && todayActions > maxActions * 0.9) {
+        banRisk = Math.min(100, banRisk + 10);
       }
 
       return {
         ...account,
-        warmingProgress: account.warmingProgress || progress,
-        warmingStatus: status,
-        daysRemaining,
+        currentDay,
+        currentPhase: phase?.name || 'unknown',
+        todayLikes: warming.todayLikes,
+        todayFollows: warming.todayFollows,
+        todayComments: warming.todayComments,
+        todayPosts: warming.todayPosts,
+        todayDm: warming.todayDm,
+        todayStoriesViews: warming.todayStoriesViews,
+        todayInvites: warming.todayInvites || 0,
+        todayRetweets: warming.todayRetweets || 0,
+        todayTimeSpent: warming.todayTimeSpent,
+        banRisk,
+        progress,
+        phase: phase?.icon || 'unknown',
+        phaseConfig: phase,
+        maxLimits: limits,
+        proxyHost: account.proxy?.host,
+        proxyCountry: account.proxy?.country,
+        fingerprintScore: warming.fingerprintScore,
+        behaviorScore: warming.behaviorScore,
       };
     });
 
-    // Statistics
-    const stats = {
-      totalAccounts: accounts.length,
-      warming: accounts.filter((a) => a.status === 'warming').length,
-      completed: accounts.filter((a) => a.status === 'active').length,
-      pending: accounts.filter((a) => a.status === 'pending').length,
-      averageProgress: Math.round(
-        accountsWithProgress.reduce((sum, a) => sum + (a.warmingProgress || 0), 0) / accounts.length || 0
-      ),
-    };
-
-    logger.debug('Warming settings fetched', { accountId, count: warmingSettings.length });
-
     return NextResponse.json({
-      warmingSettings,
-      accounts: accountsWithProgress,
-      modes: WARMING_MODES,
-      stats: includeStats ? stats : undefined,
+      accounts: enrichedAccounts,
+      stats,
     });
   } catch (error) {
-    logger.error('Failed to fetch warming settings', error as Error);
+    console.error('Error fetching warming accounts:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch warming settings' },
+      { error: 'Ошибка при загрузке данных' },
       { status: 500 }
     );
   }
 }
 
-// POST /api/warming - Start warming for account
+// POST - Perform warming action
 export async function POST(request: NextRequest) {
   try {
-    const body: WarmingSettingsRequest = await request.json();
-
-    if (!body.accountId) {
-      return NextResponse.json(
-        { error: 'Account ID is required' },
-        { status: 400 }
-      );
-    }
-
-    // Check if account exists
-    const account = await db.account.findUnique({
-      where: { id: body.accountId },
-    });
-
-    if (!account) {
-      return NextResponse.json(
-        { error: 'Account not found' },
-        { status: 404 }
-      );
-    }
-
-    if (account.status === 'banned') {
-      return NextResponse.json(
-        { error: 'Cannot start warming for banned account' },
-        { status: 400 }
-      );
-    }
-
-    if (account.status === 'warming') {
-      return NextResponse.json(
-        { error: 'Account is already warming' },
-        { status: 400 }
-      );
-    }
-
-    // Get mode configuration
-    const mode = body.mode || 'standard';
-    if (!WARMING_MODES[mode]) {
-      return NextResponse.json(
-        { error: `Invalid mode. Supported: ${Object.keys(WARMING_MODES).join(', ')}` },
-        { status: 400 }
-      );
-    }
-
-    const modeConfig = WARMING_MODES[mode];
-    const durationDays = body.durationDays || modeConfig.durationDays;
-    const actionsPerDay = body.actionsPerDay || modeConfig.actionsPerDay;
-
-    const warmingStartedAt = new Date();
-    const warmingEndsAt = new Date(warmingStartedAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
-
-    // Create or update warming settings
-    const warmingSettings = await withRetry(() =>
-      db.warmingSettings.create({
-        data: {
-          enabled: true,
-          mode,
-          durationDays,
-          actionsPerDay,
-          maxChannelsJoin: body.maxChannelsJoin || modeConfig.maxChannelsJoin,
-          messageDelayMin: body.messageDelayMin || modeConfig.messageDelayMin,
-          messageDelayMax: body.messageDelayMax || modeConfig.messageDelayMax,
-          joinChannels: body.joinChannels ? JSON.stringify(body.joinChannels) : null,
-          userId: body.userId || 'default-user',
-        },
-      })
-    );
-
-    // Update account status
-    const updatedAccount = await db.account.update({
-      where: { id: body.accountId },
-      data: {
-        status: 'warming',
-        warmingStartedAt,
-        warmingEndsAt,
-        warmingProgress: 0,
-        maxComments: Math.round(actionsPerDay * 0.4),
-        maxDm: Math.round(actionsPerDay * 0.2),
-        maxFollows: Math.round(actionsPerDay * 0.4),
-      },
-    });
-
-    // Log action
-    await db.accountAction.create({
-      data: {
-        actionType: 'warming_started',
-        result: 'success',
-        accountId: body.accountId,
-      },
-    });
-
-    logger.info('Warming started', {
-      accountId: body.accountId,
-      mode,
-      durationDays,
-      endsAt: warmingEndsAt,
-    });
-
-    return NextResponse.json({
-      success: true,
-      account: updatedAccount,
-      warmingSettings,
-      message: `Warming started with ${mode} mode. Duration: ${durationDays} days.`,
-    });
-  } catch (error) {
-    logger.error('Failed to start warming', error as Error);
-    return NextResponse.json(
-      { error: 'Failed to start warming' },
-      { status: 500 }
-    );
-  }
-}
-
-// PUT /api/warming - Update warming settings
-export async function PUT(request: NextRequest) {
-  try {
     const body = await request.json();
-    const { accountId, settingsId, ...data } = body;
+    const { action, accountId, username, platform, actionType } = body;
 
-    if (!accountId && !settingsId) {
-      return NextResponse.json(
-        { error: 'Account ID or Settings ID is required' },
-        { status: 400 }
-      );
+    switch (action) {
+      case 'start': {
+        // Start warming for a new account
+        if (!accountId || !username || !platform) {
+          return NextResponse.json(
+            { error: 'Необходимы accountId, username и platform' },
+            { status: 400 }
+          );
+        }
+
+        // Check if account exists
+        let account = await db.account.findFirst({
+          where: {
+            OR: [
+              { id: accountId },
+              { username: username },
+            ],
+          },
+        });
+
+        // Create account if doesn't exist
+        if (!account) {
+          account = await db.account.create({
+            data: {
+              id: accountId,
+              username,
+              platform,
+              status: 'active',
+            },
+          });
+        }
+
+        // Check if warming already exists
+        const existingWarming = await db.instagramWarming.findFirst({
+          where: { accountId: account.id },
+        });
+
+        if (existingWarming) {
+          return NextResponse.json(
+            { error: 'Прогрев уже запущен для этого аккаунта' },
+            { status: 400 }
+          );
+        }
+
+        // Get platform config
+        const config = getPlatformConfig(platform);
+        if (!config) {
+          return NextResponse.json(
+            { error: 'Неподдерживаемая платформа' },
+            { status: 400 }
+          );
+        }
+
+        // Create warming record
+        const warming = await db.instagramWarming.create({
+          data: {
+            accountId: account.id,
+            status: 'warming',
+            currentDay: 1,
+            warmingStartedAt: new Date(),
+            warmingEndsAt: addDays(new Date(), config.totalWarmingDays),
+            todayLikes: 0,
+            todayFollows: 0,
+            todayComments: 0,
+            todayPosts: 0,
+            todayDm: 0,
+            todayStoriesViews: 0,
+            todayInvites: 0,
+            todayRetweets: 0,
+            todayTimeSpent: 0,
+            banRisk: 0,
+            totalLikes: 0,
+            totalFollows: 0,
+            totalComments: 0,
+            totalPosts: 0,
+            totalDm: 0,
+          },
+        });
+
+        // Log warming started action
+        await db.instagramWarmingAction.create({
+          data: {
+            warmingId: warming.id,
+            actionType: 'warming_started',
+            target: null,
+            result: `Прогрев запущен на ${config.totalWarmingDays} дней`,
+            success: true,
+            day: 1,
+            phase: config.phases[0].name,
+          },
+        });
+
+        return NextResponse.json({
+          success: true,
+          warming,
+          message: 'Прогрев успешно запущен',
+        });
+      }
+
+      case 'perform': {
+        // Perform a warming action
+        if (!accountId || !actionType) {
+          return NextResponse.json(
+            { error: 'Необходимы accountId и actionType' },
+            { status: 400 }
+          );
+        }
+
+        const warming = await db.instagramWarming.findFirst({
+          where: { accountId },
+        });
+
+        if (!warming) {
+          return NextResponse.json(
+            { error: 'Прогрев не найден' },
+            { status: 404 }
+          );
+        }
+
+        // Get limits for current day
+        const account = await db.account.findUnique({
+          where: { id: accountId },
+        });
+        
+        if (!account) {
+          return NextResponse.json(
+            { error: 'Аккаунт не найден' },
+            { status: 404 }
+          );
+        }
+
+        const limits = getDailyLimits(account.platform, warming.currentDay);
+        if (!limits) {
+          return NextResponse.json(
+            { error: 'Не удалось получить лимиты' },
+            { status: 500 }
+          );
+        }
+
+        // Check if limit reached
+        const limitCheck = checkLimit(warming, actionType, limits);
+        if (limitCheck.reached) {
+          return NextResponse.json(
+            { 
+              error: limitCheck.message,
+              limitReached: true,
+            },
+            { status: 400 }
+          );
+        }
+
+        // Update counters
+        const updateData: Record<string, number> = {};
+        const fieldMap: Record<string, string> = {
+          like: 'todayLikes',
+          follow: 'todayFollows',
+          comment: 'todayComments',
+          post: 'todayPosts',
+          dm: 'todayDm',
+          view: 'todayStoriesViews',
+          invite: 'todayInvites',
+          retweet: 'todayRetweets',
+        };
+
+        const field = fieldMap[actionType];
+        if (field) {
+          updateData[field] = (warming as Record<string, number>)[field] + 1;
+          
+          // Also update total
+          const totalField = `total${field.replace('today', '')}` as string;
+          if (totalField in warming) {
+            updateData[totalField] = (warming as Record<string, number>)[totalField] + 1;
+          }
+        }
+
+        // Update warming record
+        const updatedWarming = await db.instagramWarming.update({
+          where: { id: warming.id },
+          data: updateData,
+        });
+
+        // Log action
+        const phase = getCurrentPhase(account.platform, warming.currentDay);
+        await db.instagramWarmingAction.create({
+          data: {
+            warmingId: warming.id,
+            actionType,
+            target: null,
+            result: 'Успешно выполнено',
+            success: true,
+            day: warming.currentDay,
+            phase: phase?.name || 'unknown',
+          },
+        });
+
+        // Check if near limit
+        const warnings: string[] = [];
+        if (limitCheck.nearLimit) {
+          warnings.push(limitCheck.message);
+        }
+
+        return NextResponse.json({
+          success: true,
+          account: {
+            todayLikes: updatedWarming.todayLikes,
+            todayFollows: updatedWarming.todayFollows,
+            todayComments: updatedWarming.todayComments,
+            todayPosts: updatedWarming.todayPosts,
+            todayDm: updatedWarming.todayDm,
+            todayStoriesViews: updatedWarming.todayStoriesViews,
+            todayInvites: updatedWarming.todayInvites,
+            todayRetweets: updatedWarming.todayRetweets,
+          },
+          nearLimit: limitCheck.nearLimit,
+          warnings,
+        });
+      }
+
+      case 'nextDay': {
+        // Advance to next day
+        if (!accountId) {
+          return NextResponse.json(
+            { error: 'Необходим accountId' },
+            { status: 400 }
+          );
+        }
+
+        const warming = await db.instagramWarming.findFirst({
+          where: { accountId },
+        });
+
+        if (!warming) {
+          return NextResponse.json(
+            { error: 'Прогрев не найден' },
+            { status: 404 }
+          );
+        }
+
+        const account = await db.account.findUnique({
+          where: { id: accountId },
+        });
+
+        if (!account) {
+          return NextResponse.json(
+            { error: 'Аккаунт не найден' },
+            { status: 404 }
+          );
+        }
+
+        const config = getPlatformConfig(account.platform);
+        if (!config) {
+          return NextResponse.json(
+            { error: 'Платформа не найдена' },
+            { status: 400 }
+          );
+        }
+
+        const newDay = warming.currentDay + 1;
+        const isComplete = newDay > config.totalWarmingDays;
+        const phase = getCurrentPhase(account.platform, newDay);
+
+        // Reset daily counters
+        const updatedWarming = await db.instagramWarming.update({
+          where: { id: warming.id },
+          data: {
+            currentDay: newDay,
+            status: isComplete ? 'stable' : 'warming',
+            todayLikes: 0,
+            todayFollows: 0,
+            todayComments: 0,
+            todayPosts: 0,
+            todayDm: 0,
+            todayStoriesViews: 0,
+            todayInvites: 0,
+            todayRetweets: 0,
+            todayTimeSpent: 0,
+          },
+        });
+
+        // Log day change
+        await db.instagramWarmingAction.create({
+          data: {
+            warmingId: warming.id,
+            actionType: 'day_change',
+            target: null,
+            result: `День ${newDay}${isComplete ? ' - прогрев завершён!' : ''}`,
+            success: true,
+            day: newDay,
+            phase: phase?.name || 'complete',
+          },
+        });
+
+        return NextResponse.json({
+          success: true,
+          message: `Перешли на день ${newDay}`,
+          isComplete,
+          currentDay: newDay,
+          phase: phase?.nameRu,
+        });
+      }
+
+      default:
+        return NextResponse.json(
+          { error: 'Неизвестное действие' },
+          { status: 400 }
+        );
     }
-
-    // Validate mode if provided
-    if (data.mode && !WARMING_MODES[data.mode as WarmingMode]) {
-      return NextResponse.json(
-        { error: `Invalid mode. Supported: ${Object.keys(WARMING_MODES).join(', ')}` },
-        { status: 400 }
-      );
-    }
-
-    // Update warming settings
-    const updateWhere = settingsId 
-      ? { id: settingsId } 
-      : { id: await getWarmingSettingsId(accountId) };
-
-    if (!updateWhere.id) {
-      return NextResponse.json(
-        { error: 'Warming settings not found' },
-        { status: 404 }
-      );
-    }
-
-    const updatedSettings = await db.warmingSettings.update({
-      where: updateWhere,
-      data: {
-        ...data,
-        joinChannels: data.joinChannels ? JSON.stringify(data.joinChannels) : undefined,
-        updatedAt: new Date(),
-      },
-    });
-
-    // Update account if accountId provided
-    if (accountId && data.mode) {
-      const modeConfig = WARMING_MODES[data.mode as WarmingMode];
-      await db.account.update({
-        where: { id: accountId },
-        data: {
-          maxComments: Math.round((data.actionsPerDay || modeConfig.actionsPerDay) * 0.4),
-          maxDm: Math.round((data.actionsPerDay || modeConfig.actionsPerDay) * 0.2),
-          maxFollows: Math.round((data.actionsPerDay || modeConfig.actionsPerDay) * 0.4),
-        },
-      });
-    }
-
-    logger.info('Warming settings updated', { accountId, settingsId, updates: Object.keys(data) });
-
-    return NextResponse.json({
-      warmingSettings: updatedSettings,
-      message: 'Warming settings updated successfully',
-    });
   } catch (error) {
-    logger.error('Failed to update warming settings', error as Error);
+    console.error('Error in warming API:', error);
     return NextResponse.json(
-      { error: 'Failed to update warming settings' },
+      { error: 'Внутренняя ошибка сервера' },
       { status: 500 }
     );
   }
 }
 
-// DELETE /api/warming - Stop warming
-export async function DELETE(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const accountId = searchParams.get('accountId');
-    const complete = searchParams.get('complete') === 'true';
-
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'Account ID is required' },
-        { status: 400 }
-      );
-    }
-
-    // Get account
-    const account = await db.account.findUnique({
-      where: { id: accountId },
-    });
-
-    if (!account) {
-      return NextResponse.json(
-        { error: 'Account not found' },
-        { status: 404 }
-      );
-    }
-
-    // Update account status
-    const newStatus = complete ? 'active' : 'pending';
-    await db.account.update({
-      where: { id: accountId },
-      data: {
-        status: newStatus,
-        warmingProgress: complete ? 100 : account.warmingProgress,
-        warmingEndsAt: complete ? new Date() : null,
-      },
-    });
-
-    // Log action
-    await db.accountAction.create({
-      data: {
-        actionType: complete ? 'warming_completed' : 'warming_stopped',
-        result: 'success',
-        accountId,
-      },
-    });
-
-    logger.info('Warming stopped', { accountId, completed: complete });
-
-    return NextResponse.json({
-      success: true,
-      message: complete ? 'Warming completed successfully' : 'Warming stopped',
-      newStatus,
-    });
-  } catch (error) {
-    logger.error('Failed to stop warming', error as Error);
-    return NextResponse.json(
-      { error: 'Failed to stop warming' },
-      { status: 500 }
-    );
+// Helper function to check limits
+function checkLimit(
+  warming: {
+    todayLikes: number;
+    todayFollows: number;
+    todayComments: number;
+    todayPosts: number;
+    todayDm: number;
+    todayStoriesViews: number;
+    todayInvites: number;
+    todayRetweets: number;
+  },
+  actionType: string,
+  limits: ReturnType<typeof getDailyLimits>
+): { reached: boolean; nearLimit: boolean; message: string } {
+  if (!limits) {
+    return { reached: false, nearLimit: false, message: '' };
   }
+
+  const checks: Record<string, { current: number; max: number; label: string }> = {
+    like: { current: warming.todayLikes, max: limits.likes.max, label: 'лайков' },
+    follow: { current: warming.todayFollows, max: limits.follows.max, label: 'подписок' },
+    comment: { current: warming.todayComments, max: limits.comments.max, label: 'комментариев' },
+    post: { current: warming.todayPosts, max: limits.posts.max, label: 'постов' },
+    dm: { current: warming.todayDm, max: limits.dm.max, label: 'сообщений' },
+    view: { current: warming.todayStoriesViews, max: limits.stories?.max || 0, label: 'просмотров' },
+    invite: { current: warming.todayInvites, max: limits.invites?.max || 0, label: 'инвайтов' },
+    retweet: { current: warming.todayRetweets, max: limits.retweets?.max || 0, label: 'репостов' },
+  };
+
+  const check = checks[actionType];
+  if (!check) {
+    return { reached: false, nearLimit: false, message: '' };
+  }
+
+  const percentage = check.max > 0 ? (check.current / check.max) * 100 : 0;
+
+  if (check.current >= check.max) {
+    return {
+      reached: true,
+      nearLimit: true,
+      message: `Достигнут лимит ${check.label} на сегодня (${check.max})`,
+    };
+  }
+
+  if (percentage >= 80) {
+    return {
+      reached: false,
+      nearLimit: true,
+      message: `Близко к лимиту ${check.label}: ${check.current}/${check.max}`,
+    };
+  }
+
+  return { reached: false, nearLimit: false, message: '' };
 }
 
-// Helper to get warming settings ID for account
-async function getWarmingSettingsId(accountId: string): Promise<string | null> {
-  const account = await db.account.findUnique({
-    where: { id: accountId },
-    include: { user: { include: { warmingSettings: { take: 1, orderBy: { createdAt: 'desc' } } } } },
-  });
-  return account?.user.warmingSettings[0]?.id || null;
+// Helper to add days
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
 }
