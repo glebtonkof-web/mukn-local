@@ -31,11 +31,24 @@ export async function GET(request: NextRequest) {
     const permissions = searchParams.get('permissions')
     const checkAny = searchParams.get('checkAny') === 'true'
 
+    // Если userId не передан, возвращаем информацию о всех ролях
     if (!userId) {
-      return NextResponse.json(
-        { error: 'User ID required' },
-        { status: 400 }
-      )
+      const roles: Record<string, { permissions: Permission[]; level: number }> = {}
+
+      for (const role of ['admin', 'operator', 'user'] as Role[]) {
+        roles[role] = {
+          permissions: getRolePermissions(role),
+          level: getRoleLevel(role)
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        roles,
+        permissionGroups: PermissionGroups,
+        allPermissions: Object.values(PermissionGroups).flat(),
+        hint: 'Provide userId query parameter to check specific user permissions'
+      })
     }
 
     // Get user

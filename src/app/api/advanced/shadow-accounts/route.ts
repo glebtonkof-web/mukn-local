@@ -10,11 +10,20 @@ export async function GET(request: NextRequest) {
     const primaryAccountId = searchParams.get('primaryAccountId');
     const includeInactive = searchParams.get('includeInactive') === 'true';
     
+    // Если primaryAccountId не передан, возвращаем все теневые аккаунты
     if (!primaryAccountId) {
-      return NextResponse.json(
-        { error: 'Missing required field: primaryAccountId' },
-        { status: 400 }
-      );
+      const allShadowAccounts = await db.shadowSupportAccount.findMany({
+        take: 50,
+        orderBy: { createdAt: 'desc' },
+      });
+      
+      return NextResponse.json({
+        success: true,
+        shadowAccounts: allShadowAccounts,
+        total: allShadowAccounts.length,
+        active: allShadowAccounts.filter(sa => sa.isActive).length,
+        hint: 'Provide primaryAccountId query parameter to get specific account shadow accounts',
+      });
     }
     
     const whereClause: any = { primaryAccountId };

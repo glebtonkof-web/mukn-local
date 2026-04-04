@@ -1,6 +1,34 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+// GET /api/health/check-all - Get health check info
+export async function GET() {
+  try {
+    const accountsCount = await db.account.count();
+    const activeCount = await db.account.count({ where: { status: 'active' } });
+    const bannedCount = await db.account.count({ where: { status: 'banned' } });
+    const warmingCount = await db.account.count({ where: { status: 'warming' } });
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Health check overview',
+      accounts: {
+        total: accountsCount,
+        active: activeCount,
+        banned: bannedCount,
+        warming: warmingCount,
+      },
+      hint: 'Use POST method to run full health check on all accounts'
+    });
+  } catch (error) {
+    console.error('Error getting health info:', error);
+    return NextResponse.json(
+      { error: 'Failed to get health info' },
+      { status: 500 }
+    );
+  }
+}
+
 // POST /api/health/check-all - Check health of all accounts
 export async function POST() {
   try {

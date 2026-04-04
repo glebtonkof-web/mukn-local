@@ -9,11 +9,19 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const campaignId = searchParams.get('campaignId');
     
+    // Если campaignId не передан, возвращаем список всех настроек
     if (!campaignId) {
-      return NextResponse.json(
-        { error: 'Missing required field: campaignId' },
-        { status: 400 }
-      );
+      const allSettings = await db.dynamicOfferReplacement.findMany({
+        take: 50,
+        orderBy: { updatedAt: 'desc' },
+      });
+      
+      return NextResponse.json({
+        success: true,
+        settings: allSettings,
+        total: allSettings.length,
+        hint: 'Provide campaignId query parameter to get specific campaign settings',
+      });
     }
     
     const settings = await db.dynamicOfferReplacement.findFirst({
