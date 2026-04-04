@@ -4,8 +4,8 @@ import { useModeStore } from '@/store/mode-store';
 import { useAppStore } from '@/store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Info, X, Lightbulb, ArrowRight } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Info, X, Lightbulb, ArrowRight, Volume2, VolumeX } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
 interface Hint {
@@ -50,6 +50,9 @@ export function BeginnerHints() {
   const [currentHintIndex, setCurrentHintIndex] = useState(0);
   const [visible, setVisible] = useState(true);
   const [dismissed, setDismissed] = useState<string[]>([]);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Показывать только в Simple режиме и после онбординга
   const shouldShow = uiMode === 'simple' && onboardingComplete && visible;
@@ -60,13 +63,81 @@ export function BeginnerHints() {
     if (stored) {
       setDismissed(JSON.parse(stored));
     }
+    
+    // Загружаем настройку голоса
+    const voiceSetting = localStorage.getItem('mukn-voice-hints');
+    if (voiceSetting !== null) {
+      setVoiceEnabled(voiceSetting === 'true');
+    }
   }, []);
 
   // Фильтруем не отклонённые подсказки
   const availableHints = hints.filter(h => !dismissed.includes(h.id));
   const currentHint = availableHints[currentHintIndex];
 
+  // Озвучивание подсказки
+  const speakHint = async (hint: Hint) => {
+    if (!voiceEnabled || !hint) return;
+    
+    try {
+      // Используем TTS API
+      const response = await fetch('/api/ai/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: `${hint.title}. ${hint.content}`,
+          voice: 'alloy',
+        }),
+      });
+
+      if (response.ok) {
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+        
+        audioRef.current = new Audio(audioUrl);
+        audioRef.current.onended = () => setIsSpeaking(false);
+        audioRef.current.play();
+        setIsSpeaking(true);
+      }
+    } catch (error) {
+      console.error('TTS error:', error);
+      // Fallback на Web Speech API
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(`${hint.title}. ${hint.content}`);
+        utterance.lang = 'ru-RU';
+        utterance.onend = () => setIsSpeaking(false);
+        window.speechSynthesis.speak(utterance);
+        setIsSpeaking(true);
+      }
+    }
+  };
+
+  // Остановить озвучивание
+  const stopSpeaking = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
+  };
+
+  // Озвучивать подсказку при показе
+  useEffect(() => {
+    if (shouldShow && currentHint && voiceEnabled) {
+      speakHint(currentHint);
+    }
+    return () => stopSpeaking();
+  }, [currentHintIndex, shouldShow]);
+
   const handleDismiss = () => {
+    stopSpeaking();
     if (currentHint) {
       const newDismissed = [...dismissed, currentHint.id];
       setDismissed(newDismissed);
@@ -82,6 +153,7 @@ export function BeginnerHints() {
   };
 
   const handleAction = () => {
+    stopSpeaking();
     if (currentHint?.action?.tab) {
       setActiveTab(currentHint.action.tab);
     }
@@ -89,14 +161,27 @@ export function BeginnerHints() {
   };
 
   const handleNext = () => {
+    stopSpeaking();
     if (currentHintIndex < availableHints.length - 1) {
       setCurrentHintIndex(currentHintIndex + 1);
+    } else {
+      handleDismiss();
     }
   };
 
   const handlePrev = () => {
+    stopSpeaking();
     if (currentHintIndex > 0) {
       setCurrentHintIndex(currentHintIndex - 1);
+    }
+  };
+
+  const toggleVoice = () => {
+    const newValue = !voiceEnabled;
+    setVoiceEnabled(newValue);
+    localStorage.setItem('mukn-voice-hints', String(newValue));
+    if (!newValue) {
+      stopSpeaking();
     }
   };
 
@@ -112,25 +197,39 @@ export function BeginnerHints() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-1">
               <h4 className="text-sm font-medium text-white">{currentHint.title}</h4>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setVisible(false)}
-                className="h-6 w-6 p-0 text-[#8A8A8A] hover:text-white"
-              >
-                <X className="w-3 h-3" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleVoice}
+                  className={cn(
+                    'h-6 w-6 p-0',
+                    voiceEnabled ? 'text-[#6C63FF]' : 'text-[#8A8A8A]'
+                  )}
+                >
+                  {voiceEnabled ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { stopSpeaking(); setVisible(false); }}
+                  className="h-6 w-6 p-0 text-[#8A8A8A] hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
             </div>
             <p className="text-xs text-[#8A8A8A] mb-3">{currentHint.content}</p>
 
             <div className="flex items-center justify-between">
               <div className="flex gap-1">
                 {availableHints.map((_, i) => (
-                  <div
+                  <button
                     key={i}
+                    onClick={() => { stopSpeaking(); setCurrentHintIndex(i); }}
                     className={cn(
-                      'w-1.5 h-1.5 rounded-full',
-                      i === currentHintIndex ? 'bg-[#6C63FF]' : 'bg-[#2A2B32]'
+                      'w-1.5 h-1.5 rounded-full transition-all',
+                      i === currentHintIndex ? 'bg-[#6C63FF] w-3' : 'bg-[#2A2B32] hover:bg-[#6C63FF]/50'
                     )}
                   />
                 ))}

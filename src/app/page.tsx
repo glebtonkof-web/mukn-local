@@ -23,6 +23,7 @@ import { TerminalMode } from '@/components/terminal/terminal-mode';
 import { useHotkeys, HotkeysHelp } from '@/components/hotkeys/use-hotkeys';
 import { useModeStore } from '@/store/mode-store';
 import { NotificationsSheet } from '@/components/notifications/notifications-sheet';
+import { AIProvidersSettings } from '@/components/settings/ai-providers-settings';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -107,6 +108,10 @@ import {
   Key,
   Bell,
   Bot,
+  Palette,
+  Moon,
+  Sun,
+  Contrast,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -1602,6 +1607,14 @@ function SettingsView() {
             <Key className="w-4 h-4 mr-2" />
             API ключи
           </TabsTrigger>
+          <TabsTrigger value="ai-providers" className="data-[state=active]:bg-[#6C63FF]">
+            <Sparkles className="w-4 h-4 mr-2" />
+            AI Провайдеры
+          </TabsTrigger>
+          <TabsTrigger value="appearance" className="data-[state=active]:bg-[#6C63FF]">
+            <Palette className="w-4 h-4 mr-2" />
+            Оформление
+          </TabsTrigger>
           <TabsTrigger value="global" className="data-[state=active]:bg-[#6C63FF]">
             <Settings className="w-4 h-4 mr-2" />
             Глобальные
@@ -1706,6 +1719,132 @@ function SettingsView() {
                 placeholder="https://proxy-service.com/api"
                 className="bg-[#1E1F26] border-[#2A2B32]"
               />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* AI Провайдеры */}
+        <TabsContent value="ai-providers" className="mt-6">
+          <AIProvidersSettings />
+        </TabsContent>
+
+        {/* Оформление */}
+        <TabsContent value="appearance" className="space-y-6 mt-6">
+          <Card className="bg-[#14151A] border-[#2A2B32]">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Palette className="w-5 h-5 text-[#6C63FF]" />
+                Тема оформления
+              </CardTitle>
+              <CardDescription className="text-[#8A8A8A]">
+                Настройка внешнего вида приложения
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-3 gap-4">
+                <button
+                  onClick={() => useModeStore.getState().setTheme('dark')}
+                  className={cn(
+                    'p-4 rounded-lg border-2 transition-all',
+                    useModeStore.getState().theme === 'dark'
+                      ? 'border-[#6C63FF] bg-[#6C63FF]/10'
+                      : 'border-[#2A2B32] hover:border-[#6C63FF]/50'
+                  )}
+                >
+                  <div className="w-full h-20 bg-[#0A0B0E] rounded mb-2 flex items-center justify-center">
+                    <Moon className="w-8 h-8 text-[#6C63FF]" />
+                  </div>
+                  <p className="text-white text-sm font-medium">Тёмная</p>
+                </button>
+
+                <button
+                  onClick={() => useModeStore.getState().setTheme('light')}
+                  className={cn(
+                    'p-4 rounded-lg border-2 transition-all',
+                    useModeStore.getState().theme === 'light'
+                      ? 'border-[#6C63FF] bg-[#6C63FF]/10'
+                      : 'border-[#2A2B32] hover:border-[#6C63FF]/50'
+                  )}
+                >
+                  <div className="w-full h-20 bg-white rounded mb-2 flex items-center justify-center">
+                    <Sun className="w-8 h-8 text-[#FFB800]" />
+                  </div>
+                  <p className="text-white text-sm font-medium">Светлая</p>
+                </button>
+
+                <button
+                  onClick={() => useModeStore.getState().setTheme('high-contrast')}
+                  className={cn(
+                    'p-4 rounded-lg border-2 transition-all',
+                    useModeStore.getState().theme === 'high-contrast'
+                      ? 'border-[#FFFF00] bg-[#FFFF00]/10'
+                      : 'border-[#2A2B32] hover:border-[#FFFF00]/50'
+                  )}
+                >
+                  <div className="w-full h-20 bg-black rounded mb-2 flex items-center justify-center border-2 border-white">
+                    <Contrast className="w-8 h-8 text-[#FFFF00]" />
+                  </div>
+                  <p className="text-white text-sm font-medium">Высокий контраст</p>
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-[#1E1F26] rounded-lg">
+                <div>
+                  <p className="text-white font-medium">Текущая тема</p>
+                  <p className="text-sm text-[#8A8A8A]">
+                    {useModeStore.getState().theme === 'dark' && 'Тёмная'}
+                    {useModeStore.getState().theme === 'light' && 'Светлая'}
+                    {useModeStore.getState().theme === 'high-contrast' && 'Высокий контраст'}
+                  </p>
+                </div>
+                <Badge className="bg-[#6C63FF]">
+                  {useModeStore.getState().theme}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-[#14151A] border-[#2A2B32]">
+            <CardHeader>
+              <CardTitle className="text-white">Режим интерфейса</CardTitle>
+              <CardDescription className="text-[#8A8A8A]">
+                Выберите режим работы: простой для новичков или экспертный для профессионалов
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => useModeStore.getState().setUIMode('simple')}
+                  className={cn(
+                    'p-4 rounded-lg border-2 text-left transition-all',
+                    useModeStore.getState().uiMode === 'simple'
+                      ? 'border-[#6C63FF] bg-[#6C63FF]/10'
+                      : 'border-[#2A2B32] hover:border-[#6C63FF]/50'
+                  )}
+                >
+                  <Sparkles className="w-6 h-6 text-[#6C63FF] mb-2" />
+                  <p className="text-white font-medium">Простой</p>
+                  <p className="text-xs text-[#8A8A8A] mt-1">
+                    Крупные кнопки, подсказки, AI-помощник всегда виден
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => useModeStore.getState().setUIMode('expert')}
+                  className={cn(
+                    'p-4 rounded-lg border-2 text-left transition-all',
+                    useModeStore.getState().uiMode === 'expert'
+                      ? 'border-[#FFB800] bg-[#FFB800]/10'
+                      : 'border-[#2A2B32] hover:border-[#FFB800]/50'
+                  )}
+                >
+                  <Zap className="w-6 h-6 text-[#FFB800] mb-2" />
+                  <p className="text-white font-medium">Эксперт</p>
+                  <p className="text-xs text-[#8A8A8A] mt-1">
+                    Компактный вид, горячие клавиши, терминал
+                  </p>
+                </button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1869,11 +2008,18 @@ function SettingsView() {
 
 export default function MUKNTrafficApp() {
   const { activeTab } = useAppStore();
-  const { aiPanelOpen, terminalMode, uiMode } = useModeStore();
+  const { aiPanelOpen, terminalMode, uiMode, theme } = useModeStore();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   // Hotkeys
   useHotkeys();
+
+  // Apply theme class to body
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.remove('dark', 'light', 'high-contrast');
+    root.classList.add(theme);
+  }, [theme]);
 
   const renderContent = () => {
     switch (activeTab) {

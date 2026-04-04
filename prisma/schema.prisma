@@ -35,6 +35,7 @@ model User {
   aiGlobalSettings  AIGlobalSettings[]
   proxies           Proxy[]
   globalAppSettings GlobalAppSettings[]
+  aiDialogs         AIDialog[]
 }
 
 // ==================== AI-ИНФЛЮЕНСЕРЫ ====================
@@ -3986,4 +3987,93 @@ model AnalyticsComment {
   channelId       String?
   
   createdAt       DateTime @default(now())
+}
+
+// ==================== AI ДИАЛОГИ ====================
+
+// Диалоги с AI-ассистентом
+model AIDialog {
+  id              String   @id @default(cuid())
+  
+  // Заголовок
+  title           String?
+  
+  // Закреплён
+  isPinned        Boolean  @default(false)
+  
+  // Связь с пользователем
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  messages        AIDialogMessage[]
+  
+  @@index([userId])
+  @@index([isPinned])
+}
+
+// Сообщения в диалоге
+model AIDialogMessage {
+  id              String   @id @default(cuid())
+  
+  // Роль
+  role            String   // user, assistant
+  
+  // Контент
+  content         String
+  
+  // Действия (JSON)
+  actions         String?
+  
+  // Токены
+  tokensUsed      Int      @default(0)
+  
+  // Провайдер
+  provider        String?  // deepseek, openrouter, gemini, groq
+  
+  // Кэшировано
+  isCached        Boolean  @default(false)
+  
+  dialog          AIDialog @relation(fields: [dialogId], references: [id], onDelete: Cascade)
+  dialogId        String
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([dialogId])
+}
+
+// Кэш промптов для экономии токенов
+model AIPromptCache {
+  id              String   @id @default(cuid())
+  
+  // Ключ кэша (хэш промпта + контекста)
+  cacheKey        String   @unique
+  
+  // Промпт
+  prompt          String
+  
+  // Контекст
+  context         String?
+  
+  // Ответ
+  response        String
+  
+  // Токены
+  tokensUsed      Int      @default(0)
+  
+  // Экономия
+  timesUsed       Int      @default(1)
+  tokensSaved     Int      @default(0)
+  
+  // Модель
+  model           String?
+  provider        String?
+  
+  createdAt       DateTime @default(now())
+  lastUsedAt      DateTime @default(now())
+  
+  @@index([cacheKey])
+  @@index([lastUsedAt])
 }

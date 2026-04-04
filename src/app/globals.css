@@ -113,3 +113,87 @@ body {
 .niche-nutra { border-left-color: #00D26A; }
 .niche-bait { border-left-color: #E4405F; }
 .niche-lifestyle { border-left-color: #6C63FF; }
+
+/* ==================== HIGH CONTRAST THEME ==================== */
+.high-contrast {
+  --background: #000000;
+  --foreground: #FFFFFF;
+  --card: #000000;
+  --card-foreground: #FFFFFF;
+  --popover: #000000;
+  --popover-foreground: #FFFFFF;
+  --primary: #FFFF00;
+  --primary-foreground: #000000;
+  --secondary: #1A1A1A;
+  --secondary-foreground: #FFFFFF;
+  --muted: #1A1A1A;
+  --muted-foreground: #FFFFFF;
+  --accent: #FFFF00;
+  --accent-foreground: #000000;
+  --destructive: #FF0000;
+  --destructive-foreground: #FFFFFF;
+  --success: #00FF00;
+  --success-foreground: #000000;
+  --warning: #FFFF00;
+  --warning-foreground: #000000;
+  --border: #FFFFFF;
+  --input: #000000;
+  --ring: #FFFF00;
+  
+  /* Chart colors - high contrast */
+  --chart-1: #FFFF00;
+  --chart-2: #00FF00;
+  --chart-3: #00FFFF;
+  --chart-4: #FF0000;
+  --chart-5: #FF00FF;
+}
+
+.high-contrast * {
+  border-color: var(--border) !important;
+  border-width: 2px !important;
+}
+
+.high-contrast body,
+.high-contrast html {
+  background-color: #000000 !important;
+  color: #FFFFFF !important;
+}
+
+.high-contrast .bg-\[\#14151A\],
+.high-contrast .bg-\[\#1E1F26\],
+.high-contrast .bg-\[\#0A0B0E\] {
+  background-color: #000000 !important;
+}
+
+.high-contrast .text-\[\#8A8A8A\],
+.high-contrast .text-\[\#6C63FF\] {
+  color: #FFFFFF !important;
+}
+
+.high-contrast .border-\[\#2A2B32\] {
+  border-color: #FFFFFF !important;
+}
+
+.high-contrast button,
+.high-contrast .bg-\[\#6C63FF\] {
+  background-color: #FFFF00 !important;
+  color: #000000 !important;
+}
+
+.high-contrast .text-white {
+  color: #FFFFFF !important;
+}
+
+/* Focus styles for high contrast */
+.high-contrast *:focus {
+  outline: 3px solid #FFFF00 !important;
+  outline-offset: 2px !important;
+}
+
+.high-contrast input,
+.high-contrast textarea,
+.high-constant select {
+  border: 2px solid #FFFFFF !important;
+  background-color: #000000 !important;
+  color: #FFFFFF !important;
+}
