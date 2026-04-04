@@ -58,14 +58,14 @@ export function AIAssistantPanel() {
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
-    
+
     const userMessage = {
       id: Date.now().toString(),
       role: 'user' as const,
       content: input,
       timestamp: new Date(),
     };
-    
+
     addAIMessage(userMessage);
     setInput('');
     setLoading(true);
@@ -84,32 +84,92 @@ export function AIAssistantPanel() {
       return;
     }
 
-    // Simulate DeepSeek response
-    await new Promise(r => setTimeout(r, 1500));
-    
-    const responses = generateContextualResponse(input, { campaigns: campaigns.length, accounts: accounts.length });
-    
-    const assistantMessage = {
-      id: (Date.now() + 1).toString(),
-      role: 'assistant' as const,
-      content: responses.text,
-      timestamp: new Date(),
-      actions: responses.actions,
-    };
-    
-    addAIMessage(assistantMessage);
-    
-    // Cache the response
-    cacheResponse({
-      key: `${input}|default`,
-      prompt: input,
-      context: 'default',
-      response: responses.text,
-      tokensUsed: Math.floor(input.length / 4) + Math.floor(responses.text.length / 4),
-      timestamp: new Date(),
-    });
-    
+    try {
+      // Real API call to DeepSeek
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            ...aiMessages.map(m => ({ role: m.role, content: m.content })),
+            { role: 'user', content: input }
+          ],
+          context: {
+            campaignsCount: campaigns.length,
+            accountsCount: accounts.length,
+            activeView: 'dashboard',
+          },
+          temperature: 0.7,
+          maxTokens: 1500,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('API request failed');
+      }
+
+      const data = await response.json();
+
+      const assistantMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant' as const,
+        content: data.result,
+        timestamp: new Date(),
+        actions: extractActions(data.result),
+      };
+
+      addAIMessage(assistantMessage);
+
+      // Update tokens used
+      if (data.usage?.tokens) {
+        addTokensUsed(data.usage.tokens);
+      }
+
+      // Cache the response
+      cacheResponse({
+        key: `${input}|default`,
+        prompt: input,
+        context: 'default',
+        response: data.result,
+        tokensUsed: data.usage?.tokens || 0,
+        timestamp: new Date(),
+      });
+
+    } catch (error) {
+      console.error('AI Chat error:', error);
+
+      // Fallback to simulated response
+      const responses = generateContextualResponse(input, { campaigns: campaigns.length, accounts: accounts.length });
+
+      const assistantMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant' as const,
+        content: responses.text + '\n\n_⚠️ Оффлайн-режим (проверьте подключение)_',
+        timestamp: new Date(),
+        actions: responses.actions,
+      };
+
+      addAIMessage(assistantMessage);
+    }
+
     setLoading(false);
+  };
+
+  // Extract actionable items from AI response
+  const extractActions = (text: string): AIAction[] => {
+    const actions: AIAction[] = [];
+
+    if (text.includes('кампанию') || text.includes('кампания')) {
+      actions.push({ type: 'create_campaign', label: 'Создать кампанию', params: {} });
+    }
+    if (text.includes('настройки') || text.includes('настроить')) {
+      actions.push({ type: 'open_settings', label: 'Открыть настройки', params: {} });
+    }
+    if (text.includes('комментар')) {
+      actions.push({ type: 'generate_comment', label: 'Генерировать комментарии', params: {} });
+    }
+
+    return actions.slice(0, 2); // Max 2 actions
   };
 
   const copyToClipboard = (text: string, id: string) => {

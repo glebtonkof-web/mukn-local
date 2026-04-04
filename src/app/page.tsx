@@ -18,6 +18,7 @@ import { AIPoolView } from '@/components/views/ai-pool-view';
 import { AIAssistantPanel } from '@/components/ai-assistant/ai-panel';
 import { ModeSwitcher } from '@/components/mode-switcher/index';
 import { OnboardingTour } from '@/components/onboarding/onboarding-tour';
+import { BeginnerHints } from '@/components/onboarding/beginner-hints';
 import { TerminalMode } from '@/components/terminal/terminal-mode';
 import { useHotkeys, HotkeysHelp } from '@/components/hotkeys/use-hotkeys';
 import { useModeStore } from '@/store/mode-store';
@@ -1956,6 +1957,7 @@ export default function MUKNTrafficApp() {
       
       {/* Onboarding Tour */}
       <OnboardingTour />
+      <BeginnerHints />
       
       {/* Terminal Mode */}
       <TerminalMode />

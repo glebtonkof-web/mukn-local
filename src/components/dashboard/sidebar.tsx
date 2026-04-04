@@ -1,6 +1,7 @@
 'use client';
 
 import { useAppStore } from '@/store';
+import { useModeStore } from '@/store/mode-store';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -27,10 +28,14 @@ import {
   Layers,
   ChevronDown,
   ChevronRight,
+  Terminal,
+  Keyboard,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 const navSections = [
   {
@@ -96,9 +101,11 @@ interface SidebarProps {
 
 export function Sidebar({ unreadNotifications = 0, onNotificationsClick }: SidebarProps) {
   const { activeTab, setActiveTab, notifications } = useAppStore();
+  const { uiMode, terminalMode, setTerminalMode } = useModeStore();
   const [collapsedSections, setCollapsedSections] = useState<string[]>([]);
   
   const actualUnreadCount = notifications.filter(n => !n.isRead).length || unreadNotifications;
+  const isExpert = uiMode === 'expert';
 
   const toggleSection = (title: string) => {
     setCollapsedSections(prev => 
@@ -151,7 +158,8 @@ export function Sidebar({ unreadNotifications = 0, onNotificationsClick }: Sideb
                       key={item.id}
                       onClick={() => setActiveTab(item.id)}
                       className={cn(
-                        'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
+                        'w-full flex items-center gap-3 px-3 rounded-lg font-medium transition-all duration-200',
+                        isExpert ? 'py-2 text-xs' : 'py-3 text-sm',
                         isActive
                           ? 'bg-[#6C63FF] text-white shadow-lg shadow-[#6C63FF]/25'
                           : 'text-[#8A8A8A] hover:bg-[#1E1F26] hover:text-white'
@@ -175,11 +183,41 @@ export function Sidebar({ unreadNotifications = 0, onNotificationsClick }: Sideb
 
       <Separator className="bg-[#2A2B32]" />
 
+      {/* Expert Mode Tools */}
+      {isExpert && (
+        <div className="p-2 border-t border-[#2A2B32]">
+          <p className="px-3 py-1 text-xs text-[#6C63FF] uppercase tracking-wider">Expert Tools</p>
+          <button
+            onClick={() => setTerminalMode(true)}
+            className={cn(
+              'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all',
+              terminalMode
+                ? 'bg-[#6C63FF] text-white'
+                : 'text-[#8A8A8A] hover:bg-[#1E1F26] hover:text-white'
+            )}
+          >
+            <Terminal className="w-4 h-4" />
+            Terminal Mode
+            <Badge className="ml-auto bg-[#FFB800]/20 text-[#FFB800] text-xs">Ctrl+`</Badge>
+          </button>
+          <button
+            onClick={() => toast.info('Горячие клавиши: N, P, R, /, Ctrl+K, Esc')}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[#8A8A8A] hover:bg-[#1E1F26] hover:text-white transition-all"
+          >
+            <Keyboard className="w-4 h-4" />
+            Горячие клавиши
+          </button>
+        </div>
+      )}
+
       {/* Bottom section */}
       <div className="p-2">
         <button
           onClick={onNotificationsClick}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#8A8A8A] hover:bg-[#1E1F26] hover:text-white transition-all relative"
+          className={cn(
+            'w-full flex items-center gap-3 px-3 rounded-lg text-sm font-medium transition-all relative',
+            isExpert ? 'py-2 text-xs' : 'py-2.5 text-sm'
+          )}
         >
           <Bell className="w-4 h-4" />
           Уведомления

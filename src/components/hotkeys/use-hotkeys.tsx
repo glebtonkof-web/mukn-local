@@ -11,7 +11,11 @@ const hotkeys = [
   { key: 'r', action: () => toast.info('Отчёт за сегодня'), description: 'Отчёт' },
   { key: '/', action: () => document.querySelector('input')?.focus(), description: 'Поиск' },
   { key: 'k', ctrl: true, action: () => useModeStore.getState().setAIPanelOpen(true), description: 'AI-помощник' },
-  { key: 'Escape', action: () => useModeStore.getState().setAIPanelOpen(false), description: 'Закрыть' },
+  { key: 'Escape', action: () => {
+    useModeStore.getState().setAIPanelOpen(false);
+    useModeStore.getState().setTerminalMode(false);
+  }, description: 'Закрыть' },
+  { key: '`', ctrl: true, action: () => useModeStore.getState().setTerminalMode(true), description: 'Terminal Mode' },
 ];
 
 export function useHotkeys() {
@@ -49,9 +53,13 @@ export function useHotkeys() {
 }
 
 export function HotkeysHelp() {
+  const { uiMode } = useModeStore();
+  
+  if (uiMode !== 'expert') return null;
+  
   return (
     <div className="fixed bottom-4 left-4 bg-[#1E1F26] border border-[#2A2B32] rounded-lg p-2 text-xs text-[#8A8A8A] z-40">
-      <span>⌨️ Горячие клавиши: N-новая, P-пауза, R-отчёт, Ctrl+K-AI</span>
+      <span>⌨️ N-новая, P-пауза, R-отчёт, /-поиск, Ctrl+K-AI, Ctrl+`-терминал</span>
     </div>
   );
 }
