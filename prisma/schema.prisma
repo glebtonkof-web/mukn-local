@@ -4539,3 +4539,751 @@ model AIPodcast {
   @@index([status])
   @@index([userId])
 }
+
+// ==================== НОВЫЕ ФУНКЦИИ (19 дополнительных возможностей) ====================
+
+// 1. Пошаговая генерация контента
+model StepByStepGeneration {
+  id              String   @id @default(cuid())
+  
+  // Тип контента
+  contentType     String   // post, image, video, story
+  
+  // Промпт
+  prompt          String
+  
+  // Текущее состояние
+  currentStep     Int      @default(0)
+  totalSteps      Int      @default(5)
+  
+  // Сгенерированный контент (постепенно)
+  generatedContent String? // JSON с историей генерации
+  
+  // Статус
+  status          String   @default("pending") // pending, generating, paused, completed, cancelled
+  
+  // Пользовательские правки
+  userEdits       String?  // JSON массив правок
+  
+  // Время
+  startedAt       DateTime?
+  completedAt     DateTime?
+  
+  // Метаданные
+  platform        String?  // telegram, instagram, tiktok
+  influencerId    String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status])
+  @@index([contentType])
+}
+
+// 2. Детальный лог действий AI
+model AIActionLog {
+  id              String   @id @default(cuid())
+  
+  // Действие
+  action          String   // generate, edit, publish, analyze
+  
+  // Контекст
+  entityType      String   // content, image, video, campaign
+  entityId        String?
+  
+  // Детали
+  input           String?  // JSON входные данные
+  output          String?  // JSON результат
+  
+  // Производительность
+  duration        Int?     // мс
+  tokensUsed      Int?
+  model           String?
+  
+  // Статус
+  status          String   // success, error, partial
+  errorMessage    String?
+  
+  // Отладка
+  debugInfo       String?  // JSON для отладки
+  
+  // Пользователь
+  userId          String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([action])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// 3. Рейтинг понимания стиля
+model AIStyleRating {
+  id              String   @id @default(cuid())
+  
+  // Пользователь
+  userId          String   @unique
+  
+  // Общий рейтинг
+  overallRating   Int      @default(0)  // 0-100
+  
+  // Категории рейтинга
+  toneMatch       Int      @default(0)  // Соответствие тона
+  styleMatch      Int      @default(0)  // Соответствие стиля
+  audienceMatch   Int      @default(0)  // Понимание аудитории
+  timingMatch     Int      @default(0)  // Тайминг публикаций
+  
+  // История
+  ratingsHistory  String?  // JSON массив исторических оценок
+  
+  // Статистика
+  totalEdits      Int      @default(0)  // Всего правок
+  positiveEdits   Int      @default(0)  // Положительных правок
+  learnedPatterns String?  // JSON выученные паттерны
+  
+  // Последнее обновление
+  lastCalculated  DateTime @default(now())
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([overallRating])
+}
+
+// 4. Маскировка трафика
+model TrafficMasking {
+  id              String   @id @default(cuid())
+  
+  // Название профиля
+  name            String
+  
+  // User-Agent
+  userAgent       String
+  
+  // Параметры браузера
+  viewport        String?  // JSON: {width, height}
+  language        String   @default("ru-RU")
+  timezone        String   @default("Europe/Moscow")
+  
+  // Поведение
+  avgTypingSpeed  Int      @default(50)  // символов в минуту
+  avgReadingTime  Int      @default(3000) // мс на страницу
+  mouseMovements  Boolean  @default(true)
+  randomScrolls   Boolean  @default(true)
+  
+  // Задержки
+  minDelay        Int      @default(1000)  // мс
+  maxDelay        Int      @default(5000)  // мс
+  
+  // Статистика использования
+  usageCount      Int      @default(0)
+  successRate     Float    @default(0)
+  
+  // Активность
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([isActive])
+}
+
+// 5. Настройки отчётов
+model ReportSettings {
+  id              String   @id @default(cuid())
+  
+  // Пользователь
+  userId          String
+  
+  // Каналы
+  telegramChatId  String?
+  slackWebhook    String?
+  discordWebhook  String?
+  email           String?
+  
+  // Расписание
+  scheduleType    String   @default("daily") // daily, weekly, monthly
+  scheduleTime    String   @default("09:00")
+  timezone        String   @default("Europe/Moscow")
+  
+  // Содержание отчёта
+  includeStats    Boolean  @default(true)
+  includeTopPosts Boolean  @default(true)
+  includeRecommendations Boolean @default(true)
+  includeErrors   Boolean  @default(true)
+  includeRevenue  Boolean  @default(true)
+  
+  // Фильтры
+  platforms       String?  // JSON массив платформ
+  campaigns       String?  // JSON массив ID кампаний
+  
+  // Активность
+  isActive        Boolean  @default(true)
+  lastSentAt      DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([isActive])
+}
+
+// 6. Интеграция со стоками
+model StockIntegration {
+  id              String   @id @default(cuid())
+  
+  // Провайдер
+  provider        String   // pexels, pixabay, unsplash
+  
+  // API ключ
+  apiKey          String?
+  
+  // Статус
+  isActive        Boolean  @default(false)
+  lastSyncAt      DateTime?
+  
+  // Квоты
+  dailyLimit      Int?
+  dailyUsed       Int      @default(0)
+  
+  // Настройки поиска
+  defaultKeywords String?  // JSON массив ключевых слов
+  defaultOrientation String? // landscape, portrait, square
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([provider])
+}
+
+// 7. Stories-слайды
+model StoriesSlides {
+  id              String   @id @default(cuid())
+  
+  // Название
+  name            String
+  
+  // Платформа
+  platform        String   // instagram, telegram
+  
+  // Слайды
+  slides          String   // JSON массив: [{imageUrl, text, duration}]
+  slidesCount     Int      @default(5)
+  
+  // Тема
+  theme           String?
+  
+  // Статус
+  status          String   @default("draft") // draft, generating, completed, published
+  
+  // Публикация
+  scheduledAt     DateTime?
+  publishedAt     DateTime?
+  
+  // Метрики
+  views           Int      @default(0)
+  exits           Int      @default(0)
+  replies         Int      @default(0)
+  
+  // Связи
+  influencerId    String?
+  campaignId      String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([platform])
+  @@index([status])
+}
+
+// 8. Интерактивные опросы
+model InteractivePoll {
+  id              String   @id @default(cuid())
+  
+  // Название
+  title           String
+  
+  // Вопрос
+  question        String
+  
+  // Варианты
+  options         String   // JSON массив: [{text, imageUrl?}]
+  
+  // Настройки
+  allowMultiple   Boolean  @default(false)
+  anonymous       Boolean  @default(true)
+  
+  // Время
+  duration        Int      @default(24) // часы
+  
+  // Платформа
+  platform        String   // telegram, instagram, vk
+  
+  // Статус
+  status          String   @default("draft") // draft, active, closed
+  
+  // Результаты
+  totalVotes      Int      @default(0)
+  results         String?  // JSON с результатами
+  
+  // AI генерация
+  aiGenerated     Boolean  @default(false)
+  aiPrompt        String?
+  
+  // Связи
+  influencerId    String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  closedAt        DateTime?
+  
+  @@index([platform])
+  @@index([status])
+}
+
+// 9. Мемы
+model GeneratedMeme {
+  id              String   @id @default(cuid())
+  
+  // Шаблон
+  templateId      String?
+  templateName    String?
+  
+  // Текст
+  topText         String?
+  bottomText      String?
+  
+  // Изображение
+  imageUrl        String
+  sourceUrl       String?  // откуда взят шаблон
+  
+  // AI генерация
+  aiPrompt        String?
+  aiModel         String?
+  
+  // Тематика
+  topic           String?  // crypto, gambling, lifestyle
+  
+  // Статус
+  status          String   @default("completed")
+  
+  // Метрики
+  shares          Int      @default(0)
+  likes           Int      @default(0)
+  
+  // Платформа публикации
+  platform        String?
+  publishedAt     DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([topic])
+  @@index([status])
+}
+
+// 10. GIF-анимации
+model GeneratedGIF {
+  id              String   @id @default(cuid())
+  
+  // Название
+  name            String?
+  
+  // Промпт
+  prompt          String
+  
+  // Файл
+  gifUrl          String?
+  thumbnailUrl    String?
+  
+  // Параметры
+  width           Int      @default(512)
+  height          Int      @default(512)
+  duration        Float    @default(3.0) // секунды
+  fps             Int      @default(15)
+  frames          Int?
+  
+  // Тип
+  type            String   @default("animation") // animation, sticker, meme
+  
+  // Статус
+  status          String   @default("pending") // pending, generating, completed, failed
+  
+  // Использование
+  usageCount      Int      @default(0)
+  
+  // Для Telegram-стикеров
+  stickerPack     String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status])
+  @@index([type])
+}
+
+// 11. Вечнозелёный контент
+model EvergreenContent {
+  id              String   @id @default(cuid())
+  
+  // Оригинальный пост
+  originalPostId  String
+  
+  // Данные оригинала
+  originalContent String
+  originalMetrics String?  // JSON: views, likes, etc
+  
+  // Обновлённая версия
+  updatedContent  String?
+  updatedMetrics  String?
+  
+  // Что обновлено
+  changes         String?  // JSON: [{field, oldValue, newValue}]
+  
+  // Статус
+  status          String   @default("pending") // pending, updated, published
+  
+  // Расписание обновлений
+  lastUpdated     DateTime?
+  nextUpdate      DateTime?
+  updateInterval  Int      @default(180) // дни
+  
+  // Эффективность
+  performanceDiff Float?   // Разница в метриках
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status])
+  @@index([nextUpdate])
+}
+
+// 12. Цепочки постов (воронки)
+model PostFunnel {
+  id              String   @id @default(cuid())
+  
+  // Название воронки
+  name            String
+  description     String?
+  
+  // Этапы
+  stages          String   // JSON: [{order, postId, content, delay, goal}]
+  totalStages     Int      @default(3)
+  currentStage    Int      @default(0)
+  
+  // Цель воронки
+  goal            String   // lead, sale, subscription
+  goalUrl         String?  // Ссылка на оффер
+  
+  // Статус
+  status          String   @default("draft") // draft, active, paused, completed
+  
+  // Метрики
+  startedCount    Int      @default(0)  // Сколько начали
+  completedCount  Int      @default(0)  // Сколько прошли до конца
+  conversionRate  Float    @default(0)
+  revenue         Float    @default(0)
+  
+  // Платформа
+  platform        String
+  
+  // Связи
+  campaignId      String?
+  influencerId    String?
+  
+  // Время
+  startedAt       DateTime?
+  completedAt     DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status])
+  @@index([platform])
+}
+
+// 13. Авто-репост
+model AutoRepost {
+  id              String   @id @default(cuid())
+  
+  // Источник
+  sourceType      String   // channel, keyword, competitor
+  sourceId        String?  // ID канала или пользователя
+  sourceUrl       String?
+  
+  // Критерии поиска
+  keywords        String?  // JSON массив ключевых слов
+  minViews        Int?
+  minEngagement   Float?
+  
+  // Обработка
+  rewriteContent  Boolean  @default(true)
+  generateNewImage Boolean @default(true)
+  
+  // Статус
+  status          String   @default("active") // active, paused
+  
+  // Цель публикации
+  targetChannelId String?
+  targetPlatform  String
+  
+  // Статистика
+  repostsCount    Int      @default(0)
+  avgPerformance  Float    @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status])
+  @@index([sourceType])
+}
+
+// 14. Полностью автоматический режим
+model FullAutoMode {
+  id              String   @id @default(cuid())
+  
+  // Название
+  name            String
+  
+  // Настройки генерации
+  postsPerDay     Int      @default(5)
+  storiesPerDay   Int      @default(3)
+  videosPerWeek   Int      @default(2)
+  
+  // Время работы
+  workHoursStart  String   @default("09:00")
+  workHoursEnd    String   @default("22:00")
+  timezone        String   @default("Europe/Moscow")
+  
+  // Платформы
+  platforms       String   // JSON массив платформ
+  
+  // Связи
+  influencerIds   String?  // JSON массив ID инфлюенсеров
+  campaignIds     String?  // JSON массив ID кампаний
+  
+  // Статус
+  status          String   @default("paused") // active, paused
+  
+  // Статистика за всё время
+  totalPosts      Int      @default(0)
+  totalRevenue    Float    @default(0)
+  totalLeads      Int      @default(0)
+  
+  // Последний отчёт
+  lastReportAt    DateTime?
+  
+  // Пользователь
+  userId          String
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status])
+  @@index([userId])
+}
+
+// 15. Тренды
+model TrendingTopic {
+  id              String   @id @default(cuid())
+  
+  // Тема
+  topic           String
+  keywords        String?  // JSON массив
+  
+  // Источник
+  source          String   // twitter, google, telegram, reddit
+  
+  // Метрики тренда
+  popularity      Int      @default(0)
+  growthRate      Float    @default(0)
+  
+  // Время жизни
+  detectedAt      DateTime @default(now())
+  peakAt          DateTime?
+  
+  // Релевантность для ниш
+  relevantNiches  String?  // JSON: {gambling: 0.8, crypto: 0.9}
+  
+  // Предложения
+  contentIdeas    String?  // JSON массив идей для контента
+  
+  // Статус
+  status          String   @default("active") // active, declining, archived
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([source])
+  @@index([status])
+}
+
+// 16. Анализ неудачных постов
+model FailureAnalysis {
+  id              String   @id @default(cuid())
+  
+  // Пост
+  postId          String
+  
+  // Метрики
+  views           Int      @default(0)
+  likes           Int      @default(0)
+  comments        Int      @default(0)
+  shares          Int      @default(0)
+  engagementRate  Float    @default(0)
+  
+  // Пороги успешности
+  expectedViews   Int?
+  expectedEngagement Float?
+  
+  // Анализ причин
+  reasons         String?  // JSON массив причин
+  
+  // Сравнение с успешными
+  comparisonData  String?  // JSON с данными сравнения
+  
+  // Рекомендации
+  recommendations String?  // JSON массив рекомендаций
+  
+  // AI отчёт
+  aiReport        String?  // Полный текстовый отчёт
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([postId])
+}
+
+// 17. Идеи для контента
+model ContentIdea {
+  id              String   @id @default(cuid())
+  
+  // Идея
+  title           String
+  description     String
+  
+  // Тип контента
+  contentType     String   // post, video, story, reel
+  
+  // Актуальность
+  relevantDate    DateTime? // Когда лучше опубликовать
+  expiresAt       DateTime? // Когда идея устареет
+  
+  // Приоритет
+  priority        Int      @default(5) // 1-10
+  
+  // Промпты для генерации
+  promptText      String?
+  promptImage     String?
+  
+  // Ниша
+  niche           String?
+  
+  // Источник идеи
+  source          String?  // ai, trend, competitor, manual
+  
+  // Статус
+  status          String   @default("pending") // pending, approved, used, discarded
+  
+  // Использование
+  usedInPostId    String?
+  usedAt          DateTime?
+  
+  // Результат использования
+  performanceScore Float?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status])
+  @@index([relevantDate])
+  @@index([priority])
+}
+
+// 18. Лучшее время публикации
+model BestTimePrediction {
+  id              String   @id @default(cuid())
+  
+  // Платформа
+  platform        String
+  
+  // Инфлюенсер/канал
+  influencerId    String?
+  channelId       String?
+  
+  // Данные анализа
+  analysisPeriod  Int      @default(30) // дней
+  
+  // Лучшие времена (JSON)
+  bestTimes       String?  // JSON: {monday: ["09:00", "20:00"], ...}
+  
+  // Предсказания по дням недели
+  weekdayScores   String?  // JSON: {monday: 85, tuesday: 72, ...}
+  
+  // Предсказания по часам
+  hourlyScores    String?  // JSON: {0: 15, 1: 5, ..., 23: 45}
+  
+  // Рекомендации
+  recommendations String?  // JSON массив текстовых рекомендаций
+  
+  // Точность предсказания
+  accuracyScore   Float?
+  
+  // Метаданные анализа
+  postsAnalyzed   Int      @default(0)
+  lastAnalyzed    DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([platform])
+  @@index([influencerId])
+}
+
+// 19. Эмоциональный анализ аудитории
+model AudienceEmotionAnalysis {
+  id              String   @id @default(cuid())
+  
+  // Источник анализа
+  sourceType      String   // channel, influencer, campaign
+  sourceId        String?
+  
+  // Период анализа
+  periodStart     DateTime
+  periodEnd       DateTime
+  
+  // Общий эмоциональный профиль
+  primaryEmotion  String   // joy, anger, sadness, fear, neutral, excited
+  emotionScores   String?  // JSON: {joy: 0.4, anger: 0.1, ...}
+  
+  // Настроение аудитории
+  mood            String   // positive, negative, neutral, mixed
+  moodScore       Float    @default(0) // -1 to 1
+  
+  // Тренд эмоций
+  emotionTrend    String?  // improving, declining, stable
+  
+  // Анализ комментариев
+  commentsAnalyzed Int     @default(0)
+  positiveComments Int     @default(0)
+  negativeComments Int     @default(0)
+  neutralComments  Int     @default(0)
+  
+  // Ключевые темы
+  positiveTopics  String?  // JSON массив тем вызывающих радость
+  negativeTopics  String?  // JSON массив тем вызывающих негатив
+  
+  // Рекомендации по тону
+  recommendedTone String?  // casual, formal, empathetic, enthusiastic
+  avoidTopics     String?  // JSON массив тем для избежания
+  
+  // AI инсайты
+  aiInsights      String?  // Текстовый отчёт от AI
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([sourceType])
+  @@index([primaryEmotion])
+}

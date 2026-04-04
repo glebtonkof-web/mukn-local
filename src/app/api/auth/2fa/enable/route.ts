@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticator } from 'otplib'
+import { TOTP } from 'otplib'
 import QRCode from 'qrcode'
 import { db } from '@/lib/db'
 import { serverEncrypt, generateBackupCodes, hashBackupCodes } from '@/lib/crypto'
@@ -77,7 +77,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate TOTP secret
-    const secret = authenticator.generateSecret()
+    const totp = new TOTP()
+    const secret = totp.options.secret ||= TOTP.generateSecret(20).secret
 
     // Generate backup codes
     const backupCodes = generateBackupCodes(10)
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
     // Create OTP auth URL for QR code
     const appName = encodeURIComponent('МУКН | Трафик')
     const userEmail = encodeURIComponent(user.email)
-    const otpAuthUrl = authenticator.keyuri(userEmail, appName, secret)
+    const otpAuthUrl = new TOTP({ secret, issuer: appName, label: userEmail }).toString()
 
     // Generate QR code as data URL
     const qrCodeDataUrl = await QRCode.toDataURL(otpAuthUrl, {

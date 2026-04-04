@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticator } from 'otplib'
+import { TOTP } from 'otplib'
 import { db } from '@/lib/db'
 import { serverDecrypt, verifyBackupCode } from '@/lib/crypto'
 import { twoFaRateLimiter, getRateLimitHeaders } from '@/lib/rate-limiter'
@@ -143,7 +143,8 @@ export async function POST(request: NextRequest) {
       } else {
         // Verify TOTP
         try {
-          isVerified = authenticator.check(cleanCode, secret)
+          const totp = new TOTP({ secret })
+          isVerified = totp.verify(cleanCode)
         } catch {
           isVerified = false
         }
@@ -247,7 +248,8 @@ export async function PUT(request: NextRequest) {
 
     let isValid = false
     try {
-      isValid = authenticator.check(cleanCode, secret)
+      const totp = new TOTP({ secret })
+      isValid = totp.verify(cleanCode)
     } catch {
       isValid = false
     }
