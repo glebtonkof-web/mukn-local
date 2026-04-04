@@ -16,6 +16,7 @@ import { WarmingView } from '@/components/views/warming-view';
 import { ShadowBanView } from '@/components/views/shadow-ban-view';
 import { AIPoolView } from '@/components/views/ai-pool-view';
 import { SettingsView } from '@/components/views/settings-view';
+import { HunyuanView } from '@/components/views/hunyuan-view';
 import { AnalyticsView } from '@/components/views/analytics-view';
 import { AIAssistantPanel } from '@/components/ai-assistant/ai-panel';
 import { ModeSwitcher } from '@/components/mode-switcher/index';
@@ -1404,6 +1405,8 @@ export default function MUKNTrafficApp() {
         return <AICommentsView />;
       case 'ai-pool':
         return <AIPoolView />;
+      case 'hunyuan':
+        return <HunyuanView />;
       case 'content':
         return <ContentView />;
       case 'video-generator':
