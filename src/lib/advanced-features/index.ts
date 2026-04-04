@@ -66,38 +66,6 @@ export {
   audienceEmotionAnalyzer 
 } from './additional-features';
 
-// Объединённый интерфейс для удобства
-export const advancedFeatures = {
-  // Генерация контента
-  stepByStep,
-  storiesSlides,
-  memeGenerator,
-  gifGenerator,
-  
-  // Аналитика
-  actionLogger,
-  aiStyleRating,
-  failureAnalyzer,
-  bestTimePredictor,
-  audienceEmotionAnalyzer,
-  
-  // Автоматизация
-  fullAutoMode,
-  autoRepost,
-  evergreenContent,
-  postFunnel,
-  
-  // Интеграции
-  stockIntegration,
-  interactivePolls,
-  reportSender,
-  trafficMasking,
-  
-  // Планирование
-  contentIdeasGenerator,
-  trendAdapter,
-};
-
 // Инициализация всех сервисов
 export async function initializeAdvancedFeatures(): Promise<void> {
   console.log('[AdvancedFeatures] Initializing...');

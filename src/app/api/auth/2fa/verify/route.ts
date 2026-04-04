@@ -123,7 +123,8 @@ export async function POST(request: NextRequest) {
       // Verify TOTP code
       try {
         const totp = new TOTP({ secret })
-        isValid = totp.verify(cleanCode)
+        const result = await totp.verify(cleanCode)
+        isValid = result.valid
       } catch {
         isValid = false
       }
@@ -218,7 +219,8 @@ export async function PUT(request: NextRequest) {
     } else {
       try {
         const totp = new TOTP({ secret })
-        isValid = totp.verify(cleanCode)
+        const result = await totp.verify(cleanCode)
+        isValid = result.valid
       } catch {
         isValid = false
       }

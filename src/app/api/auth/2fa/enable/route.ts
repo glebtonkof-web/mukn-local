@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { TOTP } from 'otplib'
+import { TOTP, generateSecret } from 'otplib'
 import QRCode from 'qrcode'
 import { db } from '@/lib/db'
 import { serverEncrypt, generateBackupCodes, hashBackupCodes } from '@/lib/crypto'
@@ -76,11 +76,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate TOTP secret
-    const totp = new TOTP()
-    const secret = totp.options.secret ||= TOTP.generateSecret(20).secret
-
-    // Generate backup codes
+    // Generate TOTP secret using otplib
+    const secret = generateSecret()
     const backupCodes = generateBackupCodes(10)
     const hashedBackupCodes = hashBackupCodes(backupCodes)
 

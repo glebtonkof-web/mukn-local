@@ -44,12 +44,7 @@ export async function GET(request: NextRequest) {
     const [
       totalCreated,
       totalPublished,
-      totalViews,
-      totalLikes,
-      totalComments,
-      totalShares,
-      totalClicks,
-      totalConversions,
+      metricsAggregate,
       byType,
       byPlatform,
       recentContent,
@@ -62,7 +57,7 @@ export async function GET(request: NextRequest) {
         where: { ...where, isPublished: true },
       }),
       
-      // Общие метрики
+      // Общие метрики (aggregate возвращает один объект с _sum для всех полей)
       db.generatedContent.aggregate({
         where: { ...where, isPublished: true },
         _sum: {
@@ -129,6 +124,12 @@ export async function GET(request: NextRequest) {
       });
     });
 
+    // Извлекаем метрики из aggregate результата
+    const totalViews = metricsAggregate._sum.views || 0;
+    const totalLikes = metricsAggregate._sum.likes || 0;
+    const totalComments = metricsAggregate._sum.comments || 0;
+    const totalShares = metricsAggregate._sum.shares || 0;
+
     // Формируем ответ
     const stats = {
       period,
@@ -139,18 +140,18 @@ export async function GET(request: NextRequest) {
       totalPublished,
       publishRate: totalCreated > 0 ? ((totalPublished / totalCreated) * 100).toFixed(1) : 0,
       
-      totalViews: totalViews._sum.views || 0,
-      totalLikes: totalLikes._sum.likes || 0,
-      totalComments: totalComments._sum.comments || 0,
-      totalShares: totalShares._sum.shares || 0,
+      totalViews,
+      totalLikes,
+      totalComments,
+      totalShares,
       totalClicks: totalPublishClicks,
       totalConversions: totalPublishConversions,
       
       avgViewsPerContent: totalPublished > 0 
-        ? Math.round((totalViews._sum.views || 0) / totalPublished) 
+        ? Math.round(totalViews / totalPublished) 
         : 0,
       avgEngagementRate: totalPublished > 0
-        ? (((totalLikes._sum.likes || 0) + (totalComments._sum.comments || 0)) / Math.max(totalViews._sum.views || 1, 1) * 100).toFixed(2)
+        ? (((totalLikes) + (totalComments)) / Math.max(totalViews, 1) * 100).toFixed(2)
         : 0,
       
       byType: byType.reduce((acc, item) => {

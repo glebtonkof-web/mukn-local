@@ -1,6 +1,9 @@
 /**
  * Session Management API Endpoint
  * Handles session listing, termination, and cleanup
+ * 
+ * Note: Session model in Prisma has limited fields:
+ * - id, sessionToken, userId, expires, createdAt, updatedAt
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -10,10 +13,6 @@ import { hasPermission } from '@/lib/rbac'
 
 interface CreateSessionRequest {
   userId: string
-  ipAddress?: string
-  userAgent?: string
-  deviceName?: string
-  location?: string
   expiresIn?: number // Session duration in seconds
 }
 
@@ -33,7 +32,7 @@ const DEFAULT_SESSION_DURATION = 7 * 24 * 60 * 60 * 1000
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as CreateSessionRequest
-    const { userId, ipAddress, userAgent, deviceName, location, expiresIn } = body
+    const { userId, expiresIn } = body
 
     if (!userId) {
       return NextResponse.json(
@@ -55,19 +54,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate session token
-    const token = generateSecureToken(32)
-    const expiresAt = new Date(Date.now() + (expiresIn || DEFAULT_SESSION_DURATION))
+    const sessionToken = generateSecureToken(32)
+    const expires = new Date(Date.now() + (expiresIn || DEFAULT_SESSION_DURATION))
 
-    // Create session
+    // Create session (only fields available in Prisma schema)
     const session = await db.session.create({
       data: {
         userId,
-        token,
-        expiresAt,
-        ipAddress,
-        userAgent,
-        deviceName,
-        location
+        sessionToken,
+        expires
       }
     })
 
@@ -75,8 +70,8 @@ export async function POST(request: NextRequest) {
       success: true,
       session: {
         id: session.id,
-        token: session.token,
-        expiresAt: session.expiresAt,
+        sessionToken: session.sessionToken,
+        expires: session.expires,
         createdAt: session.createdAt
       }
     })
@@ -111,34 +106,30 @@ export async function GET(request: NextRequest) {
     // Build query
     const where = {
       userId,
-      ...(includeExpired ? {} : { expiresAt: { gt: now } })
+      ...(includeExpired ? {} : { expires: { gt: now } })
     }
 
     // Get sessions
     const sessions = await db.session.findMany({
       where,
-      orderBy: { lastActiveAt: 'desc' }
+      orderBy: { createdAt: 'desc' }
     })
 
     // Mark current session (if token provided)
     const currentToken = searchParams.get('currentToken')
     const enrichedSessions = sessions.map(session => ({
       id: session.id,
-      deviceName: session.deviceName,
-      ipAddress: session.ipAddress,
-      location: session.location,
-      lastActiveAt: session.lastActiveAt,
       createdAt: session.createdAt,
-      expiresAt: session.expiresAt,
-      isExpired: session.expiresAt < now,
-      isCurrent: currentToken ? session.token === currentToken : false
+      expires: session.expires,
+      isExpired: session.expires < now,
+      isCurrent: currentToken ? session.sessionToken === currentToken : false
     }))
 
     // Get statistics
     const stats = {
       total: sessions.length,
-      active: sessions.filter(s => s.expiresAt > now).length,
-      expired: sessions.filter(s => s.expiresAt <= now).length
+      active: sessions.filter(s => s.expires > now).length,
+      expired: sessions.filter(s => s.expires <= now).length
     }
 
     return NextResponse.json({
@@ -189,7 +180,7 @@ export async function DELETE(request: NextRequest) {
       const result = await db.session.deleteMany({
         where: {
           userId,
-          ...(currentSessionToken ? { NOT: { token: currentSessionToken } } : {})
+          ...(currentSessionToken ? { NOT: { sessionToken: currentSessionToken } } : {})
         }
       })
       deletedCount = result.count
@@ -207,7 +198,7 @@ export async function DELETE(request: NextRequest) {
       }
 
       // Don't allow terminating current session
-      if (currentSessionToken && session.token === currentSessionToken) {
+      if (currentSessionToken && session.sessionToken === currentSessionToken) {
         return NextResponse.json(
           { error: 'Cannot terminate current session. Use logout instead.' },
           { status: 400 }
@@ -256,12 +247,12 @@ export async function DELETE(request: NextRequest) {
 }
 
 /**
- * Update session activity / Clean up expired sessions
+ * Clean up expired sessions
  */
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { action, sessionToken, userId } = body
+    const { action, userId } = body
 
     if (action === 'cleanup') {
       // Clean up expired sessions (admin operation)
@@ -280,7 +271,7 @@ export async function PUT(request: NextRequest) {
 
       const result = await db.session.deleteMany({
         where: {
-          expiresAt: { lt: new Date() }
+          expires: { lt: new Date() }
         }
       })
 
@@ -288,42 +279,6 @@ export async function PUT(request: NextRequest) {
         success: true,
         deletedCount: result.count,
         message: `Cleaned up ${result.count} expired sessions`
-      })
-    }
-
-    if (action === 'activity' && sessionToken) {
-      // Update last active timestamp
-      const session = await db.session.findUnique({
-        where: { token: sessionToken }
-      })
-
-      if (!session) {
-        return NextResponse.json(
-          { error: 'Session not found' },
-          { status: 404 }
-        )
-      }
-
-      // Check if session is expired
-      if (session.expiresAt < new Date()) {
-        await db.session.delete({
-          where: { id: session.id }
-        })
-        return NextResponse.json(
-          { error: 'Session expired', expired: true },
-          { status: 401 }
-        )
-      }
-
-      // Update activity
-      await db.session.update({
-        where: { id: session.id },
-        data: { lastActiveAt: new Date() }
-      })
-
-      return NextResponse.json({
-        success: true,
-        message: 'Activity recorded'
       })
     }
 
@@ -357,7 +312,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const session = await db.session.findUnique({
-      where: { token },
+      where: { sessionToken: token },
       include: { user: true }
     })
 
@@ -369,7 +324,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Check if session is expired
-    if (session.expiresAt < new Date()) {
+    if (session.expires < new Date()) {
       await db.session.delete({
         where: { id: session.id }
       })
@@ -379,18 +334,12 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    // Update last active
-    await db.session.update({
-      where: { id: session.id },
-      data: { lastActiveAt: new Date() }
-    })
-
     return NextResponse.json({
       valid: true,
       session: {
         id: session.id,
         userId: session.userId,
-        expiresAt: session.expiresAt
+        expires: session.expires
       },
       user: {
         id: session.user.id,

@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const dateStr = searchParams.get('date');
     let date = dateStr ? new Date(dateStr) : new Date();
-    const ideas = await contentIdeasGenerator.getIdeasForDate(date);
+    const ideas = await contentIdeasGenerator.getForDate(date);
     return NextResponse.json({ ideas });
   } catch (error) {
     return NextResponse.json(
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { niche, platform, count } = body;
 
-    const ideas = await contentIdeasGenerator.generateWeeklyIdeas(
+    const ideas = await contentIdeasGenerator.generateWeekly(
       niche || 'general',
       platform || 'telegram',
       count || 7

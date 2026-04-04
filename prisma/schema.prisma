@@ -19,6 +19,13 @@ model User {
   password      String?
   role          String   @default("user") // admin, operator, user
   masterPassword String? // Для шифрования данных
+  
+  // 2FA
+  twoFactorEnabled    Boolean   @default(false)
+  twoFactorSecret     String?
+  twoFactorBackupCodes String?  // JSON массив
+  twoFactorVerifiedAt DateTime?
+  
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
@@ -38,6 +45,7 @@ model User {
   aiDialogs         AIDialog[]
   userAchievements  UserAchievement[]
   gamification      UserGamification?
+  sessions          Session[]
 }
 
 // ==================== AI-ИНФЛЮЕНСЕРЫ ====================
@@ -5286,4 +5294,98 @@ model AudienceEmotionAnalysis {
   
   @@index([sourceType])
   @@index([primaryEmotion])
+}
+
+// ==================== MISSING MODELS FOR API ROUTES ====================
+
+// Session model for next-auth
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([sessionToken])
+}
+
+// Telegram Bot Events
+model TelegramBotEvent {
+  id           String   @id @default(cuid())
+  eventType    String   // message, callback, command
+  chatId       String?
+  userId       String?
+  username     String?
+  data         String?  // JSON
+  processed    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  
+  @@index([eventType])
+  @@index([chatId])
+  @@index([processed])
+}
+
+// Google Sheets Connection
+model GoogleSheetsConnection {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  name            String?
+  spreadsheetId   String?
+  spreadsheetName String?
+  spreadsheetUrl  String?
+  accessToken     String?  // Зашифрованный
+  refreshToken    String?  // Зашифрованный
+  tokenExpiry     DateTime?
+  isConnected     Boolean  @default(false)
+  status          String   @default("disconnected") // connected, disconnected, error
+  autoSync        Boolean  @default(false)
+  syncInterval    Int      @default(60) // minutes
+  lastSyncAt      DateTime?
+  lastError       String?
+  totalExports    Int      @default(0)
+  totalImports    Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([isConnected])
+}
+
+// Dashboard Widgets
+model DashboardWidget {
+  id          String   @id @default(cuid())
+  userId      String
+  widgetType  String   // chart, kpi, list, table, custom
+  title       String
+  config      String?  // JSON
+  position    Int      @default(0)
+  size        String   @default("medium") // small, medium, large
+  isVisible   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+// Webhook Delivery Log
+model WebhookDeliveryLog {
+  id            String   @id @default(cuid())
+  webhookId     String
+  eventType     String
+  payload       String?  // JSON
+  responseCode  Int?
+  responseBody  String?
+  deliveredAt   DateTime?
+  attempts      Int      @default(0)
+  success       Boolean  @default(false)
+  error         String?
+  createdAt     DateTime @default(now())
+  
+  @@index([webhookId])
+  @@index([eventType])
+  @@index([success])
 }

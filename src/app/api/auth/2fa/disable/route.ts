@@ -144,7 +144,8 @@ export async function POST(request: NextRequest) {
         // Verify TOTP
         try {
           const totp = new TOTP({ secret })
-          isVerified = totp.verify(cleanCode)
+          const result = await totp.verify(cleanCode)
+          isVerified = result.valid
         } catch {
           isVerified = false
         }
@@ -249,7 +250,8 @@ export async function PUT(request: NextRequest) {
     let isValid = false
     try {
       const totp = new TOTP({ secret })
-      isValid = totp.verify(cleanCode)
+      const result = await totp.verify(cleanCode)
+      isValid = result.valid
     } catch {
       isValid = false
     }

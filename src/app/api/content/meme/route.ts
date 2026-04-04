@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ templates: templateList });
     }
     
-    const memes = await memeGenerator.list(20);
+    const memes = await memeGenerator.getMemes(20);
     return NextResponse.json({ memes });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
