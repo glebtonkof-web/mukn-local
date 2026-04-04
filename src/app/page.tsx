@@ -1,68 +1,61 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAppStore, Influencer } from '@/store';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useAppStore, Campaign, Account, ActivityItem } from '@/store';
 import { Sidebar } from '@/components/dashboard/sidebar';
-import { InfluencerGrid } from '@/components/influencer/influencer-card';
-import { CreateInfluencerDialog } from '@/components/influencer/create-influencer-dialog';
-import { SettingsDialog } from '@/components/settings/settings-dialog';
 import { NotificationsSheet } from '@/components/notifications/notifications-sheet';
-import { ContentCalendar } from '@/components/content/content-calendar';
-import { OffersManager } from '@/components/offers/offers-manager';
-import { WarmingDashboard } from '@/components/warming/warming-dashboard';
-import { ShadowBanChecker } from '@/components/analytics/shadow-ban-checker';
-import { BanRiskAnalytics } from '@/components/analytics/ban-risk-analytics';
-import { ImageGeneratorDialog } from '@/components/content/image-generator-dialog';
-import { VideoGeneratorPanel } from '@/components/video-generator/video-generator-panel';
-import { AICommentsPanel } from '@/components/ai-comments/ai-comments-panel';
-import { AIPoolDashboard } from '@/components/ai-pool/ai-pool-dashboard';
-import { AdvancedAIPanel } from '@/components/advanced/advanced-ai-panel';
-import { MonetizationPanel } from '@/components/monetization/monetization-panel';
-import { OFMPanel } from '@/components/ofm/ofm-panel';
-import { TrafficMethods130Panel } from '@/components/traffic/traffic-methods-130-panel';
-import { AccountsPanel } from '@/components/infrastructure/accounts-panel';
-import { SimCardsPanel } from '@/components/infrastructure/sim-cards-panel';
-import { ProxyPanel } from '@/components/infrastructure/proxy-panel';
-import {
-  useInfluencers,
-  useDashboardMetrics,
-  useDashboardEvents,
-  useDashboardChart,
-  type DashboardMetrics,
-} from '@/hooks/use-data';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Plus,
   TrendingUp,
   Activity,
-  AlertTriangle,
   DollarSign,
   Users,
   MessageSquare,
-  Image as ImageIcon,
-  Video,
-  FileText,
-  Bell,
-  Target,
-  Globe,
-  Smartphone,
-  Shield,
-  CheckCircle,
-  XCircle,
-  Loader2,
-  Edit,
-  Trash2,
   Play,
   Pause,
   BarChart3,
@@ -70,976 +63,1785 @@ import {
   Eye,
   RefreshCw,
   Download,
-  Flame,
+  Settings,
+  MoreVertical,
+  Edit,
+  Trash2,
+  Copy,
+  Rocket,
+  Shield,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Globe,
+  Clock,
+  Target,
+  ArrowUpRight,
+  ArrowDownRight,
+  Search,
+  Filter,
+  FileUp,
+  Sparkles,
+  Thermometer,
+  Gauge,
+  Key,
+  Bell,
+  Bot,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
 
-// ==================== КОМПОНЕНТЫ ДАШБОРДА ====================
+// ==================== УТИЛИТЫ ====================
 
-// Блок 1: Ключевые метрики
-function MetricsBlock({ metrics, loading }: { metrics: DashboardMetrics | null; loading: boolean }) {
+const formatTime = (timestamp: Date | string) => {
+  const now = new Date();
+  const diff = now.getTime() - new Date(timestamp).getTime();
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (minutes < 1) return 'Только что';
+  if (minutes < 60) return `${minutes} мин назад`;
+  if (hours < 24) return `${hours} ч назад`;
+  return `${days} дн назад`;
+};
+
+const getRiskColor = (risk: number) => {
+  if (risk < 30) return '#00D26A';
+  if (risk < 70) return '#FFB800';
+  return '#FF4D4D';
+};
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'active': return 'bg-[#00D26A]';
+    case 'paused': return 'bg-[#FFB800]';
+    case 'error': return 'bg-[#FF4D4D]';
+    case 'new': return 'bg-[#8A8A8A]';
+    case 'limit': return 'bg-[#FFB800]';
+    case 'banned': return 'bg-[#FF4D4D]';
+    default: return 'bg-[#8A8A8A]';
+  }
+};
+
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case 'active': return 'Активна';
+    case 'paused': return 'Пауза';
+    case 'error': return 'Ошибка';
+    case 'new': return 'Новый';
+    case 'limit': return 'Лимит';
+    case 'banned': return 'Забанен';
+    default: return status;
+  }
+};
+
+const getOfferTypeLabel = (type: string) => {
+  switch (type) {
+    case 'casino': return 'Казино';
+    case 'crypto': return 'Крипта';
+    case 'dating': return 'Дейтинг';
+    case 'nutra': return 'Нутра';
+    default: return type;
+  }
+};
+
+// ==================== КОМПОНЕНТ ДАШБОРДА (ГЛАВНАЯ) ====================
+
+function DashboardView() {
+  const { kpiData, setKpiData, activities, setActivities, campaigns, accounts, setCampaigns, setAccounts } = useAppStore();
+  const [loading, setLoading] = useState(true);
+  const [chartType, setChartType] = useState<'line' | 'bar'>('line');
+
+  // Моковые данные для KPI
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Имитация API запроса
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Моковые KPI данные
+        setKpiData([
+          { title: 'Доход сегодня', value: '1 240 ₽', change: 12, icon: 'dollar', color: 'green' },
+          { title: 'Живые аккаунты', value: '24', change: -2, icon: 'users', color: 'neutral' },
+          { title: 'Комментариев сегодня', value: '156', change: 8, icon: 'message', color: 'green' },
+          { title: 'Топ-канал', value: '@crypto_signals', change: undefined, icon: 'trending', color: 'neutral' },
+        ]);
+
+        // Моковые активности
+        setActivities([
+          { id: '1', type: 'comment', message: 'Комментарий успешно опубликован в @crypto_news', timestamp: new Date(Date.now() - 300000), campaignId: 'c1' },
+          { id: '2', type: 'warning', message: 'Аккаунт @user123 приближается к лимиту комментариев', timestamp: new Date(Date.now() - 600000), accountId: 'a1' },
+          { id: '3', type: 'ban', message: 'Аккаунт @banned_user заблокирован', timestamp: new Date(Date.now() - 1200000), accountId: 'a2' },
+          { id: '4', type: 'success', message: 'Кампания "Crypto Boost" запущена', timestamp: new Date(Date.now() - 1800000), campaignId: 'c2' },
+          { id: '5', type: 'join', message: 'Новый аккаунт @new_user добавлен в систему', timestamp: new Date(Date.now() - 2400000), accountId: 'a3' },
+          { id: '6', type: 'limit', message: 'Достигнут лимит комментариев для @limited_user', timestamp: new Date(Date.now() - 3000000), accountId: 'a4' },
+        ]);
+
+        // Моковые кампании
+        setCampaigns([
+          { id: 'c1', name: 'Crypto Signals Pro', status: 'active', offerType: 'crypto', accountsActive: 5, accountsTotal: 6, commentsToday: 48, revenue: 540, budget: 1000, budgetSpent: 320, createdAt: new Date(), updatedAt: new Date() },
+          { id: 'c2', name: 'Casino Royale', status: 'active', offerType: 'casino', accountsActive: 8, accountsTotal: 8, commentsToday: 72, revenue: 700, budget: 2000, budgetSpent: 890, createdAt: new Date(), updatedAt: new Date() },
+          { id: 'c3', name: 'Dating Apps', status: 'paused', offerType: 'dating', accountsActive: 0, accountsTotal: 4, commentsToday: 0, revenue: 0, budget: 500, budgetSpent: 150, createdAt: new Date(), updatedAt: new Date() },
+        ]);
+
+        // Моковые аккаунты
+        setAccounts([
+          { id: 'a1', platform: 'telegram', username: 'crypto_master', proxy: '185.234.xx.xx:1080', commentsToday: 12, commentsTotal: 156, banRisk: 15, status: 'active', warmingProgress: 100, dailyComments: 12, dailyDm: 5, maxComments: 50, maxDm: 20 },
+          { id: 'a2', platform: 'telegram', username: 'signal_pro', proxy: '45.67.xx.xx:1080', commentsToday: 8, commentsTotal: 89, banRisk: 45, status: 'active', warmingProgress: 100, dailyComments: 8, dailyDm: 3, maxComments: 50, maxDm: 20 },
+          { id: 'a3', platform: 'telegram', username: 'trader_alex', proxy: '91.234.xx.xx:1080', commentsToday: 20, commentsTotal: 234, banRisk: 72, status: 'limit', warmingProgress: 100, dailyComments: 20, dailyDm: 8, maxComments: 50, maxDm: 20 },
+          { id: 'a4', platform: 'telegram', username: 'newbie_user', proxy: '', commentsToday: 0, commentsTotal: 0, banRisk: 0, status: 'new', warmingProgress: 0, dailyComments: 0, dailyDm: 0, maxComments: 50, maxDm: 20 },
+        ]);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [setKpiData, setActivities, setCampaigns, setAccounts]);
+
+  // Данные для графика
+  const chartData = useMemo(() => {
+    return [
+      { date: 'Пн', revenue: 850, comments: 45 },
+      { date: 'Вт', revenue: 1200, comments: 67 },
+      { date: 'Ср', revenue: 980, comments: 52 },
+      { date: 'Чт', revenue: 1450, comments: 78 },
+      { date: 'Пт', revenue: 1100, comments: 61 },
+      { date: 'Сб', revenue: 780, comments: 38 },
+      { date: 'Вс', revenue: 1240, comments: 65 },
+    ];
+  }, []);
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'comment': return <MessageSquare className="w-4 h-4" />;
+      case 'ban': return <XCircle className="w-4 h-4" />;
+      case 'join': return <Users className="w-4 h-4" />;
+      case 'warning': return <AlertTriangle className="w-4 h-4" />;
+      case 'limit': return <Shield className="w-4 h-4" />;
+      case 'success': return <CheckCircle className="w-4 h-4" />;
+      default: return <Activity className="w-4 h-4" />;
+    }
+  };
+
+  const getActivityColor = (type: string) => {
+    switch (type) {
+      case 'comment': return 'bg-[#6C63FF]/20 text-[#6C63FF]';
+      case 'ban': return 'bg-[#FF4D4D]/20 text-[#FF4D4D]';
+      case 'join': return 'bg-[#00D26A]/20 text-[#00D26A]';
+      case 'warning': return 'bg-[#FFB800]/20 text-[#FFB800]';
+      case 'limit': return 'bg-[#FFB800]/20 text-[#FFB800]';
+      case 'success': return 'bg-[#00D26A]/20 text-[#00D26A]';
+      default: return 'bg-[#8A8A8A]/20 text-[#8A8A8A]';
+    }
+  };
+
+  const handlePauseAll = async () => {
+    toast.success('Все кампании приостановлены');
+  };
+
+  const handleHealthCheck = async () => {
+    toast.info('Проверка всех аккаунтов запущена...');
+  };
+
+  const handleExportReport = async () => {
+    toast.success('Отчёт за сегодня скачивается...');
+  };
+
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map((i) => (
-          <Card key={i} className="bg-[#14151A] border-[#2A2B32] animate-pulse">
-            <CardContent className="p-6">
-              <div className="h-4 bg-[#2A2B32] rounded w-1/2 mb-4" />
-              <div className="h-8 bg-[#2A2B32] rounded w-3/4" />
-            </CardContent>
-          </Card>
-        ))}
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 text-[#6C63FF] animate-spin" />
       </div>
     );
   }
 
-  const getRiskColor = (risk: number) => {
-    if (risk < 30) return '#00D26A';
-    if (risk < 60) return '#FFB800';
-    return '#FF4D4D';
-  };
-
-  const items = [
-    {
-      title: 'Активных инфлюенсеров',
-      value: `${metrics?.activeInfluencers ?? 0} / ${metrics?.totalInfluencers ?? 0}`,
-      icon: Users,
-      color: '#6C63FF',
-      bgColor: 'rgba(108, 99, 255, 0.1)',
-    },
-    {
-      title: 'Всего подписчиков',
-      value: (metrics?.totalSubscribers ?? 0).toLocaleString('ru-RU'),
-      icon: Target,
-      color: '#00D26A',
-      bgColor: 'rgba(0, 210, 106, 0.1)',
-    },
-    {
-      title: 'Доход за месяц',
-      value: `${(metrics?.monthlyRevenue ?? 0).toLocaleString('ru-RU')} ₽`,
-      icon: DollarSign,
-      color: '#FFB800',
-      bgColor: 'rgba(255, 184, 0, 0.1)',
-    },
-    {
-      title: 'Средний риск бана',
-      value: `${metrics?.avgBanRisk ?? 0}%`,
-      icon: Shield,
-      color: getRiskColor(metrics?.avgBanRisk ?? 0),
-      bgColor: `${getRiskColor(metrics?.avgBanRisk ?? 0)}20`,
-    },
-  ];
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {items.map((item, index) => {
-        const Icon = item.icon;
-        return (
-          <Card key={index} className="bg-[#14151A] border-[#2A2B32] hover:border-[#6C63FF]/50 transition-colors">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm text-[#8A8A8A]">{item.title}</p>
-                <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: item.bgColor }}
-                >
-                  <Icon className="w-5 h-5" style={{ color: item.color }} />
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-white">{item.value}</p>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
-  );
-}
-
-// Блок 2: Карточки инфлюенсеров (вынесено в отдельный компонент)
-function InfluencersBlock({ influencers, loading }: { influencers: Influencer[]; loading: boolean }) {
-  const { setCreateInfluencerOpen } = useAppStore();
-
-  const nicheColors: Record<string, string> = {
-    gambling: '#FF4D4D',
-    crypto: '#FFB800',
-    nutra: '#00D26A',
-    bait: '#E4405F',
-    lifestyle: '#6C63FF',
-    finance: '#00D4AA',
-    dating: '#FF6B9D',
-    gaming: '#9D4EDD',
-  };
-
-  const nicheLabels: Record<string, string> = {
-    gambling: 'Гемблинг',
-    crypto: 'Крипта',
-    nutra: 'Нутра',
-    bait: 'Байт',
-    lifestyle: 'Лайфстайл',
-    finance: 'Финансы',
-    dating: 'Дейтинг',
-    gaming: 'Гейминг',
-  };
-
-  const getRiskColor = (risk: number) => {
-    if (risk < 30) return '#00D26A';
-    if (risk < 60) return '#FFB800';
-    return '#FF4D4D';
-  };
-
-  if (loading) {
-    return (
-      <Card className="bg-[#14151A] border-[#2A2B32]">
-        <CardHeader>
-          <CardTitle className="text-white">Инфлюенсеры</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-32 bg-[#1E1F26] rounded-lg animate-pulse" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="bg-[#14151A] border-[#2A2B32]">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="text-white flex items-center gap-2">
-            <Users className="w-5 h-5 text-[#6C63FF]" />
-            Инфлюенсеры
-          </CardTitle>
-          <CardDescription className="text-[#8A8A8A]">
-            Всего: {influencers.length} записей
-          </CardDescription>
-        </div>
-        <Button
-          size="sm"
-          onClick={() => setCreateInfluencerOpen(true)}
-          className="bg-[#6C63FF] hover:bg-[#6C63FF]/80"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Создать
-        </Button>
-      </CardHeader>
-      <CardContent>
-        {influencers.length === 0 ? (
-          <div className="text-center py-12">
-            <Users className="w-16 h-16 mx-auto text-[#8A8A8A] opacity-50 mb-4" />
-            <p className="text-[#8A8A8A]">Нет созданных инфлюенсеров</p>
-            <Button
-              variant="outline"
-              onClick={() => setCreateInfluencerOpen(true)}
-              className="mt-4 border-[#6C63FF] text-[#6C63FF]"
-            >
-              Создать первого
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {influencers.slice(0, 8).map((influencer) => (
-              <div
-                key={influencer.id}
-                className="p-4 rounded-lg bg-[#1E1F26] hover:bg-[#2A2B32] transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  <Avatar className="w-10 h-10 border-2" style={{ borderColor: nicheColors[influencer.niche] || '#6C63FF' }}>
-                    <AvatarImage src={influencer.avatarUrl} />
-                    <AvatarFallback className="bg-[#6C63FF] text-white">
-                      {influencer.name?.slice(0, 2)?.toUpperCase() || '?'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-white truncate">{influencer.name || 'Без имени'}</p>
-                    <p className="text-xs text-[#8A8A8A] truncate">
-                      {nicheLabels[influencer.niche] || influencer.niche}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-[#8A8A8A]">
-                    {(influencer.subscribersCount ?? 0).toLocaleString('ru-RU')} подп.
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <div
-                      className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: getRiskColor(influencer.banRisk ?? 0) }}
-                    />
-                    <span style={{ color: getRiskColor(influencer.banRisk ?? 0) }}>
-                      {influencer.banRisk ?? 0}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// Блок 3: График активности
-function ChartBlock({ days, metric }: { days: number; metric: 'subscribers' | 'revenue' | 'leads' }) {
-  const { chartData, summary, loading } = useDashboardChart(days, metric);
-
-  const metricLabels: Record<string, string> = {
-    subscribers: 'Подписчики',
-    revenue: 'Доход',
-    leads: 'Лиды',
-  };
-
-  const maxValue = chartData.length > 0
-    ? Math.max(...chartData.map(d => d.value), 1)
-    : 1;
-
-  return (
-    <Card className="bg-[#14151A] border-[#2A2B32]">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center gap-2">
-          <Activity className="w-5 h-5 text-[#6C63FF]" />
-          Динамика {metricLabels[metric]}
-        </CardTitle>
-        <CardDescription>
-          За последние {days} дней
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="h-[200px] flex items-center justify-center">
-            <Loader2 className="w-8 h-8 text-[#6C63FF] animate-spin" />
-          </div>
-        ) : chartData.length === 0 || chartData.every(d => d.value === 0) ? (
-          <div className="h-[200px] flex items-center justify-center text-[#8A8A8A]">
-            <div className="text-center">
-              <BarChart3 className="w-12 h-12 mx-auto opacity-50 mb-2" />
-              <p>Нет данных для отображения</p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="h-[200px] flex items-end gap-2">
-              {chartData.map((point, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                  <div
-                    className="w-full bg-gradient-to-t from-[#6C63FF] to-[#00D26A] rounded-t-sm transition-all hover:opacity-80"
-                    style={{ height: `${(point.value / maxValue) * 100}%`, minHeight: point.value > 0 ? '4px' : '0' }}
-                    title={`${point.label}: ${point.value.toLocaleString('ru-RU')}`}
-                  />
-                  {i % Math.ceil(chartData.length / 7) === 0 && (
-                    <span className="text-xs text-[#8A8A8A] truncate w-full text-center">
-                      {point.label.split(' ')[0]}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-            {summary && (
-              <div className="flex justify-between mt-4 text-sm text-[#8A8A8A]">
-                <span>Всего: <span className="text-[#00D26A]">{summary.total.toLocaleString('ru-RU')}</span></span>
-                <span>
-                  {typeof summary.change === 'number' && summary.change > 0 ? (
-                    <span className="text-[#00D26A]">+{summary.change}%</span>
-                  ) : (
-                    <span className="text-[#FF4D4D]">{summary.change}%</span>
-                  )}
-                </span>
-              </div>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// Блок 4: Лента событий
-function EventsBlock() {
-  const { events, loading } = useDashboardEvents(10);
-
-  const getEventIcon = (type: string) => {
-    switch (type) {
-      case 'warning': return <AlertTriangle className="w-4 h-4" />;
-      case 'error': return <XCircle className="w-4 h-4" />;
-      case 'success': return <CheckCircle className="w-4 h-4" />;
-      default: return <Bell className="w-4 h-4" />;
-    }
-  };
-
-  const getEventColor = (type: string) => {
-    switch (type) {
-      case 'warning': return 'bg-[#FFB800]/20 text-[#FFB800]';
-      case 'error': return 'bg-[#FF4D4D]/20 text-[#FF4D4D]';
-      case 'success': return 'bg-[#00D26A]/20 text-[#00D26A]';
-      default: return 'bg-[#6C63FF]/20 text-[#6C63FF]';
-    }
-  };
-
-  const formatTime = (timestamp: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - new Date(timestamp).getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'Только что';
-    if (minutes < 60) return `${minutes} мин назад`;
-    if (hours < 24) return `${hours} ч назад`;
-    return `${days} дн назад`;
-  };
-
-  return (
-    <Card className="bg-[#14151A] border-[#2A2B32]">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center gap-2">
-          <Bell className="w-5 h-5 text-[#FFB800]" />
-          Последние события
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-[#1E1F26] animate-pulse">
-                <div className="w-8 h-8 rounded-full bg-[#2A2B32]" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-[#2A2B32] rounded w-1/2" />
-                  <div className="h-3 bg-[#2A2B32] rounded w-3/4" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : events.length === 0 ? (
-          <div className="text-center py-8 text-[#8A8A8A]">
-            <Bell className="w-12 h-12 mx-auto opacity-50 mb-2" />
-            <p>Нет событий</p>
-          </div>
-        ) : (
-          <ScrollArea className="h-[300px]">
-            <div className="space-y-3">
-              {events.map((event) => (
-                <div
-                  key={event.id}
-                  className="flex items-start gap-3 p-3 rounded-lg bg-[#1E1F26] hover:bg-[#2A2B32] transition-colors"
-                >
-                  <div className={cn('w-8 h-8 rounded-full flex items-center justify-center shrink-0', getEventColor(event.type))}>
-                    {getEventIcon(event.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{event.title}</p>
-                    <p className="text-xs text-[#8A8A8A] mt-1 line-clamp-2">{event.message}</p>
-                    <p className="text-xs text-[#8A8A8A] mt-1">{formatTime(event.timestamp)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// ==================== КОМПОНЕНТ ДЕТАЛЬНОЙ КАРТОЧКИ ====================
-
-function InfluencerDetailDialog({
-  influencer,
-  open,
-  onOpenChange,
-  onEdit,
-  onToggleStatus,
-  onDelete,
-}: {
-  influencer: Influencer | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onEdit?: () => void;
-  onToggleStatus?: () => void;
-  onDelete?: () => void;
-}) {
-  if (!influencer) return null;
-
-  const nicheColors: Record<string, string> = {
-    gambling: '#FF4D4D',
-    crypto: '#FFB800',
-    nutra: '#00D26A',
-    bait: '#E4405F',
-    lifestyle: '#6C63FF',
-    finance: '#00D4AA',
-    dating: '#FF6B9D',
-    gaming: '#9D4EDD',
-  };
-
-  const nicheLabels: Record<string, string> = {
-    gambling: 'Гемблинг',
-    crypto: 'Крипта',
-    nutra: 'Нутра',
-    bait: 'Байт',
-    lifestyle: 'Лайфстайл',
-    finance: 'Финансы',
-    dating: 'Дейтинг',
-    gaming: 'Гейминг',
-  };
-
-  const statusLabels: Record<string, string> = {
-    draft: 'Черновик',
-    warming: 'Прогрев',
-    active: 'Активен',
-    paused: 'Пауза',
-    banned: 'Забанен',
-  };
-
-  const getRiskColor = (risk: number) => {
-    if (risk < 30) return '#00D26A';
-    if (risk < 60) return '#FFB800';
-    return '#FF4D4D';
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-[#14151A] border-[#2A2B32] text-white">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold flex items-center gap-3">
-            <Avatar className="w-12 h-12 border-2 border-[#6C63FF]">
-              <AvatarImage src={influencer.avatarUrl} alt={influencer.name} />
-              <AvatarFallback className="bg-[#6C63FF] text-white text-lg">
-                {influencer.name?.slice(0, 2)?.toUpperCase() || '?'}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="text-white">{influencer.name || 'Без имени'}</p>
-              <p className="text-sm text-[#8A8A8A] font-normal">{influencer.role || 'Роль не указана'}</p>
-            </div>
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-6 mt-4">
-          <div className="flex flex-wrap gap-2">
-            <Badge
-              variant="outline"
-              className="text-sm"
-              style={{ borderColor: nicheColors[influencer.niche] || '#6C63FF', color: nicheColors[influencer.niche] || '#6C63FF' }}
-            >
-              {nicheLabels[influencer.niche] || influencer.niche}
-            </Badge>
-            <Badge
-              variant="outline"
-              className="text-sm text-white"
-              style={{ backgroundColor: getRiskColor(influencer.banRisk ?? 0) + '20', borderColor: getRiskColor(influencer.banRisk ?? 0) }}
-            >
-              {statusLabels[influencer.status] || influencer.status}
-            </Badge>
-          </div>
-
-          <div className="grid grid-cols-4 gap-4">
-            <div className="text-center p-3 bg-[#1E1F26] rounded-lg">
-              <p className="text-2xl font-bold text-white">{(influencer.subscribersCount ?? 0).toLocaleString('ru-RU')}</p>
-              <p className="text-xs text-[#8A8A8A] mt-1">Подписчиков</p>
-            </div>
-            <div className="text-center p-3 bg-[#1E1F26] rounded-lg">
-              <p className="text-2xl font-bold text-white">{influencer.leadsCount ?? 0}</p>
-              <p className="text-xs text-[#8A8A8A] mt-1">Лидов</p>
-            </div>
-            <div className="text-center p-3 bg-[#1E1F26] rounded-lg">
-              <p className="text-2xl font-bold text-[#00D26A]">{(influencer.revenue ?? 0).toLocaleString('ru-RU')} ₽</p>
-              <p className="text-xs text-[#8A8A8A] mt-1">Доход</p>
-            </div>
-            <div className="text-center p-3 bg-[#1E1F26] rounded-lg">
-              <p className="text-2xl font-bold" style={{ color: getRiskColor(influencer.banRisk ?? 0) }}>
-                {influencer.banRisk ?? 0}%
-              </p>
-              <p className="text-xs text-[#8A8A8A] mt-1">Риск бана</p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-[#8A8A8A]">Риск бана</span>
-              <span style={{ color: getRiskColor(influencer.banRisk ?? 0) }}>{influencer.banRisk ?? 0}%</span>
-            </div>
-            <Progress value={influencer.banRisk ?? 0} className="h-2" />
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-white">Социальные сети</p>
-            <div className="flex flex-wrap gap-2">
-              {influencer.telegramUsername && (
-                <Badge className="bg-[#0088cc] hover:bg-[#0088cc]/80 text-white">
-                  Telegram: {influencer.telegramUsername}
-                </Badge>
-              )}
-              {influencer.instagramUsername && (
-                <Badge className="bg-gradient-to-r from-[#f09433] via-[#e6683c] to-[#dc2743] text-white">
-                  Instagram: {influencer.instagramUsername}
-                </Badge>
-              )}
-              {influencer.tiktokUsername && (
-                <Badge className="bg-black text-white border border-white/20">
-                  TikTok: {influencer.tiktokUsername}
-                </Badge>
-              )}
-              {!influencer.telegramUsername && !influencer.instagramUsername && !influencer.tiktokUsername && (
-                <span className="text-sm text-[#8A8A8A]">Не привязаны</span>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-white">Стиль общения</p>
-            <p className="text-sm text-[#8A8A8A] bg-[#1E1F26] p-3 rounded-lg">
-              {influencer.style || 'Не указан'}
-            </p>
-          </div>
-
-          <div className="flex gap-3 pt-4 border-t border-[#2A2B32]">
-            <Button
-              variant="outline"
-              onClick={onEdit}
-              className="flex-1 border-[#6C63FF] text-[#6C63FF] hover:bg-[#6C63FF]/10"
-            >
-              <Edit className="w-4 h-4 mr-2" />
-              Редактировать
-            </Button>
-            <Button
-              variant="outline"
-              onClick={onToggleStatus}
-              className="flex-1 border-[#FFB800] text-[#FFB800] hover:bg-[#FFB800]/10"
-            >
-              {influencer.status === 'active' ? (
-                <>
-                  <Pause className="w-4 h-4 mr-2" />
-                  Приостановить
-                </>
-              ) : (
-                <>
-                  <Play className="w-4 h-4 mr-2" />
-                  Активировать
-                </>
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={onDelete}
-              className="border-[#FF4D4D] text-[#FF4D4D] hover:bg-[#FF4D4D]/10"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ==================== ПРЕДСТАВЛЕНИЯ ====================
-
-// Компонент Dashboard
-function DashboardView() {
-  const { setCreateInfluencerOpen } = useAppStore();
-  const { metrics, loading: metricsLoading, refetch: refetchMetrics } = useDashboardMetrics();
-  const { influencers, loading: influencersLoading } = useInfluencers();
-  const [chartDays, setChartDays] = useState<7 | 14 | 30>(7);
-  const [chartMetric, setChartMetric] = useState<'subscribers' | 'revenue' | 'leads'>('subscribers');
-
   return (
     <div className="space-y-6">
-      {/* Заголовок с кнопками */}
+      {/* Заголовок */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Дашборд</h1>
-          <p className="text-[#8A8A8A]">Обзор активности всех AI-инфлюенсеров</p>
+          <h1 className="text-2xl font-bold text-white">Главная</h1>
+          <p className="text-[#8A8A8A]">Обзор активности и ключевые метрики</p>
         </div>
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => refetchMetrics()}
+            onClick={() => window.location.reload()}
             className="border-[#2A2B32] text-[#8A8A8A] hover:text-white"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
             Обновить
           </Button>
-          <Button
-            onClick={() => setCreateInfluencerOpen(true)}
-            className="bg-[#6C63FF] hover:bg-[#6C63FF]/80"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Создать инфлюенсера
-          </Button>
         </div>
       </div>
 
-      {/* Блок 1: Ключевые метрики */}
-      <MetricsBlock metrics={metrics} loading={metricsLoading} />
+      {/* KPI карточки */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpiData.map((kpi, index) => (
+          <Card key={index} className="bg-[#14151A] border-[#2A2B32] hover:border-[#6C63FF]/50 transition-colors">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm text-[#8A8A8A]">{kpi.title}</p>
+                <div className={cn(
+                  'w-10 h-10 rounded-lg flex items-center justify-center',
+                  kpi.color === 'green' ? 'bg-[#00D26A]/20' : kpi.color === 'red' ? 'bg-[#FF4D4D]/20' : 'bg-[#6C63FF]/20'
+                )}>
+                  {kpi.icon === 'dollar' && <DollarSign className="w-5 h-5" style={{ color: kpi.color === 'green' ? '#00D26A' : kpi.color === 'red' ? '#FF4D4D' : '#6C63FF' }} />}
+                  {kpi.icon === 'users' && <Users className="w-5 h-5" style={{ color: kpi.color === 'green' ? '#00D26A' : kpi.color === 'red' ? '#FF4D4D' : '#6C63FF' }} />}
+                  {kpi.icon === 'message' && <MessageSquare className="w-5 h-5" style={{ color: kpi.color === 'green' ? '#00D26A' : kpi.color === 'red' ? '#FF4D4D' : '#6C63FF' }} />}
+                  {kpi.icon === 'trending' && <TrendingUp className="w-5 h-5" style={{ color: kpi.color === 'green' ? '#00D26A' : kpi.color === 'red' ? '#FF4D4D' : '#6C63FF' }} />}
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-white">{kpi.value}</p>
+              {kpi.change !== undefined && (
+                <div className={cn('flex items-center gap-1 mt-2 text-sm', kpi.change >= 0 ? 'text-[#00D26A]' : 'text-[#FF4D4D]')}>
+                  {kpi.change >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                  {kpi.change >= 0 ? '+' : ''}{kpi.change}%
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-      {/* Блок 2: Инфлюенсеры */}
-      <InfluencersBlock influencers={influencers} loading={influencersLoading} />
-
-      {/* Блок 3 и 4: График и события */}
+      {/* График и лента активности */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          {/* Переключатели периода и метрики */}
-          <div className="flex gap-2">
-            {[7, 14, 30].map((days) => (
+        {/* График дохода */}
+        <Card className="bg-[#14151A] border-[#2A2B32]">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-white flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-[#6C63FF]" />
+                Доход за 7 дней
+              </CardTitle>
+              <CardDescription className="text-[#8A8A8A]">Динамика по дням</CardDescription>
+            </div>
+            <div className="flex gap-2">
               <Button
-                key={days}
-                variant={chartDays === days ? 'default' : 'outline'}
+                variant={chartType === 'line' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setChartDays(days as 7 | 14 | 30)}
-                className={chartDays === days ? 'bg-[#6C63FF]' : 'border-[#2A2B32] text-[#8A8A8A]'}
+                onClick={() => setChartType('line')}
+                className={chartType === 'line' ? 'bg-[#6C63FF]' : 'border-[#2A2B32] text-[#8A8A8A]'}
               >
-                {days} дн
+                Линия
               </Button>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            {[
-              { value: 'subscribers', label: 'Подписчики' },
-              { value: 'revenue', label: 'Доход' },
-              { value: 'leads', label: 'Лиды' },
-            ].map((m) => (
               <Button
-                key={m.value}
-                variant={chartMetric === m.value ? 'default' : 'outline'}
+                variant={chartType === 'bar' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setChartMetric(m.value as 'subscribers' | 'revenue' | 'leads')}
-                className={chartMetric === m.value ? 'bg-[#6C63FF]' : 'border-[#2A2B32] text-[#8A8A8A]'}
+                onClick={() => setChartType('bar')}
+                className={chartType === 'bar' ? 'bg-[#6C63FF]' : 'border-[#2A2B32] text-[#8A8A8A]'}
               >
-                {m.label}
+                Столбцы
               </Button>
-            ))}
-          </div>
-          <ChartBlock days={chartDays} metric={chartMetric} />
-        </div>
-        <EventsBlock />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportReport}
+                className="border-[#2A2B32] text-[#8A8A8A]"
+              >
+                <Download className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                {chartType === 'line' ? (
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2A2B32" />
+                    <XAxis dataKey="date" stroke="#8A8A8A" />
+                    <YAxis stroke="#8A8A8A" />
+                    <RechartsTooltip
+                      contentStyle={{ backgroundColor: '#14151A', border: '1px solid #2A2B32', borderRadius: '8px' }}
+                      labelStyle={{ color: '#fff' }}
+                    />
+                    <Legend />
+                    <Line type="monotone" dataKey="revenue" stroke="#6C63FF" strokeWidth={2} dot={{ fill: '#6C63FF' }} name="Доход (₽)" />
+                  </LineChart>
+                ) : (
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2A2B32" />
+                    <XAxis dataKey="date" stroke="#8A8A8A" />
+                    <YAxis stroke="#8A8A8A" />
+                    <RechartsTooltip
+                      contentStyle={{ backgroundColor: '#14151A', border: '1px solid #2A2B32', borderRadius: '8px' }}
+                      labelStyle={{ color: '#fff' }}
+                    />
+                    <Legend />
+                    <Bar dataKey="revenue" fill="#6C63FF" name="Доход (₽)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                )}
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Лента активности */}
+        <Card className="bg-[#14151A] border-[#2A2B32]">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Activity className="w-5 h-5 text-[#FFB800]" />
+              Лента активности
+            </CardTitle>
+            <CardDescription className="text-[#8A8A8A]">Последние 20 событий</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[250px]">
+              <div className="space-y-3">
+                {activities.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className="flex items-start gap-3 p-3 rounded-lg bg-[#1E1F26] hover:bg-[#2A2B32] transition-colors"
+                  >
+                    <div className={cn('w-8 h-8 rounded-full flex items-center justify-center shrink-0', getActivityColor(activity.type))}>
+                      {getActivityIcon(activity.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white">{activity.message}</p>
+                      <p className="text-xs text-[#8A8A8A] mt-1">{formatTime(activity.timestamp)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Быстрые действия */}
+      <Card className="bg-[#14151A] border-[#2A2B32]">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Zap className="w-5 h-5 text-[#FFB800]" />
+            Быстрые действия
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Button
+              onClick={() => useAppStore.getState().setCampaignModalOpen(true)}
+              className="h-20 flex flex-col bg-[#6C63FF] hover:bg-[#6C63FF]/80"
+            >
+              <Plus className="w-6 h-6 mb-2" />
+              Запустить кампанию
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handlePauseAll}
+              className="h-20 flex flex-col border-[#FFB800] text-[#FFB800] hover:bg-[#FFB800]/10"
+            >
+              <Pause className="w-6 h-6 mb-2" />
+              Пауза всего
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportReport}
+              className="h-20 flex flex-col border-[#00D26A] text-[#00D26A] hover:bg-[#00D26A]/10"
+            >
+              <Download className="w-6 h-6 mb-2" />
+              Отчёт за сегодня
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleHealthCheck}
+              className="h-20 flex flex-col border-[#6C63FF] text-[#6C63FF] hover:bg-[#6C63FF]/10"
+            >
+              <Eye className="w-6 h-6 mb-2" />
+              Проверить всё
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
-// Компонент Influencers View
-function InfluencersView() {
-  const { setCreateInfluencerOpen, setEditingInfluencer, influencers, updateInfluencer, removeInfluencer } = useAppStore();
-  const { loading } = useInfluencers();
-  const [filter, setFilter] = useState<string>('all');
-  const [selectedForDetail, setSelectedForDetail] = useState<Influencer | null>(null);
+// ==================== КОМПОНЕНТ КАМПАНИЙ ====================
 
-  const filteredInfluencers = filter === 'all'
-    ? influencers
-    : influencers.filter((i) => i.status === filter || i.niche === filter);
+function CampaignsView() {
+  const { campaigns, setCampaigns, campaignModalOpen, setCampaignModalOpen, editingCampaign, setEditingCampaign, addCampaign, updateCampaign, removeCampaign } = useAppStore();
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [campaignToDelete, setCampaignToDelete] = useState<Campaign | null>(null);
+  const [modalTab, setModalTab] = useState('offer');
 
-  const handleToggleStatus = (influencer: Influencer) => {
-    const newStatus = influencer.status === 'active' ? 'paused' : 'active';
-    updateInfluencer(influencer.id, { status: newStatus });
-    toast.success(`Статус изменён на "${newStatus === 'active' ? 'Активен' : 'Пауза'}"`);
-    setSelectedForDetail({ ...influencer, status: newStatus });
+  // Default form data
+  const defaultFormData: Partial<Campaign> = {
+    name: '',
+    status: 'draft',
+    offerType: 'crypto',
+    link: '',
+    accountsActive: 0,
+    accountsTotal: 0,
+    commentsToday: 0,
+    revenue: 0,
+    budget: 0,
+    budgetSpent: 0,
+    autoReplaceOnBan: true,
+    maxCommentsPerAccount: 50,
+    postingMode: 'new',
+    delayMin: 30,
+    delayMax: 120,
+    delayRandom: true,
+    useUniqueText: true,
+    useDeepSeek: true,
+    deepSeekTemperature: 0.7,
+    maxCostPerLead: 100,
+    workTimeStart: '09:00',
+    workTimeEnd: '21:00',
   };
 
-  const handleEdit = (influencer: Influencer) => {
-    setSelectedForDetail(null); // Close detail dialog
-    setEditingInfluencer(influencer); // Set influencer for editing
-    setCreateInfluencerOpen(true); // Open create/edit dialog
+  // Форма создания/редактирования
+  const [formData, setFormData] = useState<Partial<Campaign>>(defaultFormData);
+
+  const filteredCampaigns = useMemo(() => {
+    return campaigns.filter(c => {
+      const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [campaigns, searchQuery, statusFilter]);
+
+  const handleOpenModal = (campaign?: Campaign) => {
+    if (campaign) {
+      setEditingCampaign(campaign);
+      setFormData(campaign);
+    } else {
+      setEditingCampaign(null);
+      setFormData(defaultFormData);
+    }
+    setModalTab('offer');
+    setCampaignModalOpen(true);
   };
 
-  const handleDelete = (influencer: Influencer) => {
-    removeInfluencer(influencer.id);
-    setSelectedForDetail(null);
-    toast.success(`Инфлюенсер "${influencer.name}" удалён`);
+  const handleCloseModal = () => {
+    setCampaignModalOpen(false);
+    setEditingCampaign(null);
+    setFormData(defaultFormData);
+  };
+
+  const handleSave = () => {
+    if (!formData.name) {
+      toast.error('Введите название кампании');
+      return;
+    }
+
+    if (editingCampaign) {
+      updateCampaign(editingCampaign.id, formData);
+      toast.success('Кампания обновлена');
+    } else {
+      addCampaign({
+        ...formData as Campaign,
+        id: `c${Date.now()}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      toast.success('Кампания создана');
+    }
+    handleCloseModal();
+  };
+
+  const handleDelete = () => {
+    if (campaignToDelete) {
+      removeCampaign(campaignToDelete.id);
+      toast.success('Кампания удалена');
+      setDeleteDialogOpen(false);
+      setCampaignToDelete(null);
+    }
+  };
+
+  const handleToggleStatus = (campaign: Campaign) => {
+    const newStatus = campaign.status === 'active' ? 'paused' : 'active';
+    updateCampaign(campaign.id, { status: newStatus });
+    toast.success(`Кампания ${newStatus === 'active' ? 'запущена' : 'приостановлена'}`);
+  };
+
+  const handleDuplicate = (campaign: Campaign) => {
+    addCampaign({
+      ...campaign,
+      id: `c${Date.now()}`,
+      name: `${campaign.name} (копия)`,
+      status: 'draft',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    toast.success('Кампания скопирована');
   };
 
   return (
     <div className="space-y-6">
+      {/* Заголовок */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">AI-Инфлюенсеры</h1>
-          <p className="text-[#8A8A8A]">Управление виртуальными персонажами</p>
+          <h1 className="text-2xl font-bold text-white">Кампании</h1>
+          <p className="text-[#8A8A8A]">Управление рекламными кампаниями</p>
         </div>
         <Button
-          onClick={() => setCreateInfluencerOpen(true)}
+          onClick={() => handleOpenModal()}
           className="bg-[#6C63FF] hover:bg-[#6C63FF]/80"
         >
           <Plus className="w-4 h-4 mr-2" />
-          Создать инфлюенсера
+          Создать кампанию
         </Button>
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="flex bg-[#1E1F26] rounded-lg p-1">
-          {[
-            { id: 'all', label: 'Все' },
-            { id: 'active', label: 'Активные' },
-            { id: 'warming', label: 'Прогрев' },
-            { id: 'paused', label: 'Пауза' },
-          ].map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setFilter(f.id)}
-              className={cn(
-                'px-4 py-2 rounded-md text-sm font-medium transition-all',
-                filter === f.id
-                  ? 'bg-[#6C63FF] text-white'
-                  : 'text-[#8A8A8A] hover:text-white'
-              )}
-            >
-              {f.label}
-            </button>
-          ))}
+      {/* Фильтры */}
+      <div className="flex gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#8A8A8A]" />
+          <Input
+            placeholder="Поиск по названию..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 bg-[#14151A] border-[#2A2B32] text-white"
+          />
         </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-40 bg-[#14151A] border-[#2A2B32] text-white">
+            <SelectValue placeholder="Статус" />
+          </SelectTrigger>
+          <SelectContent className="bg-[#14151A] border-[#2A2B32]">
+            <SelectItem value="all">Все</SelectItem>
+            <SelectItem value="active">Активные</SelectItem>
+            <SelectItem value="paused">На паузе</SelectItem>
+            <SelectItem value="error">С ошибкой</SelectItem>
+            <SelectItem value="draft">Черновики</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 text-[#6C63FF] animate-spin" />
-        </div>
-      ) : filteredInfluencers.length > 0 ? (
-        <InfluencerGrid
-          influencers={filteredInfluencers}
-          onSelect={(inf) => setSelectedForDetail(inf)}
-          onEdit={(inf) => handleEdit(inf)}
-          onToggleStatus={(inf) => handleToggleStatus(inf)}
-          onDelete={(inf) => handleDelete(inf)}
-        />
-      ) : (
+      {/* Карточки кампаний */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredCampaigns.map((campaign) => (
+          <Card key={campaign.id} className="bg-[#14151A] border-[#2A2B32] hover:border-[#6C63FF]/50 transition-colors">
+            <CardHeader className="flex flex-row items-start justify-between pb-2">
+              <div className="flex items-center gap-2">
+                <div className={cn('w-3 h-3 rounded-full', getStatusColor(campaign.status))} />
+                <CardTitle className="text-lg text-white">{campaign.name}</CardTitle>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-[#8A8A8A] hover:text-white">
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-[#14151A] border-[#2A2B32]">
+                  <DropdownMenuItem onClick={() => handleOpenModal(campaign)} className="text-white hover:bg-[#1E1F26]">
+                    <Edit className="w-4 h-4 mr-2" />
+                    Настройки
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleToggleStatus(campaign)} className="text-white hover:bg-[#1E1F26]">
+                    {campaign.status === 'active' ? (
+                      <>
+                        <Pause className="w-4 h-4 mr-2" />
+                        Пауза
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4 mr-2" />
+                        Запустить
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDuplicate(campaign)} className="text-white hover:bg-[#1E1F26]">
+                    <Copy className="w-4 h-4 mr-2" />
+                    Дублировать
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setCampaignToDelete(campaign); setDeleteDialogOpen(true); }} className="text-[#FF4D4D] hover:bg-[#1E1F26]">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Удалить
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="border-[#6C63FF] text-[#6C63FF]">
+                  {getOfferTypeLabel(campaign.offerType)}
+                </Badge>
+                <Badge className={cn(
+                  'text-white',
+                  campaign.status === 'active' ? 'bg-[#00D26A]' : campaign.status === 'paused' ? 'bg-[#FFB800]' : campaign.status === 'error' ? 'bg-[#FF4D4D]' : 'bg-[#8A8A8A]'
+                )}>
+                  {getStatusLabel(campaign.status)}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-[#8A8A8A]">Аккаунты</p>
+                  <p className="text-white font-medium">{campaign.accountsActive}/{campaign.accountsTotal}</p>
+                </div>
+                <div>
+                  <p className="text-[#8A8A8A]">Комментов сегодня</p>
+                  <p className="text-white font-medium">{campaign.commentsToday}</p>
+                </div>
+                <div>
+                  <p className="text-[#8A8A8A]">Доход</p>
+                  <p className="text-[#00D26A] font-medium">{campaign.revenue.toLocaleString()} ₽</p>
+                </div>
+                <div>
+                  <p className="text-[#8A8A8A]">Бюджет</p>
+                  <p className="text-white font-medium">{campaign.budgetSpent}/{campaign.budget} ₽</p>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-[#8A8A8A]">
+                  <span>Расход бюджета</span>
+                  <span>{Math.round((campaign.budgetSpent / (campaign.budget || 1)) * 100)}%</span>
+                </div>
+                <Progress value={(campaign.budgetSpent / (campaign.budget || 1)) * 100} className="h-2" />
+              </div>
+
+              <Button
+                onClick={() => handleToggleStatus(campaign)}
+                className={cn(
+                  'w-full',
+                  campaign.status === 'active' ? 'bg-[#FFB800] hover:bg-[#FFB800]/80 text-black' : 'bg-[#00D26A] hover:bg-[#00D26A]/80 text-black'
+                )}
+              >
+                {campaign.status === 'active' ? (
+                  <>
+                    <Pause className="w-4 h-4 mr-2" />
+                    Приостановить
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 mr-2" />
+                    Запустить
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {filteredCampaigns.length === 0 && (
         <Card className="bg-[#14151A] border-[#2A2B32] p-12 text-center">
-          <Users className="w-16 h-16 mx-auto text-[#8A8A8A] mb-4" />
-          <h3 className="text-xl font-bold text-white mb-2">Нет инфлюенсеров</h3>
-          <p className="text-[#8A8A8A] mb-6">Создайте первого AI-инфлюенсера для начала работы</p>
-          <Button
-            onClick={() => setCreateInfluencerOpen(true)}
-            className="bg-[#6C63FF] hover:bg-[#6C63FF]/80"
-          >
+          <Rocket className="w-16 h-16 mx-auto text-[#8A8A8A] opacity-50 mb-4" />
+          <h3 className="text-xl font-bold text-white mb-2">Нет кампаний</h3>
+          <p className="text-[#8A8A8A] mb-6">Создайте первую кампанию для начала работы</p>
+          <Button onClick={() => handleOpenModal()} className="bg-[#6C63FF] hover:bg-[#6C63FF]/80">
             <Plus className="w-4 h-4 mr-2" />
-            Создать инфлюенсера
+            Создать кампанию
           </Button>
         </Card>
       )}
 
-      <InfluencerDetailDialog
-        influencer={selectedForDetail}
-        open={!!selectedForDetail}
-        onOpenChange={(open) => !open && setSelectedForDetail(null)}
-        onEdit={() => selectedForDetail && handleEdit(selectedForDetail)}
-        onToggleStatus={() => selectedForDetail && handleToggleStatus(selectedForDetail)}
-        onDelete={() => selectedForDetail && handleDelete(selectedForDetail)}
-      />
+      {/* Модалка создания/редактирования кампании */}
+      <Dialog open={campaignModalOpen} onOpenChange={setCampaignModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-[#14151A] border-[#2A2B32] text-white">
+          <DialogHeader>
+            <DialogTitle>{editingCampaign ? 'Редактирование кампании' : 'Новая кампания'}</DialogTitle>
+          </DialogHeader>
+
+          <Tabs value={modalTab} onValueChange={setModalTab} className="mt-4">
+            <TabsList className="bg-[#1E1F26] border-[#2A2B32] w-full justify-start">
+              <TabsTrigger value="offer" className="data-[state=active]:bg-[#6C63FF]">Оффер</TabsTrigger>
+              <TabsTrigger value="accounts" className="data-[state=active]:bg-[#6C63FF]">Аккаунты</TabsTrigger>
+              <TabsTrigger value="posting" className="data-[state=active]:bg-[#6C63FF]">Постинг</TabsTrigger>
+              <TabsTrigger value="budget" className="data-[state=active]:bg-[#6C63FF]">Бюджет</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="offer" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Название кампании</Label>
+                <Input
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Название кампании"
+                  className="bg-[#1E1F26] border-[#2A2B32]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Тип оффера</Label>
+                <Select value={formData.offerType || 'crypto'} onValueChange={(v) => setFormData({ ...formData, offerType: v as any })}>
+                  <SelectTrigger className="bg-[#1E1F26] border-[#2A2B32]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#14151A] border-[#2A2B32]">
+                    <SelectItem value="casino">Казино</SelectItem>
+                    <SelectItem value="crypto">Крипта</SelectItem>
+                    <SelectItem value="dating">Дейтинг</SelectItem>
+                    <SelectItem value="nutra">Нутра</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Ссылка на канал/бот</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={formData.link || ''}
+                    onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+                    placeholder="https://t.me/channel или @username"
+                    className="bg-[#1E1F26] border-[#2A2B32]"
+                  />
+                  <Button variant="outline" className="border-[#6C63FF] text-[#6C63FF]">
+                    Тест
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="accounts" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Выбрать аккаунты</Label>
+                <Select>
+                  <SelectTrigger className="bg-[#1E1F26] border-[#2A2B32]">
+                    <SelectValue placeholder="Выберите аккаунты..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#14151A] border-[#2A2B32]">
+                    {/* Список аккаунтов будет здесь */}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label>Авто-замена при бане</Label>
+                <Switch
+                  checked={formData.autoReplaceOnBan}
+                  onCheckedChange={(v) => setFormData({ ...formData, autoReplaceOnBan: v })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Максимум комментариев на аккаунт/день</Label>
+                <Input
+                  type="number"
+                  value={formData.maxCommentsPerAccount || 50}
+                  onChange={(e) => setFormData({ ...formData, maxCommentsPerAccount: parseInt(e.target.value) })}
+                  className="bg-[#1E1F26] border-[#2A2B32]"
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="posting" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Режим</Label>
+                <div className="flex gap-2">
+                  {[
+                    { value: 'new', label: 'Новые посты' },
+                    { value: 'old', label: 'Старые посты' },
+                    { value: 'both', label: 'Оба' },
+                  ].map((mode) => (
+                    <Button
+                      key={mode.value}
+                      variant={formData.postingMode === mode.value ? 'default' : 'outline'}
+                      onClick={() => setFormData({ ...formData, postingMode: mode.value as any })}
+                      className={formData.postingMode === mode.value ? 'bg-[#6C63FF]' : 'border-[#2A2B32] text-[#8A8A8A]'}
+                    >
+                      {mode.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Задержка между комментариями</Label>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      value={formData.delayMin || 30}
+                      onChange={(e) => setFormData({ ...formData, delayMin: parseInt(e.target.value) })}
+                      className="w-20 bg-[#1E1F26] border-[#2A2B32]"
+                    />
+                    <span className="text-[#8A8A8A]">сек</span>
+                  </div>
+                  <span className="text-[#8A8A8A]">—</span>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      value={formData.delayMax || 120}
+                      onChange={(e) => setFormData({ ...formData, delayMax: parseInt(e.target.value) })}
+                      className="w-20 bg-[#1E1F26] border-[#2A2B32]"
+                    />
+                    <span className="text-[#8A8A8A]">сек</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="random" checked={formData.delayRandom} onCheckedChange={(v) => setFormData({ ...formData, delayRandom: !!v })} />
+                    <Label htmlFor="random" className="text-[#8A8A8A]">Рандом</Label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label>Уникализация текста</Label>
+                <Switch
+                  checked={formData.useUniqueText}
+                  onCheckedChange={(v) => setFormData({ ...formData, useUniqueText: v })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Использовать DeepSeek</Label>
+                  <Switch
+                    checked={formData.useDeepSeek}
+                    onCheckedChange={(v) => setFormData({ ...formData, useDeepSeek: v })}
+                  />
+                </div>
+                {formData.useDeepSeek && (
+                  <div className="space-y-2">
+                    <Label>Температура: {formData.deepSeekTemperature}</Label>
+                    <Slider
+                      value={[formData.deepSeekTemperature || 0.7]}
+                      onValueChange={(v) => setFormData({ ...formData, deepSeekTemperature: v[0] })}
+                      min={0}
+                      max={1.2}
+                      step={0.1}
+                      className="w-full"
+                    />
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="budget" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Бюджет на день (₽)</Label>
+                <Input
+                  type="number"
+                  value={formData.budget || 0}
+                  onChange={(e) => setFormData({ ...formData, budget: parseInt(e.target.value) })}
+                  className="bg-[#1E1F26] border-[#2A2B32]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Макс. стоимость за лид (₽)</Label>
+                <Input
+                  type="number"
+                  value={formData.maxCostPerLead || 100}
+                  onChange={(e) => setFormData({ ...formData, maxCostPerLead: parseInt(e.target.value) })}
+                  className="bg-[#1E1F26] border-[#2A2B32]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Время работы</Label>
+                <div className="flex items-center gap-4">
+                  <Input
+                    type="time"
+                    value={formData.workTimeStart || '09:00'}
+                    onChange={(e) => setFormData({ ...formData, workTimeStart: e.target.value })}
+                    className="bg-[#1E1F26] border-[#2A2B32]"
+                  />
+                  <span className="text-[#8A8A8A]">—</span>
+                  <Input
+                    type="time"
+                    value={formData.workTimeEnd || '21:00'}
+                    onChange={(e) => setFormData({ ...formData, workTimeEnd: e.target.value })}
+                    className="bg-[#1E1F26] border-[#2A2B32]"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter className="mt-6">
+            <Button variant="outline" onClick={handleCloseModal} className="border-[#2A2B32] text-[#8A8A8A]">
+              Отмена
+            </Button>
+            <Button onClick={handleSave} className="bg-[#6C63FF] hover:bg-[#6C63FF]/80">
+              {editingCampaign ? 'Сохранить' : 'Создать'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог удаления */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="bg-[#14151A] border-[#2A2B32] text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить кампанию?</AlertDialogTitle>
+            <AlertDialogDescription className="text-[#8A8A8A]">
+              Вы уверены, что хотите удалить кампанию &quot;{campaignToDelete?.name}&quot;? Это действие нельзя отменить.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-[#1E1F26] border-[#2A2B32] text-white hover:bg-[#2A2B32]">
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-[#FF4D4D] hover:bg-[#FF4D4D]/80">
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
-// Компонент Content View
-function ContentView() {
-  const { imageGeneratorOpen, setImageGeneratorOpen, influencers } = useAppStore();
+// ==================== КОМПОНЕНТ АККАУНТОВ ====================
+
+function AccountsView() {
+  const { accounts, setAccounts, accountModalOpen, setAccountModalOpen, selectedAccounts, setSelectedAccounts, updateAccount, removeAccount } = useAppStore();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [modalTab, setModalTab] = useState('import');
+  const [proxyDialogOpen, setProxyDialogOpen] = useState(false);
+  const [selectedAccountForProxy, setSelectedAccountForProxy] = useState<Account | null>(null);
+
+  const filteredAccounts = useMemo(() => {
+    return accounts.filter(a => {
+      const matchesSearch = (a.username || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                           (a.phone || '').includes(searchQuery);
+      const matchesStatus = statusFilter === 'all' || a.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [accounts, searchQuery, statusFilter]);
+
+  const handleSelectAll = () => {
+    if (selectedAccounts.length === filteredAccounts.length) {
+      setSelectedAccounts([]);
+    } else {
+      setSelectedAccounts(filteredAccounts.map(a => a.id));
+    }
+  };
+
+  const handleSelectAccount = (id: string) => {
+    if (selectedAccounts.includes(id)) {
+      setSelectedAccounts(selectedAccounts.filter(a => a !== id));
+    } else {
+      setSelectedAccounts([...selectedAccounts, id]);
+    }
+  };
+
+  const handleWarmAccount = (account: Account) => {
+    toast.info(`Прогрев аккаунта ${account.username} запущен...`);
+    updateAccount(account.id, { status: 'active', warmingProgress: 0 });
+  };
+
+  const handleChangeProxy = (account: Account) => {
+    setSelectedAccountForProxy(account);
+    setProxyDialogOpen(true);
+  };
+
+  const handleDeleteAccount = (account: Account) => {
+    removeAccount(account.id);
+    toast.success(`Аккаунт ${account.username} удалён`);
+  };
+
+  const handleBulkDelete = () => {
+    selectedAccounts.forEach(id => removeAccount(id));
+    setSelectedAccounts([]);
+    toast.success(`${selectedAccounts.length} аккаунтов удалено`);
+  };
+
+  const handleBulkExport = () => {
+    toast.success('Экспорт в CSV запущен...');
+  };
+
+  const getStatusIcon = (account: Account) => {
+    if (account.status === 'banned') {
+      return <div className="w-2 h-2 rounded-full bg-[#FF4D4D]" title="Забанен" />;
+    }
+    if (account.banRisk >= 70) {
+      return <div className="w-2 h-2 rounded-full bg-[#FF4D4D]" title="Высокий риск" />;
+    }
+    if (account.status === 'limit' || account.banRisk >= 30) {
+      return <div className="w-2 h-2 rounded-full bg-[#FFB800]" title="Лимит/Средний риск" />;
+    }
+    if (account.status === 'new') {
+      return <div className="w-2 h-2 rounded-full bg-[#8A8A8A]" title="Новый" />;
+    }
+    return <div className="w-2 h-2 rounded-full bg-[#00D26A]" title="Жив" />;
+  };
 
   return (
     <div className="space-y-6">
+      {/* Заголовок */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Контент</h1>
-          <p className="text-[#8A8A8A]">Генерация и планирование публикаций</p>
+          <h1 className="text-2xl font-bold text-white">Аккаунты</h1>
+          <p className="text-[#8A8A8A]">Управление Telegram аккаунтами</p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setImageGeneratorOpen(true)}
-            className="border-[#6C63FF] text-[#6C63FF] hover:bg-[#6C63FF]/10"
-          >
-            <Zap className="w-4 h-4 mr-2" />
-            AI Генератор
-          </Button>
-          <Button className="bg-[#6C63FF] hover:bg-[#6C63FF]/80">
-            <Plus className="w-4 h-4 mr-2" />
-            Создать пост
-          </Button>
-        </div>
+        <Button onClick={() => setAccountModalOpen(true)} className="bg-[#6C63FF] hover:bg-[#6C63FF]/80">
+          <Plus className="w-4 h-4 mr-2" />
+          Добавить аккаунт
+        </Button>
       </div>
 
-      <ContentCalendar />
+      {/* Фильтры */}
+      <div className="flex gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#8A8A8A]" />
+          <Input
+            placeholder="Поиск по username или телефону..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 bg-[#14151A] border-[#2A2B32] text-white"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-40 bg-[#14151A] border-[#2A2B32] text-white">
+            <SelectValue placeholder="Статус" />
+          </SelectTrigger>
+          <SelectContent className="bg-[#14151A] border-[#2A2B32]">
+            <SelectItem value="all">Все</SelectItem>
+            <SelectItem value="active">Живые</SelectItem>
+            <SelectItem value="limit">Лимит</SelectItem>
+            <SelectItem value="banned">Забаненные</SelectItem>
+            <SelectItem value="new">Новые</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-      <ImageGeneratorDialog
-        open={imageGeneratorOpen}
-        onOpenChange={setImageGeneratorOpen}
-        influencers={influencers}
-      />
+      {/* Массовые операции */}
+      {selectedAccounts.length > 0 && (
+        <Card className="bg-[#1E1F26] border-[#6C63FF]/50">
+          <CardContent className="flex items-center gap-4 py-4">
+            <span className="text-white">Выбрано: {selectedAccounts.length}</span>
+            <Button variant="outline" size="sm" onClick={handleBulkDelete} className="border-[#FF4D4D] text-[#FF4D4D]">
+              <Trash2 className="w-4 h-4 mr-2" />
+              Удалить
+            </Button>
+            <Button variant="outline" size="sm" className="border-[#6C63FF] text-[#6C63FF]">
+              <Globe className="w-4 h-4 mr-2" />
+              Сменить прокси
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleBulkExport} className="border-[#00D26A] text-[#00D26A]">
+              <Download className="w-4 h-4 mr-2" />
+              Экспорт CSV
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Таблица аккаунтов */}
+      <Card className="bg-[#14151A] border-[#2A2B32]">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent border-[#2A2B32]">
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={selectedAccounts.length === filteredAccounts.length && filteredAccounts.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                </TableHead>
+                <TableHead className="text-[#8A8A8A]">Статус</TableHead>
+                <TableHead className="text-[#8A8A8A]">ID/Имя</TableHead>
+                <TableHead className="text-[#8A8A8A]">Прокси</TableHead>
+                <TableHead className="text-[#8A8A8A]">Сегодня комментов</TableHead>
+                <TableHead className="text-[#8A8A8A]">Всего комментов</TableHead>
+                <TableHead className="text-[#8A8A8A]">Бан-риск</TableHead>
+                <TableHead className="text-[#8A8A8A]">Действия</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredAccounts.map((account) => (
+                <TableRow key={account.id} className="hover:bg-[#1E1F26] border-[#2A2B32]">
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedAccounts.includes(account.id)}
+                      onCheckedChange={() => handleSelectAccount(account.id)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          {getStatusIcon(account)}
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{getStatusLabel(account.status)}</p>
+                          <p>Риск: {account.banRisk}%</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="text-white font-medium">@{account.username || 'unknown'}</p>
+                      <p className="text-xs text-[#8A8A8A]">{account.phone || ''}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-[#8A8A8A]">{account.proxy || '—'}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-white">{account.commentsToday}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-white">{account.commentsTotal}</span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Progress value={account.banRisk} className="w-16 h-2" />
+                      <span style={{ color: getRiskColor(account.banRisk) }}>{account.banRisk}%</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="sm" onClick={() => handleChangeProxy(account)} className="h-8 w-8 p-0 text-[#8A8A8A] hover:text-white">
+                              <Globe className="w-4 h-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Сменить прокси</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      
+                      {account.status === 'new' && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="sm" onClick={() => handleWarmAccount(account)} className="h-8 w-8 p-0 text-[#FFB800] hover:text-white">
+                                <Thermometer className="w-4 h-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Прогреть</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="sm" onClick={() => handleDeleteAccount(account)} className="h-8 w-8 p-0 text-[#FF4D4D] hover:text-white">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Удалить</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          {filteredAccounts.length === 0 && (
+            <div className="py-12 text-center">
+              <Users className="w-16 h-16 mx-auto text-[#8A8A8A] opacity-50 mb-4" />
+              <p className="text-[#8A8A8A]">Нет аккаунтов</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Модалка добавления аккаунта */}
+      <Dialog open={accountModalOpen} onOpenChange={setAccountModalOpen}>
+        <DialogContent className="max-w-2xl bg-[#14151A] border-[#2A2B32] text-white">
+          <DialogHeader>
+            <DialogTitle>Добавить аккаунты</DialogTitle>
+          </DialogHeader>
+
+          <Tabs value={modalTab} onValueChange={setModalTab} className="mt-4">
+            <TabsList className="bg-[#1E1F26] border-[#2A2B32] w-full">
+              <TabsTrigger value="import" className="data-[state=active]:bg-[#6C63FF] flex-1">Импорт из файла</TabsTrigger>
+              <TabsTrigger value="manual" className="data-[state=active]:bg-[#6C63FF] flex-1">Ручное добавление</TabsTrigger>
+              <TabsTrigger value="auto" className="data-[state=active]:bg-[#6C63FF] flex-1">Авто-регистрация</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="import" className="mt-4">
+              <div className="border-2 border-dashed border-[#2A2B32] rounded-lg p-8 text-center hover:border-[#6C63FF] transition-colors cursor-pointer">
+                <FileUp className="w-12 h-12 mx-auto text-[#8A8A8A] mb-4" />
+                <p className="text-white mb-2">Перетащите файл сюда или нажмите для выбора</p>
+                <p className="text-sm text-[#8A8A8A]">Поддерживаемые форматы: CSV, JSON</p>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="manual" className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Телефон</Label>
+                  <Input placeholder="+79001234567" className="bg-[#1E1F26] border-[#2A2B32]" />
+                </div>
+                <div className="space-y-2">
+                  <Label>API ID</Label>
+                  <Input placeholder="12345" className="bg-[#1E1F26] border-[#2A2B32]" />
+                </div>
+                <div className="space-y-2">
+                  <Label>API Hash</Label>
+                  <Input placeholder="abcdef123456..." className="bg-[#1E1F26] border-[#2A2B32]" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Session String</Label>
+                  <Input placeholder="session_string..." className="bg-[#1E1F26] border-[#2A2B32]" />
+                </div>
+              </div>
+              <Button className="w-full bg-[#6C63FF] hover:bg-[#6C63FF]/80">
+                Добавить
+              </Button>
+            </TabsContent>
+
+            <TabsContent value="auto" className="mt-4">
+              <div className="text-center py-8">
+                <Bot className="w-12 h-12 mx-auto text-[#6C63FF] mb-4" />
+                <p className="text-white mb-2">Автоматическая регистрация через сервис</p>
+                <p className="text-sm text-[#8A8A8A] mb-4">Интеграция с SMS-сервисами для массовой регистрации</p>
+                <Button variant="outline" className="border-[#6C63FF] text-[#6C63FF]">
+                  Настроить сервис
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-// Компонент Monetization View
-function MonetizationView() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Монетизация</h1>
-          <p className="text-[#8A8A8A]">Управление доходами и офферами</p>
-        </div>
-      </div>
+// ==================== КОМПОНЕНТ АНАЛИТИКИ ====================
 
-      <OffersManager />
-    </div>
-  );
-}
-
-// Компонент Infrastructure View
-function InfrastructureView() {
-  const [activeTab, setActiveTab] = useState('accounts');
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Инфраструктура</h1>
-          <p className="text-[#8A8A8A]">Управление аккаунтами, SIM-картами и прокси</p>
-        </div>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-[#1E1F26] border-[#2A2B32]">
-          <TabsTrigger value="accounts" className="data-[state=active]:bg-[#6C63FF]">
-            <Users className="w-4 h-4 mr-2" />
-            Аккаунты
-          </TabsTrigger>
-          <TabsTrigger value="sim-cards" className="data-[state=active]:bg-[#6C63FF]">
-            <Smartphone className="w-4 h-4 mr-2" />
-            SIM-карты
-          </TabsTrigger>
-          <TabsTrigger value="proxies" className="data-[state=active]:bg-[#6C63FF]">
-            <Globe className="w-4 h-4 mr-2" />
-            Прокси
-          </TabsTrigger>
-          <TabsTrigger value="warming" className="data-[state=active]:bg-[#6C63FF]">
-            <Flame className="w-4 h-4 mr-2" />
-            Прогрев
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="accounts" className="mt-6">
-          <AccountsPanel />
-        </TabsContent>
-
-        <TabsContent value="sim-cards" className="mt-6">
-          <SimCardsPanel />
-        </TabsContent>
-
-        <TabsContent value="proxies" className="mt-6">
-          <ProxyPanel />
-        </TabsContent>
-
-        <TabsContent value="warming" className="mt-6">
-          <WarmingDashboard />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-
-// Компонент Analytics View
 function AnalyticsView() {
-  const [activeTab, setActiveTab] = useState('risk');
+  const { analyticsPeriod, setAnalyticsPeriod, analyticsChartType, setAnalyticsChartType, topChannels, setTopChannels, topComments, setTopComments } = useAppStore();
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Моковые данные
+    setTopChannels([
+      { id: '1', name: '@crypto_signals', comments: 234, clicks: 1567, conversion: 12.5, revenue: 45600 },
+      { id: '2', name: '@trading_pro', comments: 189, clicks: 1234, conversion: 10.2, revenue: 38900 },
+      { id: '3', name: '@casino_vip', comments: 156, clicks: 987, conversion: 8.9, revenue: 28700 },
+      { id: '4', name: '@dating_tips', comments: 145, clicks: 876, conversion: 7.8, revenue: 23400 },
+      { id: '5', name: '@nutra_health', comments: 123, clicks: 765, conversion: 6.5, revenue: 19800 },
+    ]);
+
+    setTopComments([
+      { id: '1', text: 'Отличный сигнал! Заработал +15% за неделю 🚀', ctr: 8.5, conversion: 4.2 },
+      { id: '2', text: 'Пользуюсь уже месяц, результаты поражают', ctr: 7.8, conversion: 3.9 },
+      { id: '3', text: 'Рекомендую всем, кто хочет заработать на крипте', ctr: 6.9, conversion: 3.5 },
+    ]);
+  }, [setTopChannels, setTopComments]);
+
+  const chartData = useMemo(() => {
+    const data = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      data.push({
+        date: date.toLocaleDateString('ru-RU', { weekday: 'short' }),
+        revenue: Math.floor(Math.random() * 2000) + 500,
+        comments: Math.floor(Math.random() * 100) + 30,
+        bans: Math.floor(Math.random() * 5),
+        conversions: Math.floor(Math.random() * 20) + 5,
+      });
+    }
+    return data;
+  }, [analyticsPeriod]);
 
   return (
     <div className="space-y-6">
+      {/* Заголовок */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Аналитика</h1>
-          <p className="text-[#8A8A8A]">Детальная статистика и прогнозы</p>
+          <p className="text-[#8A8A8A]">Детальная статистика и отчёты</p>
         </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="border-[#2A2B32] text-[#8A8A8A]">
+            <Download className="w-4 h-4 mr-2" />
+            Экспорт CSV
+          </Button>
+          <Button variant="outline" className="border-[#6C63FF] text-[#6C63FF]">
+            <FileUp className="w-4 h-4 mr-2" />
+            PDF-отчёт
+          </Button>
+        </div>
+      </div>
+
+      {/* Фильтры */}
+      <Card className="bg-[#14151A] border-[#2A2B32]">
+        <CardContent className="flex flex-wrap gap-4 py-4">
+          <div className="flex items-center gap-2">
+            <Label className="text-[#8A8A8A]">Период:</Label>
+            <div className="flex gap-1">
+              {[
+                { value: 'today', label: 'Сегодня' },
+                { value: 'week', label: 'Неделя' },
+                { value: 'month', label: 'Месяц' },
+              ].map((p) => (
+                <Button
+                  key={p.value}
+                  variant={analyticsPeriod === p.value ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setAnalyticsPeriod(p.value as any)}
+                  className={analyticsPeriod === p.value ? 'bg-[#6C63FF]' : 'border-[#2A2B32] text-[#8A8A8A]'}
+                >
+                  {p.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Label className="text-[#8A8A8A]">Тип графика:</Label>
+            <Select value={analyticsChartType} onValueChange={(v) => setAnalyticsChartType(v as any)}>
+              <SelectTrigger className="w-40 bg-[#1E1F26] border-[#2A2B32]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-[#14151A] border-[#2A2B32]">
+                <SelectItem value="revenue">Доход</SelectItem>
+                <SelectItem value="comments">Комментарии</SelectItem>
+                <SelectItem value="conversion">Конверсия</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Графики */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* График дохода */}
+        <Card className="bg-[#14151A] border-[#2A2B32]">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-[#6C63FF]" />
+              Доход по дням
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2A2B32" />
+                  <XAxis dataKey="date" stroke="#8A8A8A" />
+                  <YAxis stroke="#8A8A8A" />
+                  <RechartsTooltip contentStyle={{ backgroundColor: '#14151A', border: '1px solid #2A2B32', borderRadius: '8px' }} />
+                  <Legend />
+                  <Line type="monotone" dataKey="revenue" stroke="#6C63FF" strokeWidth={2} dot={{ fill: '#6C63FF' }} name="Доход (₽)" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Комментарии vs Баны */}
+        <Card className="bg-[#14151A] border-[#2A2B32]">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-[#FFB800]" />
+              Комментарии vs Баны
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2A2B32" />
+                  <XAxis dataKey="date" stroke="#8A8A8A" />
+                  <YAxis stroke="#8A8A8A" />
+                  <RechartsTooltip contentStyle={{ backgroundColor: '#14151A', border: '1px solid #2A2B32', borderRadius: '8px' }} />
+                  <Legend />
+                  <Bar dataKey="comments" fill="#00D26A" name="Комментарии" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="bans" fill="#FF4D4D" name="Баны" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Топ каналы */}
+      <Card className="bg-[#14151A] border-[#2A2B32]">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Target className="w-5 h-5 text-[#00D26A]" />
+            Топ-10 каналов по доходу
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent border-[#2A2B32]">
+                <TableHead className="text-[#8A8A8A]">#</TableHead>
+                <TableHead className="text-[#8A8A8A]">Канал</TableHead>
+                <TableHead className="text-[#8A8A8A]">Комментариев</TableHead>
+                <TableHead className="text-[#8A8A8A]">Переходов</TableHead>
+                <TableHead className="text-[#8A8A8A]">Конверсия</TableHead>
+                <TableHead className="text-[#8A8A8A]">Доход</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {topChannels.map((channel, index) => (
+                <TableRow key={channel.id} className="hover:bg-[#1E1F26] border-[#2A2B32]">
+                  <TableCell className="text-white">{index + 1}</TableCell>
+                  <TableCell className="text-white font-medium">{channel.name}</TableCell>
+                  <TableCell className="text-white">{channel.comments}</TableCell>
+                  <TableCell className="text-white">{channel.clicks}</TableCell>
+                  <TableCell>
+                    <span className="text-[#00D26A]">{channel.conversion}%</span>
+                  </TableCell>
+                  <TableCell className="text-[#00D26A] font-medium">{channel.revenue.toLocaleString()} ₽</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Лучшие комментарии */}
+      <Card className="bg-[#14151A] border-[#2A2B32]">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-[#6C63FF]" />
+            Лучшие комментарии
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent border-[#2A2B32]">
+                <TableHead className="text-[#8A8A8A]">Текст</TableHead>
+                <TableHead className="text-[#8A8A8A]">CTR</TableHead>
+                <TableHead className="text-[#8A8A8A]">Конверсия</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {topComments.map((comment) => (
+                <TableRow key={comment.id} className="hover:bg-[#1E1F26] border-[#2A2B32]">
+                  <TableCell className="text-white max-w-md truncate">{comment.text}</TableCell>
+                  <TableCell>
+                    <span className="text-[#FFB800]">{comment.ctr}%</span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-[#00D26A]">{comment.conversion}%</span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ==================== КОМПОНЕНТ НАСТРОЕК ====================
+
+function SettingsView() {
+  const { settings, updateSettings } = useAppStore();
+  const [activeTab, setActiveTab] = useState('api');
+  const [testingDeepseek, setTestingDeepseek] = useState(false);
+  const [testingTelegram, setTestingTelegram] = useState(false);
+
+  const handleTestDeepseek = async () => {
+    setTestingDeepseek(true);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    toast.success('DeepSeek API ключ валиден');
+    setTestingDeepseek(false);
+  };
+
+  const handleTestTelegram = async () => {
+    setTestingTelegram(true);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    toast.success('Telegram API валиден');
+    setTestingTelegram(false);
+  };
+
+  const handleSave = () => {
+    toast.success('Настройки сохранены');
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Заголовок */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Настройки</h1>
+          <p className="text-[#8A8A8A]">Конфигурация системы</p>
+        </div>
+        <Button onClick={handleSave} className="bg-[#00D26A] hover:bg-[#00D26A]/80">
+          Сохранить
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-[#1E1F26] border-[#2A2B32]">
+          <TabsTrigger value="api" className="data-[state=active]:bg-[#6C63FF]">
+            <Key className="w-4 h-4 mr-2" />
+            API ключи
+          </TabsTrigger>
+          <TabsTrigger value="global" className="data-[state=active]:bg-[#6C63FF]">
+            <Settings className="w-4 h-4 mr-2" />
+            Глобальные
+          </TabsTrigger>
           <TabsTrigger value="risk" className="data-[state=active]:bg-[#6C63FF]">
             <Shield className="w-4 h-4 mr-2" />
-            Риск банов
-          </TabsTrigger>
-          <TabsTrigger value="shadowban" className="data-[state=active]:bg-[#6C63FF]">
-            <Eye className="w-4 h-4 mr-2" />
-            Shadow Ban
-          </TabsTrigger>
-          <TabsTrigger value="performance" className="data-[state=active]:bg-[#6C63FF]">
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Эффективность
+            Риск-ассистент
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="risk" className="mt-6">
-          <BanRiskAnalytics />
-        </TabsContent>
-
-        <TabsContent value="shadowban" className="mt-6">
-          <ShadowBanChecker />
-        </TabsContent>
-
-        <TabsContent value="performance" className="mt-6">
+        {/* API ключи */}
+        <TabsContent value="api" className="space-y-6 mt-6">
           <Card className="bg-[#14151A] border-[#2A2B32]">
             <CardHeader>
-              <CardTitle className="text-white">Эффективность кампаний</CardTitle>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-[#6C63FF]" />
+                DeepSeek API
+              </CardTitle>
+              <CardDescription className="text-[#8A8A8A]">
+                Ключ для генерации комментариев и контента
+              </CardDescription>
             </CardHeader>
-            <CardContent className="text-center py-12">
-              <BarChart3 className="w-16 h-16 mx-auto text-[#8A8A8A] opacity-50 mb-4" />
-              <p className="text-[#8A8A8A]">Выберите кампанию для анализа</p>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  value={settings.deepseekApiKey}
+                  onChange={(e) => updateSettings({ deepseekApiKey: e.target.value })}
+                  placeholder="sk-..."
+                  className="bg-[#1E1F26] border-[#2A2B32]"
+                />
+                <Button 
+                  variant="outline" 
+                  onClick={handleTestDeepseek}
+                  disabled={testingDeepseek || !settings.deepseekApiKey}
+                  className="border-[#6C63FF] text-[#6C63FF]"
+                >
+                  {testingDeepseek ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Тест'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-[#14151A] border-[#2A2B32]">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Globe className="w-5 h-5 text-[#0088cc]" />
+                Telegram API
+              </CardTitle>
+              <CardDescription className="text-[#8A8A8A]">
+                Учётные данные для работы с Telegram
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>API ID</Label>
+                  <Input
+                    value={settings.telegramApiId}
+                    onChange={(e) => updateSettings({ telegramApiId: e.target.value })}
+                    placeholder="12345"
+                    className="bg-[#1E1F26] border-[#2A2B32]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>API Hash</Label>
+                  <Input
+                    type="password"
+                    value={settings.telegramApiHash}
+                    onChange={(e) => updateSettings({ telegramApiHash: e.target.value })}
+                    placeholder="abcdef..."
+                    className="bg-[#1E1F26] border-[#2A2B32]"
+                  />
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                onClick={handleTestTelegram}
+                disabled={testingTelegram || !settings.telegramApiId || !settings.telegramApiHash}
+                className="border-[#0088cc] text-[#0088cc]"
+              >
+                {testingTelegram ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Тест подключения
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-[#14151A] border-[#2A2B32]">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Globe className="w-5 h-5 text-[#FFB800]" />
+                Прокси-сервис
+              </CardTitle>
+              <CardDescription className="text-[#8A8A8A]">
+                Интеграция с прокси-провайдером (опционально)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Input
+                value={settings.proxyServiceUrl || ''}
+                onChange={(e) => updateSettings({ proxyServiceUrl: e.target.value })}
+                placeholder="https://proxy-service.com/api"
+                className="bg-[#1E1F26] border-[#2A2B32]"
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Глобальные настройки */}
+        <TabsContent value="global" className="space-y-6 mt-6">
+          <Card className="bg-[#14151A] border-[#2A2B32]">
+            <CardHeader>
+              <CardTitle className="text-white">Лимиты по умолчанию</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Макс. комментариев на аккаунт/день</Label>
+                <Input
+                  type="number"
+                  value={settings.maxCommentsPerAccount}
+                  onChange={(e) => updateSettings({ maxCommentsPerAccount: parseInt(e.target.value) })}
+                  className="bg-[#1E1F26] border-[#2A2B32] w-40"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Задержка между комментариями (сек)</Label>
+                <div className="flex items-center gap-4">
+                  <Input
+                    type="number"
+                    value={settings.delayMin}
+                    onChange={(e) => updateSettings({ delayMin: parseInt(e.target.value) })}
+                    className="bg-[#1E1F26] border-[#2A2B32] w-24"
+                  />
+                  <span className="text-[#8A8A8A]">—</span>
+                  <Input
+                    type="number"
+                    value={settings.delayMax}
+                    onChange={(e) => updateSettings({ delayMax: parseInt(e.target.value) })}
+                    className="bg-[#1E1F26] border-[#2A2B32] w-24"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="delayRandom"
+                      checked={settings.delayRandom}
+                      onCheckedChange={(v) => updateSettings({ delayRandom: !!v })}
+                    />
+                    <Label htmlFor="delayRandom" className="text-[#8A8A8A]">Рандом</Label>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-[#14151A] border-[#2A2B32]">
+            <CardHeader>
+              <CardTitle className="text-white">Автоматизация</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Авто-пауза при превышении CPA</Label>
+                  <p className="text-sm text-[#8A8A8A]">Приостановить кампанию при высоком CPA</p>
+                </div>
+                <Switch
+                  checked={settings.autoPauseOnCpa}
+                  onCheckedChange={(v) => updateSettings({ autoPauseOnCpa: v })}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-[#14151A] border-[#2A2B32]">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Bell className="w-5 h-5 text-[#6C63FF]" />
+                Уведомления в Telegram
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label>Chat ID для уведомлений</Label>
+                <Input
+                  value={settings.telegramChatId || ''}
+                  onChange={(e) => updateSettings({ telegramChatId: e.target.value })}
+                  placeholder="-1001234567890"
+                  className="bg-[#1E1F26] border-[#2A2B32]"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Риск-ассистент */}
+        <TabsContent value="risk" className="space-y-6 mt-6">
+          <Card className="bg-[#14151A] border-[#2A2B32]">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Shield className="w-5 h-5 text-[#FFB800]" />
+                Риск-ассистент
+              </CardTitle>
+              <CardDescription className="text-[#8A8A8A]">
+                Предупреждения и юридическая защита
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Включить предупреждения</Label>
+                  <p className="text-sm text-[#8A8A8A]">Показывать предупреждения о рисках</p>
+                </div>
+                <Switch
+                  checked={settings.riskAssistantEnabled}
+                  onCheckedChange={(v) => updateSettings({ riskAssistantEnabled: v })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Порог для красного предупреждения</Label>
+                <Select 
+                  value={settings.riskThreshold} 
+                  onValueChange={(v) => updateSettings({ riskThreshold: v as any })}
+                >
+                  <SelectTrigger className="bg-[#1E1F26] border-[#2A2B32] w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#14151A] border-[#2A2B32]">
+                    <SelectItem value="low">Низкий</SelectItem>
+                    <SelectItem value="medium">Средний</SelectItem>
+                    <SelectItem value="high">Высокий</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Авто-генерация дисклеймеров</Label>
+                  <p className="text-sm text-[#8A8A8A]">Автоматически добавлять дисклеймеры</p>
+                </div>
+                <Switch
+                  checked={settings.autoGenerateDisclaimers}
+                  onCheckedChange={(v) => updateSettings({ autoGenerateDisclaimers: v })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Логировать все предупреждения</Label>
+                  <p className="text-sm text-[#8A8A8A]">Сохранять историю предупреждений</p>
+                </div>
+                <Switch
+                  checked={settings.logWarnings}
+                  onCheckedChange={(v) => updateSettings({ logWarnings: v })}
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
-  );
-}
-
-// Компонент Calendar View
-function CalendarView() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Календарь публикаций</h1>
-          <p className="text-[#8A8A8A]">Планирование и управление контентом</p>
-        </div>
-      </div>
-      <ContentCalendar />
-    </div>
-  );
-}
-
-// Компонент Warming View
-function WarmingView() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Прогрев аккаунтов</h1>
-          <p className="text-[#8A8A8A]">Автоматический прогрев для безопасного старта</p>
-        </div>
-      </div>
-      <WarmingDashboard />
-    </div>
-  );
-}
-
-// Компонент Video Generator View
-function VideoGeneratorView() {
-  return (
-    <div className="space-y-6">
-      <VideoGeneratorPanel />
-    </div>
-  );
-}
-
-// Компонент Shadow Ban View
-function ShadowBanView() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Shadow Ban детектор</h1>
-          <p className="text-[#8A8A8A]">Проверка видимости аккаунтов</p>
-        </div>
-      </div>
-      <ShadowBanChecker />
     </div>
   );
 }
@@ -1054,36 +1856,14 @@ export default function MUKNTrafficApp() {
     switch (activeTab) {
       case 'dashboard':
         return <DashboardView />;
-      case 'influencers':
-        return <InfluencersView />;
-      case 'traffic':
-        return <TrafficMethods130Panel />;
-      case 'content':
-        return <ContentView />;
-      case 'calendar':
-        return <CalendarView />;
-      case 'monetization':
-        return <MonetizationView />;
-      case 'warming':
-        return <WarmingView />;
-      case 'video-generator':
-        return <VideoGeneratorView />;
-      case 'ai-comments':
-        return <AICommentsPanel />;
-      case 'ai-pool':
-        return <AIPoolDashboard />;
-      case 'advanced-ai':
-        return <AdvancedAIPanel />;
-      case 'ofm':
-        return <OFMPanel />;
-      case 'monetization':
-        return <MonetizationPanel />;
-      case 'infrastructure':
-        return <InfrastructureView />;
+      case 'campaigns':
+        return <CampaignsView />;
+      case 'accounts':
+        return <AccountsView />;
       case 'analytics':
         return <AnalyticsView />;
-      case 'shadowban':
-        return <ShadowBanView />;
+      case 'settings':
+        return <SettingsView />;
       default:
         return <DashboardView />;
     }
@@ -1091,21 +1871,17 @@ export default function MUKNTrafficApp() {
 
   return (
     <div className="flex h-screen bg-[#0A0B0E]">
-      <Sidebar
-        unreadNotifications={0}
-        onNotificationsClick={() => setNotificationsOpen(true)}
-      />
-      <main className="flex-1 overflow-auto">
-        <div className="p-6">
-          {renderContent()}
-        </div>
+      <Sidebar onNotificationsClick={() => setNotificationsOpen(true)} />
+
+      <main className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
+          <div className="p-6">
+            {renderContent()}
+          </div>
+        </ScrollArea>
       </main>
-      <CreateInfluencerDialog />
-      <SettingsDialog />
-      <NotificationsSheet
-        open={notificationsOpen}
-        onOpenChange={setNotificationsOpen}
-      />
+
+      <NotificationsSheet open={notificationsOpen} onOpenChange={setNotificationsOpen} />
     </div>
   );
 }

@@ -1,49 +1,25 @@
 'use client';
 
-import { useState } from 'react';
 import { useAppStore } from '@/store';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
   Users,
-  FileText,
-  DollarSign,
   Settings,
   BarChart3,
-  Smartphone,
-  Bell,
-  LogOut,
+  Rocket,
   Zap,
-  Calendar,
-  Flame,
-  Shield,
-  Video,
-  MessageSquare,
-  Sparkles,
-  Brain,
-  Heart,
-  Send
+  Bell,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
 const navItems = [
-  { id: 'dashboard', label: 'Дашборд', icon: LayoutDashboard },
-  { id: 'influencers', label: 'Инфлюенсеры', icon: Users },
-  { id: 'traffic', label: '130 Методов', icon: Send },
-  { id: 'ai-comments', label: 'AI-комментарии', icon: Sparkles },
-  { id: 'ai-pool', label: 'ИИ-пул', icon: Zap },
-  { id: 'advanced-ai', label: 'Advanced AI', icon: Brain },
-  { id: 'ofm', label: 'AI OFM', icon: Heart },
-  { id: 'content', label: 'Контент', icon: FileText },
-  { id: 'video-generator', label: 'Генератор видео', icon: Video },
-  { id: 'calendar', label: 'Календарь', icon: Calendar },
-  { id: 'monetization', label: 'Монетизация', icon: DollarSign },
-  { id: 'warming', label: 'Прогрев', icon: Flame },
-  { id: 'infrastructure', label: 'Инфраструктура', icon: Smartphone },
+  { id: 'dashboard', label: 'Главная', icon: LayoutDashboard },
+  { id: 'campaigns', label: 'Кампании', icon: Rocket },
+  { id: 'accounts', label: 'Аккаунты', icon: Users },
   { id: 'analytics', label: 'Аналитика', icon: BarChart3 },
-  { id: 'shadowban', label: 'Shadow Ban', icon: Shield },
+  { id: 'settings', label: 'Настройки', icon: Settings },
 ];
 
 interface SidebarProps {
@@ -52,7 +28,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ unreadNotifications = 0, onNotificationsClick }: SidebarProps) {
-  const { activeTab, setActiveTab, setSettingsOpen, notifications } = useAppStore();
+  const { activeTab, setActiveTab, notifications } = useAppStore();
   
   const actualUnreadCount = notifications.filter(n => !n.isRead).length || unreadNotifications;
 
@@ -74,7 +50,7 @@ export function Sidebar({ unreadNotifications = 0, onNotificationsClick }: Sideb
       <Separator className="bg-[#2A2B32]" />
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 px-3 py-4">
+      <div className="flex-1 px-3 py-4">
         <nav className="space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -96,20 +72,12 @@ export function Sidebar({ unreadNotifications = 0, onNotificationsClick }: Sideb
             );
           })}
         </nav>
-      </ScrollArea>
+      </div>
 
       <Separator className="bg-[#2A2B32]" />
 
       {/* Bottom section */}
       <div className="p-3 space-y-1">
-        <button
-          onClick={() => setSettingsOpen(true)}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[#8A8A8A] hover:bg-[#1E1F26] hover:text-white transition-all"
-        >
-          <Settings className="w-5 h-5" />
-          Настройки
-        </button>
-
         <button
           onClick={onNotificationsClick}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[#8A8A8A] hover:bg-[#1E1F26] hover:text-white transition-all relative"
@@ -122,16 +90,11 @@ export function Sidebar({ unreadNotifications = 0, onNotificationsClick }: Sideb
             </Badge>
           )}
         </button>
-
-        <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[#8A8A8A] hover:bg-[#1E1F26] hover:text-white transition-all">
-          <LogOut className="w-5 h-5" />
-          Выход
-        </button>
       </div>
 
       {/* Version */}
       <div className="p-4 text-center">
-        <p className="text-xs text-[#8A8A8A]">v1.0.0 Enterprise</p>
+        <p className="text-xs text-[#8A8A8A]">v2.0.0 Enterprise</p>
       </div>
     </div>
   );
