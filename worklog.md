@@ -79,3 +79,76 @@ Files Created:
 - /src/app/api/content/poll/route.ts
 - /src/app/api/ai/style-rating/route.ts
 - /src/app/api/audience/emotion/route.ts
+
+---
+Task ID: 3
+Agent: Main
+Task: Внедрение иерархической системы расширенных настроек
+
+Status: COMPLETED ✅
+
+## Работа выполнена:
+
+### 1. Prisma модели (добавлены в конец schema.prisma)
+- GlobalSettings - глобальные настройки (уровень 1)
+- PlatformSettings - настройки платформы (уровень 2)
+- CampaignSettings - настройки кампании (уровень 3)
+- PostSettings - настройки поста (уровень 4)
+- NotificationSettings - настройки уведомлений
+- SettingsPreset - шаблоны/пресеты
+- BlacklistSettings - чёрные списки
+- AutomationRule - IF-THEN правила автоматизации
+- PublishingSettings - настройки публикации
+- AnalyticsSettings - настройки аналитики
+- DevSettings - настройки разработчика
+- HotkeysSettings - горячие клавиши
+
+### 2. API Endpoints созданы:
+- `/api/settings/global` - CRUD для GlobalSettings
+- `/api/settings/platform` - CRUD для PlatformSettings
+- `/api/settings/campaign` - CRUD для CampaignSettings
+- `/api/settings/post` - CRUD для PostSettings
+- `/api/settings/notifications` - CRUD для NotificationSettings
+- `/api/settings/presets` - CRUD для SettingsPreset
+- `/api/settings/blacklist` - CRUD для BlacklistSettings
+- `/api/settings/automation` - CRUD для AutomationRule
+- `/api/settings/publishing` - CRUD для PublishingSettings
+- `/api/settings/analytics` - CRUD для AnalyticsSettings
+- `/api/settings/dev` - CRUD для DevSettings
+- `/api/settings/hotkeys` - CRUD для HotkeysSettings
+
+### 3. UI Компоненты созданы:
+- `/src/components/settings/global-settings-tab.tsx` - вкладка "Система"
+- `/src/components/settings/platform-settings-tab.tsx` - вкладка "Платформы"
+- `/src/components/settings/content-settings-tab.tsx` - вкладка "Контент"
+- `/src/components/settings/ai-agent-tab.tsx` - вкладка "AI-агент"
+- `/src/components/settings/features-tab.tsx` - вкладка "Фичи"
+- `/src/components/settings/analytics-settings-tab.tsx` - вкладка "Аналитика"
+- `/src/components/settings/dev-settings-tab.tsx` - вкладка "DevOps"
+- Обновлён `/src/components/settings/settings-dialog.tsx` - главный диалог настроек
+
+### 4. Функционал:
+- ✅ Иерархия настроек: Глобальные → Платформа → Кампания → Пост
+- ✅ Наследование настроек с возможностью переопределения
+- ✅ Поиск по настройкам (найти настройку за 2 секунды)
+- ✅ Пресеты: сохранение/загрузка шаблонов настроек
+- ✅ IF-THEN правила: визуальный редактор правил автоматизации
+- ✅ Экспорт/импорт настроек в JSON
+- ✅ Сброс настроек к значениям по умолчанию
+
+### 5. Вкладки настроек:
+1. **Система** - язык, AI провайдеры, производительность, автосохранение, безопасность, облако
+2. **Платформы** - Telegram, Instagram, TikTok, YouTube, Twitter
+3. **Контент** - текст, изображения, видео, A/B тестирование, расписание
+4. **AI-агент** - IF-THEN правила автоматизации
+5. **Фичи** - уведомления, чёрные списки
+6. **Аналитика** - сбор метрик, хранение, отчёты
+7. **DevOps** - режим отладки, логирование, тестовый режим, webhooks
+
+### Как протестировать:
+1. Открыть настройки (клик по иконке шестерёнки)
+2. Использовать поиск для быстрого доступа к настройкам
+3. Переключаться между вкладками для настройки разных аспектов
+4. Создать правило автоматизации во вкладке "AI-агент"
+5. Экспортировать настройки через кнопку "Экспорт"
+

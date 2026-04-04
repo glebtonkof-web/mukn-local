@@ -5537,3 +5537,279 @@ model GoogleSheetsImport {
   @@index([userId])
   @@index([importType])
 }
+
+// ==================== ИЕРАРХИЧЕСКАЯ СИСТЕМА НАСТРОЕК ====================
+
+// Глобальные настройки (уровень 1)
+model GlobalSettings {
+  id                    String   @id @default(cuid())
+  
+  // Язык
+  interfaceLanguage     String   @default("ru") // ru, en, uk
+  contentLanguage       String   @default("ru")
+  
+  // AI провайдеры
+  deepseekMode          String   @default("web_chat") // web_chat, api_free, api_paid
+  hunyuanMode           String   @default("web_chat") // web_chat, api
+  fallbackAI            String?  // chatgpt, claude, gemini
+  
+  // Производительность
+  maxThreads            Int      @default(4) // 1-16
+  priority              String   @default("balanced") // speed, quality, balanced
+  cachingEnabled        Boolean  @default(true)
+  
+  // Автосохранение
+  autosaveInterval      Int      @default(30) // 10-300 сек
+  maxDrafts             Int      @default(100) // 10-1000
+  
+  // Безопасность
+  encryptLocalDB        Boolean  @default(true)
+  startupPassword       String?  // Зашифрованный
+  deleteTempFiles       Boolean  @default(true)
+  clearBrowserCache     Boolean  @default(true)
+  logActions            Boolean  @default(true)
+  
+  // Облако
+  autoBackupGoogle      Boolean  @default(false)
+  syncBetweenPC         Boolean  @default(false)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  userId                String   @unique
+}
+
+// Настройки платформы (уровень 2)
+model PlatformSettings {
+  id                    String   @id @default(cuid())
+  platform              String   // telegram, instagram, tiktok, youtube, twitter
+  
+  // Унаследовано от GlobalSettings
+  inheritGlobal         Boolean  @default(true)
+  
+  // Специфичные настройки платформы (JSON)
+  apiConfig             String?  // JSON: {botToken, apiId, apiHash}
+  publishConfig         String?  // JSON: {mode, format, links, buttons}
+  storiesConfig         String?  // JSON: {duration, format, watermark}
+  postsConfig           String?  // JSON: {format, filters, hashtags}
+  reelsConfig           String?  // JSON: {duration, music, subtitles}
+  shortsConfig          String?  // JSON: {duration, quality, description}
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  userId                String
+  campaignId            String?  // Если для конкретной кампании
+  
+  @@unique([platform, userId, campaignId])
+}
+
+// Настройки кампании (уровень 3)
+model CampaignSettings {
+  id                    String   @id @default(cuid())
+  campaignId            String   @unique
+  
+  // Унаследовано
+  inheritPlatform       Boolean  @default(true)
+  
+  // Настройки контента (JSON)
+  textSettings          String?  // JSON: {tone, length, emojis, caps, uniqueness}
+  imageSettings         String?  // JSON: {size, resolution, style, colors, watermark}
+  videoSettings         String?  // JSON: {avatar, voice, emotion, subtitles, background}
+  
+  // Автоматизация
+  automationMode        String   @default("manual") // manual, semi, auto_safe, auto_aggressive, night
+  automationRules       String?  // JSON массив IF-THEN правил
+  
+  // A/B тестирование
+  abTestEnabled         Boolean  @default(false)
+  abTestVariants        Int      @default(2) // 2-10
+  abTestTraffic         Int      @default(20) // 10-50%
+  abTestDuration        Int      @default(24) // 1-24 часа
+  abTestMetric          String   @default("conversion") // ctr, conversion, likes, views
+  
+  // Расписание
+  scheduleDensity       Int      @default(3) // постов в день
+  scheduleActiveHours   String?  // JSON: {start: "09:00", end: "22:00"}
+  scheduleExcludeDays   String?  // JSON массив: ["saturday", "sunday"]
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Настройки поста (уровень 4)
+model PostSettings {
+  id                    String   @id @default(cuid())
+  postId                String   @unique
+  
+  // Унаследовано
+  inheritCampaign       Boolean  @default(true)
+  
+  // Переопределения (JSON)
+  textOverride          String?
+  imageOverride         String?
+  videoOverride         String?
+  scheduleOverride      String?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Уведомления
+model NotificationSettings {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  
+  // Типы событий (JSON)
+  contentCreated        String?  // JSON: {inApp, telegram, sound}
+  contentPublished      String?
+  generationError       String?
+  tokensExhausted       String?
+  newTrend              String?
+  achievement           String?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Шаблоны/пресеты
+model SettingsPreset {
+  id                    String   @id @default(cuid())
+  name                  String
+  type                  String   // platform, theme, custom
+  category              String?  // crypto, dating, casino
+  settings              String   // JSON с настройками
+  isDefault             Boolean  @default(false)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  userId                String
+}
+
+// Чёрные списки
+model BlacklistSettings {
+  id                    String   @id @default(cuid())
+  userId                String
+  
+  forbiddenWords        String?  // JSON массив
+  forbiddenChannels     String?  // JSON массив
+  forbiddenTopics       String?  // JSON массив
+  whitelistOnly         Boolean  @default(false)
+  whitelist             String?  // JSON массив
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// IF-THEN правила автоматизации
+model AutomationRule {
+  id                    String   @id @default(cuid())
+  name                  String
+  isActive              Boolean  @default(true)
+  
+  // Условие
+  conditionType         String   // time, metrics, event, quantity
+  conditionConfig       String   // JSON
+  
+  // Действие
+  actionType            String   // publish, delete, edit, switch_ai, notify, campaign
+  actionConfig          String   // JSON
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  userId                String
+  campaignId            String?
+}
+
+// Настройки публикации
+model PublishingSettings {
+  id                    String   @id @default(cuid())
+  userId                String
+  
+  // Очередь
+  maxQueueSize          Int      @default(1000) // 10-10000
+  queuePriority         String   @default("fifo") // fifo, urgency, virality
+  retryAttempts         Int      @default(3) // 0-10
+  postDelayMin          Int      @default(5) // 1-60 мин
+  
+  // Антидетект
+  actionDelayMin        Int      @default(1) // 1-10 сек
+  actionDelayMax        Int      @default(5)
+  mouseEmulation        Boolean  @default(true)
+  randomScroll          Boolean  @default(true)
+  userAgentRotation     String   @default("per_post") // per_post, per_hour, never
+  proxyPool             String?  // JSON массив
+  
+  // Постобработка
+  autoTrim              Boolean  @default(true)
+  autoWatermark         Boolean  @default(false)
+  imageQuality          Int      @default(85) // 10-100%
+  formatConversion      String   @default("auto") // auto, manual
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Настройки аналитики
+model AnalyticsSettings {
+  id                    String   @id @default(cuid())
+  userId                String
+  
+  // Сбор метрик
+  collectViews          Boolean  @default(true)
+  collectLikes          Boolean  @default(true)
+  collectComments       Boolean  @default(true)
+  collectShares         Boolean  @default(true)
+  collectClicks         Boolean  @default(true)
+  collectConversions    Boolean  @default(true)
+  collectGeo            Boolean  @default(false)
+  collectAge            Boolean  @default(false)
+  
+  // Хранение
+  retentionDays         Int      @default(365) // 30-3650
+  
+  // Отчёты
+  dailyReport           Boolean  @default(true)
+  weeklyReport          Boolean  @default(true)
+  monthlyReport         Boolean  @default(true)
+  reportFormat          String   @default("pdf") // pdf, csv, telegram
+  reportTime            String   @default("09:00")
+  
+  // Виджеты дашборда
+  dashboardWidgets      String?  // JSON массив
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Настройки разработчика
+model DevSettings {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  
+  debugMode             Boolean  @default(false)
+  logAIRequests         Boolean  @default(false)
+  emulateErrors         Boolean  @default(false)
+  testMode              Boolean  @default(false) // без реальной публикации
+  externalApiEndpoint   String?
+  contentWebhook        String?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Горячие клавиши
+model HotkeysSettings {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  
+  newCampaign           String   @default("ctrl+n")
+  save                  String   @default("ctrl+s")
+  publish               String   @default("ctrl+p")
+  undo                  String   @default("ctrl+z")
+  redo                  String   @default("ctrl+y")
+  search                String   @default("ctrl+f")
+  settings              String   @default("ctrl+,")
+  help                  String   @default("f1")
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
