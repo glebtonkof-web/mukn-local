@@ -5813,3 +5813,292 @@ model HotkeysSettings {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
+
+// ==================== DEEPSEEK FREE — БЕСПЛАТНЫЙ ДОСТУП ЧЕРЕЗ БРАУЗЕР ====================
+
+// Аккаунты DeepSeek для пула
+model DeepSeekAccount {
+  id                    String   @id @default(cuid())
+  
+  // Учётные данные
+  email                 String   @unique
+  password              String   // Зашифрованный
+  
+  // Статус
+  status                String   @default("active") // active, rate_limited, banned, cooldown
+  
+  // Лимиты и использование
+  hourlyLimit           Int      @default(30)
+  hourlyUsed            Int      @default(0)
+  dailyLimit            Int      @default(500)
+  dailyUsed             Int      @default(0)
+  
+  // Метрики
+  totalRequests         Int      @default(0)
+  successRequests       Int      @default(0)
+  failedRequests        Int      @default(0)
+  lastRequestAt         DateTime?
+  
+  // Ротация
+  priority              Int      @default(1) // 1-10, выше = чаще используется
+  cooldownUntil         DateTime?
+  bannedAt              DateTime?
+  banReason             String?
+  
+  // Сессия браузера
+  sessionData           String?  // JSON с cookies, localStorage
+  lastLoginAt           DateTime?
+  loginAttempts         Int      @default(0)
+  
+  // Прокси для этого аккаунта
+  proxyId               String?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  userId                String
+  
+  requestLogs           DeepSeekRequestLog[]
+  cache                 DeepSeekCache[]
+  
+  @@index([status])
+  @@index([priority])
+  @@index([hourlyUsed])
+  @@index([userId])
+}
+
+// Кэш ответов DeepSeek (L2 — SQLite)
+model DeepSeekCache {
+  id                    String   @id @default(cuid())
+  
+  // Ключ кэша
+  promptHash            String   @unique // Хеш промпта
+  promptPreview         String?  // Первые 100 символов
+  
+  // Ответ
+  response              String   // Текст ответа
+  
+  // Метаданные
+  accountId             String?  // Какой аккаунт дал ответ
+  modelUsed             String?  // deepseek-v4, deepseek-r1
+  responseTime          Int?     // мс
+  
+  // Статистика
+  hitCount              Int      @default(0)
+  lastHitAt             DateTime?
+  
+  // TTL
+  expiresAt             DateTime
+  
+  // Векторное представление для семантического поиска
+  embedding             String?  // JSON массив float[]
+  
+  createdAt             DateTime @default(now())
+  
+  account               DeepSeekAccount? @relation(fields: [accountId], references: [id])
+  
+  @@index([promptHash])
+  @@index([expiresAt])
+  @@index([hitCount])
+}
+
+// Очередь запросов к DeepSeek
+model DeepSeekRequestQueue {
+  id                    String   @id @default(cuid())
+  
+  // Запрос
+  prompt                String
+  promptHash            String
+  
+  // Контекст
+  contextType           String?  // comment, post, dm, analysis
+  contextData           String?  // JSON с дополнительными данными
+  
+  // Приоритет
+  priority              Int      @default(5) // 1-10
+  
+  // Статус
+  status                String   @default("pending") // pending, processing, completed, failed
+  accountId             String?  // Назначенный аккаунт
+  
+  // Результат
+  response              String?
+  error                 String?
+  
+  // Время
+  queuedAt              DateTime @default(now())
+  startedAt             DateTime?
+  completedAt           DateTime?
+  
+  // Retry
+  attempts              Int      @default(0)
+  maxAttempts           Int      @default(3)
+  
+  userId                String
+  
+  @@index([status])
+  @@index([priority])
+  @@index([queuedAt])
+  @@index([promptHash])
+}
+
+// Логи запросов
+model DeepSeekRequestLog {
+  id                    String   @id @default(cuid())
+  
+  accountId             String
+  
+  // Запрос
+  promptHash            String
+  promptPreview         String?
+  
+  // Результат
+  success               Boolean  @default(false)
+  responseTime          Int?     // мс
+  errorMessage          String?
+  
+  // Экономия
+  estimatedCost         Float    @default(0) // Сколько сэкономлено (в USD)
+  tokensIn              Int      @default(0)
+  tokensOut             Int      @default(0)
+  
+  createdAt             DateTime @default(now())
+  
+  account               DeepSeekAccount @relation(fields: [accountId], references: [id])
+  
+  @@index([accountId])
+  @@index([createdAt])
+  @@index([success])
+}
+
+// Настройки DeepSeek Free
+model DeepSeekFreeSettings {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  
+  // Режим работы
+  mode                  String   @default("web_chat") // web_chat, api_fallback
+  
+  // Пул аккаунтов
+  autoRegisterAccounts  Boolean  @default(false)
+  minActiveAccounts     Int      @default(1) // Минимум активных аккаунтов
+  maxActiveAccounts     Int      @default(10)
+  
+  // Rate Limiting
+  globalHourlyLimit     Int      @default(200) // Общий лимит в час
+  perAccountHourlyLimit Int      @default(25) // На аккаунт
+  smartQueueEnabled     Boolean  @default(true)
+  queueDelayMin         Int      @default(5) // сек
+  queueDelayMax         Int      @default(15)
+  
+  // Кэширование
+  cacheEnabled          Boolean  @default(true)
+  cacheTTLMins          Int      @default(60) // Время жизни кэша
+  semanticSearchEnabled Boolean  @default(false) // Семантический поиск в кэше
+  maxCacheSize          Int      @default(10000) // Макс записей
+  
+  // Браузер
+  headlessMode          Boolean  @default(true)
+  humanBehaviorEnabled  Boolean  @default(true)
+  typingSpeedMin        Int      @default(50) // мс на символ
+  typingSpeedMax        Int      @default(150)
+  
+  // Авто-восстановление
+  autoReconnectEnabled  Boolean  @default(true)
+  reconnectDelaySec     Int      @default(30)
+  maxReconnectAttempts  Int      @default(5)
+  sessionRefreshHours   Int      @default(12)
+  
+  // Уведомления
+  notifyOnLimit         Boolean  @default(true)
+  notifyOnBan           Boolean  @default(true)
+  notifyOnLowAccounts   Boolean  @default(true)
+  lowAccountsThreshold  Int      @default(2)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Метрики DeepSeek Free (почасовые)
+model DeepSeekMetrics {
+  id                    String   @id @default(cuid())
+  
+  hour                  DateTime // Почасовая агрегация
+  
+  // Запросы
+  totalRequests         Int      @default(0)
+  successRequests       Int      @default(0)
+  failedRequests        Int      @default(0)
+  avgResponseTime       Float    @default(0)
+  
+  // Кэш
+  cacheHits             Int      @default(0)
+  cacheMisses           Int      @default(0)
+  cacheHitRate          Float    @default(0)
+  
+  // Очередь
+  queueSize             Int      @default(0)
+  avgWaitTime           Float    @default(0)
+  
+  // Аккаунты
+  activeAccounts        Int      @default(0)
+  limitedAccounts       Int      @default(0)
+  bannedAccounts        Int      @default(0)
+  
+  // Экономия
+  estimatedSavings      Float    @default(0) // USD
+  
+  createdAt             DateTime @default(now())
+  
+  @@unique([hour])
+  @@index([hour])
+}
+
+// Временная почта для авто-регистрации
+model TempMail {
+  id                    String   @id @default(cuid())
+  
+  email                 String   @unique
+  provider              String   // temp-mail, guerrilla, 10minutemail
+  
+  // DeepSeek регистрация
+  deepseekRegistered    Boolean  @default(false)
+  verificationCode      String?
+  
+  // Время жизни
+  expiresAt             DateTime
+  
+  createdAt             DateTime @default(now())
+  
+  @@index([expiresAt])
+  @@index([deepseekRegistered])
+}
+
+// Прокси для DeepSeek
+model DeepSeekProxy {
+  id                    String   @id @default(cuid())
+  
+  // Прокси
+  type                  String   // socks5, http, https
+  host                  String
+  port                  Int
+  username              String?
+  password              String?  // Зашифрованный
+  
+  // Статус
+  isActive              Boolean  @default(true)
+  lastCheckAt           DateTime?
+  lastCheckStatus       String?  // success, failed
+  
+  // Использование
+  assignedAccounts      Int      @default(0)
+  
+  // Гео
+  country               String?
+  city                  String?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@unique([host, port])
+  @@index([isActive])
+}
