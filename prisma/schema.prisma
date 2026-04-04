@@ -36,6 +36,8 @@ model User {
   proxies           Proxy[]
   globalAppSettings GlobalAppSettings[]
   aiDialogs         AIDialog[]
+  userAchievements  UserAchievement[]
+  gamification      UserGamification?
 }
 
 // ==================== AI-ИНФЛЮЕНСЕРЫ ====================
@@ -112,6 +114,13 @@ model Influencer {
   campaigns       CampaignInfluencer[]
   analytics       InfluencerAnalytics[]
   contentQueue    ContentQueue[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([niche])
+  @@index([accountId])
+  @@index([simCardId])
+  @@index([createdAt])
 }
 
 // ==================== АККАУНТЫ (ПЛАТФОРМЫ) ====================
@@ -181,6 +190,12 @@ model Account {
   riskHistory     AccountRiskHistory[]
   antidetectBrowsers AntidetectBrowser[]
   ofmProfiles     OFMProfile[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([platform])
+  @@index([simCardId])
+  @@index([lastUsedAt])
 }
 
 // ==================== SIM-КАРТЫ ====================
@@ -251,6 +266,12 @@ model Campaign {
   offers          CampaignOffer[]
   posts           Post[]
   analytics       CampaignAnalytics[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([niche])
+  @@index([geo])
+  @@index([createdAt])
 }
 
 model CampaignInfluencer {
@@ -351,6 +372,12 @@ model Post {
   campaign        Campaign? @relation(fields: [campaignId], references: [id])
   campaignId      String?
   comments        Comment[]
+  
+  @@index([influencerId])
+  @@index([campaignId])
+  @@index([status])
+  @@index([platform])
+  @@index([createdAt])
 }
 
 model Comment {
@@ -377,6 +404,11 @@ model Comment {
   influencerId    String
   post            Post?     @relation(fields: [postId], references: [id])
   postId          String?
+  
+  @@index([influencerId])
+  @@index([postId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model DirectMessage {
@@ -433,6 +465,11 @@ model ContentQueue {
   influencerId    String
   offer           Offer?    @relation(fields: [offerId], references: [id])
   offerId         String?
+  
+  @@index([influencerId])
+  @@index([offerId])
+  @@index([status])
+  @@index([scheduledAt])
 }
 
 // ==================== АНАЛИТИКА ====================
@@ -628,6 +665,10 @@ model Notification {
   
   user            User     @relation(fields: [userId], references: [id])
   userId          String
+  
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
 }
 
 // ==================== ПРОДВИНУТЫЕ ФУНКЦИИ ====================
@@ -770,6 +811,9 @@ model AIProviderSettings {
   quotaLogs       AIQuotaLog[]
   
   @@unique([provider, userId])
+  @@index([userId])
+  @@index([provider])
+  @@index([isActive])
 }
 
 // Логи использования квот API
@@ -4076,4 +4120,124 @@ model AIPromptCache {
   
   @@index([cacheKey])
   @@index([lastUsedAt])
+}
+// ==================== СИСТЕМА ДОСТИЖЕНИЙ (GAMIFICATION) ====================
+
+// Достижения
+model Achievement {
+  id              String   @id @default(cuid())
+  
+  // Идентификатор достижения
+  code            String   @unique // first_campaign, comments_100, first_lead, etc.
+  
+  // Название
+  name            String
+  
+  // Описание
+  description     String
+  
+  // Иконка (emoji)
+  icon            String
+  
+  // Категория
+  category        String   // progress, social, revenue, quality, special
+  
+  // Баллы за достижение
+  points          Int      @default(10)
+  
+  // Уровень сложности (1-5)
+  difficulty      Int      @default(1)
+  
+  // Условие получения (JSON)
+  condition       String   // {type: "campaigns_count", value: 1}
+  
+  // Скрытое достижение
+  isHidden        Boolean  @default(false)
+  
+  // Порядок сортировки
+  sortOrder       Int      @default(0)
+  
+  // Статус
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  userAchievements UserAchievement[]
+  
+  @@index([code])
+  @@index([category])
+  @@index([isActive])
+}
+
+// Достижения пользователей
+model UserAchievement {
+  id              String   @id @default(cuid())
+  
+  // Пользователь
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+  
+  // Достижение
+  achievementId   String
+  achievement     Achievement @relation(fields: [achievementId], references: [id])
+  
+  // Дата получения
+  unlockedAt      DateTime @default(now())
+  
+  // Прогресс (для многошаговых достижений)
+  progress        Int      @default(100)
+  
+  // Метаданные (JSON)
+  metadata        String?
+  
+  // Показано уведомление
+  notified        Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@index([unlockedAt])
+}
+
+// Профиль геймификации пользователя
+model UserGamification {
+  id              String   @id @default(cuid())
+  
+  // Пользователь
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String   @unique
+  
+  // Общий уровень
+  level           Int      @default(1)
+  
+  // Общие баллы
+  totalPoints     Int      @default(0)
+  
+  // Баллы текущего уровня
+  currentLevelPoints Int   @default(0)
+  
+  // Количество достижений
+  achievementsCount Int    @default(0)
+  
+  // Ранг
+  rank            String   @default("Новичок")
+  
+  // Статистика
+  campaignsCount  Int      @default(0)
+  commentsCount   Int      @default(0)
+  leadsCount      Int      @default(0)
+  revenue         Float    @default(0)
+  influencersCount Int     @default(0)
+  daysWithoutBan  Int      @default(0)
+  
+  // Последняя активность
+  lastActivityAt  DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([totalPoints])
 }

@@ -30,12 +30,15 @@ import {
   ChevronRight,
   Terminal,
   Keyboard,
+  Heart,
+  Menu,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { ThemeSwitcherIcon } from '@/components/ui/theme-switcher';
 
 const navSections = [
   {
@@ -97,9 +100,10 @@ const navSections = [
 interface SidebarProps {
   unreadNotifications?: number;
   onNotificationsClick?: () => void;
+  onMobileMenuClick?: () => void;
 }
 
-export function Sidebar({ unreadNotifications = 0, onNotificationsClick }: SidebarProps) {
+export function Sidebar({ unreadNotifications = 0, onNotificationsClick, onMobileMenuClick }: SidebarProps) {
   const { activeTab, setActiveTab, notifications } = useAppStore();
   const { uiMode, terminalMode, setTerminalMode } = useModeStore();
   const [collapsedSections, setCollapsedSections] = useState<string[]>([]);
@@ -116,7 +120,7 @@ export function Sidebar({ unreadNotifications = 0, onNotificationsClick }: Sideb
   };
 
   return (
-    <div className="flex flex-col h-full w-64 bg-[#14151A] border-r border-[#2A2B32]">
+    <div className="flex flex-col h-full w-64 bg-[#14151A] border-r border-[#2A2B32] hidden md:flex">
       {/* Logo */}
       <div className="p-4">
         <div className="flex items-center gap-3">
@@ -183,6 +187,14 @@ export function Sidebar({ unreadNotifications = 0, onNotificationsClick }: Sideb
 
       <Separator className="bg-[#2A2B32]" />
 
+      {/* Theme Switcher */}
+      <div className="p-2 flex items-center justify-between px-3">
+        <span className="text-xs text-[#8A8A8A]">Тема</span>
+        <ThemeSwitcherIcon />
+      </div>
+
+      <Separator className="bg-[#2A2B32]" />
+
       {/* Expert Mode Tools */}
       {isExpert && (
         <div className="p-2 border-t border-[#2A2B32]">
@@ -201,7 +213,7 @@ export function Sidebar({ unreadNotifications = 0, onNotificationsClick }: Sideb
             <Badge className="ml-auto bg-[#FFB800]/20 text-[#FFB800] text-xs">Ctrl+`</Badge>
           </button>
           <button
-            onClick={() => toast.info('Горячие клавиши: N, P, R, /, Ctrl+K, Esc')}
+            onClick={() => toast.info('Горячие клавиши: N, P, R, /, Ctrl+K, Esc, Ctrl+T')}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[#8A8A8A] hover:bg-[#1E1F26] hover:text-white transition-all"
           >
             <Keyboard className="w-4 h-4" />
@@ -233,6 +245,68 @@ export function Sidebar({ unreadNotifications = 0, onNotificationsClick }: Sideb
       <div className="p-3 text-center border-t border-[#2A2B32]">
         <p className="text-xs text-[#8A8A8A]">v2.1.0 Enterprise</p>
         <p className="text-xs text-[#6C63FF]">130 методов трафика</p>
+      </div>
+    </div>
+  );
+}
+
+// Mobile Header Component
+export function MobileHeader({ 
+  unreadNotifications = 0, 
+  onNotificationsClick,
+  onMenuClick 
+}: { 
+  unreadNotifications?: number;
+  onNotificationsClick?: () => void;
+  onMenuClick?: () => void;
+}) {
+  const { activeTab, notifications } = useAppStore();
+  const actualUnreadCount = notifications.filter(n => !n.isRead).length || unreadNotifications;
+
+  // Get current tab name
+  const getCurrentTabName = () => {
+    for (const section of navSections) {
+      const item = section.items.find(i => i.id === activeTab);
+      if (item) return item.label;
+    }
+    return 'МУКН';
+  };
+
+  return (
+    <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-[#14151A] border-b border-[#2A2B32] z-50 flex items-center justify-between px-4">
+      <div className="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onMenuClick}
+          className="h-11 w-11 touch-manipulation"
+          aria-label="Открыть меню"
+        >
+          <Menu className="w-6 h-6 text-white" />
+        </Button>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#6C63FF] to-[#00D26A] flex items-center justify-center">
+            <Zap className="w-4 h-4 text-white" />
+          </div>
+          <h1 className="text-base font-bold text-white">{getCurrentTabName()}</h1>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <ThemeSwitcherIcon />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onNotificationsClick}
+          className="h-11 w-11 touch-manipulation relative"
+          aria-label="Уведомления"
+        >
+          <Bell className="w-5 h-5 text-[#8A8A8A]" />
+          {actualUnreadCount > 0 && (
+            <Badge className="absolute top-1 right-1 bg-[#FF4D4D] text-white text-xs w-5 h-5 flex items-center justify-center p-0">
+              {actualUnreadCount}
+            </Badge>
+          )}
+        </Button>
       </div>
     </div>
   );

@@ -22,8 +22,9 @@ import { ModeSwitcher } from '@/components/mode-switcher/index';
 import { OnboardingTour } from '@/components/onboarding/onboarding-tour';
 import { BeginnerHints } from '@/components/onboarding/beginner-hints';
 import { TerminalMode } from '@/components/terminal/terminal-mode';
-import { useHotkeys, HotkeysHelp } from '@/components/hotkeys/use-hotkeys';
+import { useHotkeys, HotkeysHelp, HotkeysHelpDialog } from '@/components/hotkeys/use-hotkeys';
 import { useModeStore } from '@/store/mode-store';
+import { MobileMenu, MobileHeader } from '@/components/ui/mobile-menu';
 import { NotificationsSheet } from '@/components/notifications/notifications-sheet';
 import { AIProvidersSettings } from '@/components/settings/ai-providers-settings';
 import { Button } from '@/components/ui/button';
@@ -1372,7 +1373,7 @@ export default function MUKNTrafficApp() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   // Hotkeys
-  useHotkeys();
+  const { helpDialogOpen, setHelpDialogOpen } = useHotkeys();
 
   // Apply theme class to body
   useEffect(() => {
@@ -1433,11 +1434,20 @@ export default function MUKNTrafficApp() {
 
   return (
     <div className="flex h-screen bg-[#0A0B0E]">
+      {/* Mobile Menu (Sheet-based drawer) */}
+      <MobileMenu onNotificationsClick={() => setNotificationsOpen(true)} />
+      
+      {/* Desktop Sidebar */}
       <Sidebar onNotificationsClick={() => setNotificationsOpen(true)} />
 
       <main className="flex-1 overflow-hidden" style={mainStyle}>
-        {/* Header with Mode Switcher */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-[#2A2B32] bg-[#14151A]">
+        {/* Mobile Header */}
+        <MobileHeader 
+          onNotificationsClick={() => setNotificationsOpen(true)}
+        />
+        
+        {/* Desktop Header with Mode Switcher */}
+        <div className="hidden md:flex items-center justify-between px-4 py-2 border-b border-[#2A2B32] bg-[#14151A]">
           <div className="flex items-center gap-2">
             <Badge className={cn(
               'text-xs',
@@ -1450,7 +1460,7 @@ export default function MUKNTrafficApp() {
         </div>
 
         <ScrollArea className="h-full" style={{ height: 'calc(100vh - 49px)' }}>
-          <div className="p-6">
+          <div className="p-4 md:p-6 pt-16 md:pt-6">
             {renderContent()}
           </div>
         </ScrollArea>
@@ -1470,6 +1480,9 @@ export default function MUKNTrafficApp() {
       
       {/* Hotkeys Help (Expert mode only) */}
       {uiMode === 'expert' && <HotkeysHelp />}
+      
+      {/* Hotkeys Help Dialog */}
+      <HotkeysHelpDialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen} />
     </div>
   );
 }

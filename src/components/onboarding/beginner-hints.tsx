@@ -1,5 +1,7 @@
 'use client';
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useModeStore } from '@/store/mode-store';
 import { useAppStore } from '@/store';
 import { Card, CardContent } from '@/components/ui/card';
