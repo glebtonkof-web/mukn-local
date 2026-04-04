@@ -15,6 +15,12 @@ import { InfluencersView } from '@/components/views/influencers-view';
 import { WarmingView } from '@/components/views/warming-view';
 import { ShadowBanView } from '@/components/views/shadow-ban-view';
 import { AIPoolView } from '@/components/views/ai-pool-view';
+import { AIAssistantPanel } from '@/components/ai-assistant/ai-panel';
+import { ModeSwitcher } from '@/components/mode-switcher/index';
+import { OnboardingTour } from '@/components/onboarding/onboarding-tour';
+import { TerminalMode } from '@/components/terminal/terminal-mode';
+import { useHotkeys, HotkeysHelp } from '@/components/hotkeys/use-hotkeys';
+import { useModeStore } from '@/store/mode-store';
 import { NotificationsSheet } from '@/components/notifications/notifications-sheet';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -1862,7 +1868,11 @@ function SettingsView() {
 
 export default function MUKNTrafficApp() {
   const { activeTab } = useAppStore();
+  const { aiPanelOpen, terminalMode, uiMode } = useModeStore();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  // Hotkeys
+  useHotkeys();
 
   const renderContent = () => {
     switch (activeTab) {
@@ -1909,12 +1919,30 @@ export default function MUKNTrafficApp() {
     }
   };
 
+  // Adjust main content margin based on AI panel
+  const mainStyle = aiPanelOpen 
+    ? { marginRightRight: '380px' } 
+    : {};
+
   return (
     <div className="flex h-screen bg-[#0A0B0E]">
       <Sidebar onNotificationsClick={() => setNotificationsOpen(true)} />
 
-      <main className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full">
+      <main className="flex-1 overflow-hidden" style={mainStyle}>
+        {/* Header with Mode Switcher */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-[#2A2B32] bg-[#14151A]">
+          <div className="flex items-center gap-2">
+            <Badge className={cn(
+              'text-xs',
+              uiMode === 'simple' ? 'bg-[#00D26A]/20 text-[#00D26A]' : 'bg-[#FFB800]/20 text-[#FFB800]'
+            )}>
+              {uiMode === 'simple' ? 'Простой режим' : 'Эксперт режим'}
+            </Badge>
+          </div>
+          <ModeSwitcher />
+        </div>
+
+        <ScrollArea className="h-full" style={{ height: 'calc(100vh - 49px)' }}>
           <div className="p-6">
             {renderContent()}
           </div>
@@ -1922,6 +1950,18 @@ export default function MUKNTrafficApp() {
       </main>
 
       <NotificationsSheet open={notificationsOpen} onOpenChange={setNotificationsOpen} />
+      
+      {/* AI Assistant Panel */}
+      <AIAssistantPanel />
+      
+      {/* Onboarding Tour */}
+      <OnboardingTour />
+      
+      {/* Terminal Mode */}
+      <TerminalMode />
+      
+      {/* Hotkeys Help (Expert mode only) */}
+      {uiMode === 'expert' && <HotkeysHelp />}
     </div>
   );
 }
