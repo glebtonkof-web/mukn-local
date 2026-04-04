@@ -277,3 +277,36 @@ export function MobileMenu({ unreadNotifications = 0, onNotificationsClick }: Mo
     </Sheet>
   );
 }
+
+// Mobile Header Component
+export function MobileHeader({ onNotificationsClick }: MobileMenuProps) {
+  const { notifications } = useAppStore();
+  const actualUnreadCount = notifications.filter(n => !n.isRead).length;
+
+  return (
+    <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-[#2A2B32] bg-[#14151A]">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#6C63FF] to-[#00D26A] flex items-center justify-center">
+          <Zap className="w-4 h-4 text-white" />
+        </div>
+        <h1 className="text-base font-bold text-white">МУКН | Трафик</h1>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onNotificationsClick}
+          className="relative h-9 w-9"
+        >
+          <Bell className="w-5 h-5 text-[#8A8A8A]" />
+          {actualUnreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#FF4D4D] text-white text-xs rounded-full flex items-center justify-center">
+              {actualUnreadCount}
+            </span>
+          )}
+        </Button>
+        <MobileMenu onNotificationsClick={onNotificationsClick} />
+      </div>
+    </div>
+  );
+}

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -31,8 +31,12 @@ import {
   Loader2,
   Zap,
   MessageSquare,
+  Globe,
+  Brain,
+  ChatBot,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ContentStudioChatInterface } from './content-studio-chat';
 
 // Типы
 type ContentType = 'image' | 'video' | 'audio' | 'avatar';
@@ -365,66 +369,99 @@ export function HunyuanContentStudio() {
             <Sparkles className="w-6 h-6 text-[#6C63FF]" />
             Hunyuan Content Studio
           </h1>
-          <p className="text-[#8A8A8A]">Генерация изображений, видео и аудио с AI</p>
+          <p className="text-[#8A8A8A]">Генерация изображений, видео и аудио с AI + Мультиплатформенная публикация</p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => loadHistory()}
-          className="border-[#2A2B32] text-[#8A8A8A] hover:text-white"
-        >
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Обновить
-        </Button>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="border-[#6C63FF] text-[#6C63FF]">
+            DeepSeek + Hunyuan
+          </Badge>
+          <Button
+            variant="outline"
+            onClick={() => loadHistory()}
+            className="border-[#2A2B32] text-[#8A8A8A] hover:text-white"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Обновить
+          </Button>
+        </div>
       </div>
 
-      {/* Быстрые действия */}
-      <Card className="bg-[#14151A] border-[#2A2B32]">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg text-white flex items-center gap-2">
-            <Zap className="w-5 h-5 text-[#FFB800]" />
-            Быстрые действия
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {quickActions.map((action, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                onClick={() => handleQuickAction(action)}
-                className="h-auto py-4 flex flex-col border-[#2A2B32] text-[#8A8A8A] hover:text-white hover:border-[#6C63FF]"
-              >
-                <action.icon className="w-6 h-6 mb-2" />
-                <span className="text-sm">{action.label}</span>
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Табы: Чат | Генератор | История */}
+      <Tabs defaultValue="chat" className="space-y-4">
+        <TabsList className="bg-[#1E1F26] border-[#2A2B32]">
+          <TabsTrigger value="chat" className="data-[state=active]:bg-[#6C63FF]">
+            <ChatBot className="w-4 h-4 mr-2" />
+            AI Чат
+          </TabsTrigger>
+          <TabsTrigger value="generator" className="data-[state=active]:bg-[#6C63FF]">
+            <Sparkles className="w-4 h-4 mr-2" />
+            Генератор
+          </TabsTrigger>
+          <TabsTrigger value="multiplatform" className="data-[state=active]:bg-[#6C63FF]">
+            <Globe className="w-4 h-4 mr-2" />
+            Публикация
+          </TabsTrigger>
+          <TabsTrigger value="learning" className="data-[state=active]:bg-[#6C63FF]">
+            <Brain className="w-4 h-4 mr-2" />
+            Обучение
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Основной интерфейс */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Панель генерации */}
-        <div className="lg:col-span-2">
-          <Card className="bg-[#14151A] border-[#2A2B32]">
-            <CardHeader>
-              <Tabs value={contentType} onValueChange={(v) => setContentType(v as ContentType)}>
-                <TabsList className="bg-[#1E1F26] border-[#2A2B32]">
-                  <TabsTrigger value="image" className="data-[state=active]:bg-[#6C63FF]">
-                    <ImageIcon className="w-4 h-4 mr-2" />
-                    Изображения
-                  </TabsTrigger>
-                  <TabsTrigger value="video" className="data-[state=active]:bg-[#6C63FF]">
-                    <Video className="w-4 h-4 mr-2" />
-                    Видео
-                  </TabsTrigger>
-                  <TabsTrigger value="avatar" className="data-[state=active]:bg-[#6C63FF]">
-                    <Bot className="w-4 h-4 mr-2" />
-                    Аватары
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+        {/* Таб: AI Чат */}
+        <TabsContent value="chat">
+          <ContentStudioChatInterface />
+        </TabsContent>
+
+        {/* Таб: Генератор */}
+        <TabsContent value="generator">
+          {/* Быстрые действия */}
+          <Card className="bg-[#14151A] border-[#2A2B32] mb-6">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg text-white flex items-center gap-2">
+                <Zap className="w-5 h-5 text-[#FFB800]" />
+                Быстрые действия
+              </CardTitle>
             </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {quickActions.map((action, index) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    onClick={() => handleQuickAction(action)}
+                    className="h-auto py-4 flex flex-col border-[#2A2B32] text-[#8A8A8A] hover:text-white hover:border-[#6C63FF]"
+                  >
+                    <action.icon className="w-6 h-6 mb-2" />
+                    <span className="text-sm">{action.label}</span>
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Основной интерфейс генерации */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Панель генерации */}
+            <div className="lg:col-span-2">
+              <Card className="bg-[#14151A] border-[#2A2B32]">
+                <CardHeader>
+                  <Tabs value={contentType} onValueChange={(v) => setContentType(v as ContentType)}>
+                    <TabsList className="bg-[#1E1F26] border-[#2A2B32]">
+                      <TabsTrigger value="image" className="data-[state=active]:bg-[#6C63FF]">
+                        <ImageIcon className="w-4 h-4 mr-2" />
+                        Изображения
+                      </TabsTrigger>
+                      <TabsTrigger value="video" className="data-[state=active]:bg-[#6C63FF]">
+                        <Video className="w-4 h-4 mr-2" />
+                        Видео
+                      </TabsTrigger>
+                      <TabsTrigger value="avatar" className="data-[state=active]:bg-[#6C63FF]">
+                        <Bot className="w-4 h-4 mr-2" />
+                        Аватары
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </CardHeader>
             <CardContent className="space-y-6">
               {/* Изображения */}
               {contentType === 'image' && (
@@ -693,7 +730,7 @@ export function HunyuanContentStudio() {
             <CardHeader>
               <CardTitle className="text-lg text-white flex items-center gap-2">
                 <Clock className="w-5 h-5 text-[#FFB800]" />
-                История генераций
+                История
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -702,7 +739,7 @@ export function HunyuanContentStudio() {
                   {generatedContent.length === 0 ? (
                     <div className="text-center py-8 text-[#8A8A8A]">
                       <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p>Нет сгенерированного контента</p>
+                      <p>Нет контента</p>
                     </div>
                   ) : (
                     generatedContent.map((content) => (
@@ -741,9 +778,122 @@ export function HunyuanContentStudio() {
           </Card>
         </div>
       </div>
+        </TabsContent>
+
+        {/* Таб: Мультиплатформенная публикация */}
+        <TabsContent value="multiplatform">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {PLATFORMS.map(p => (
+              <Card key={p.id} className="bg-[#14151A] border-[#2A2B32] hover:border-[#6C63FF] transition-colors cursor-pointer">
+                <CardHeader>
+                  <CardTitle className="text-lg text-white flex items-center gap-2">
+                    <span className="text-2xl">{p.icon}</span>
+                    {p.name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[#8A8A8A]">Опубликовано</span>
+                      <span className="text-white">0</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[#8A8A8A]">Просмотры</span>
+                      <span className="text-white">0</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[#8A8A8A]">Конверсии</span>
+                      <span className="text-white">0</span>
+                    </div>
+                  </div>
+                  <Button className="w-full mt-4 bg-[#6C63FF] hover:bg-[#6C63FF]/80">
+                    <Globe className="w-4 h-4 mr-2" />
+                    Опубликовать
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        {/* Таб: Обучение AI */}
+        <TabsContent value="learning">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="bg-[#14151A] border-[#2A2B32]">
+              <CardHeader>
+                <CardTitle className="text-lg text-white flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-[#6C63FF]" />
+                  Изученные предпочтения
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="p-4 rounded-lg bg-[#1E1F26] border border-[#2A2B32]">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-white">Предпочтения стиля</span>
+                      <Badge className="bg-[#00D26A]">Активно</Badge>
+                    </div>
+                    <Progress value={75} className="h-2" />
+                    <p className="text-xs text-[#8A8A8A] mt-2">75% точность</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-[#1E1F26] border border-[#2A2B32]">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-white">Цветовые предпочтения</span>
+                      <Badge className="bg-[#FFB800]">Обучение</Badge>
+                    </div>
+                    <Progress value={45} className="h-2" />
+                    <p className="text-xs text-[#8A8A8A] mt-2">45% точность</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-[#1E1F26] border border-[#2A2B32]">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-white">Текстовый стиль</span>
+                      <Badge className="bg-[#6C63FF]">Новое</Badge>
+                    </div>
+                    <Progress value={20} className="h-2" />
+                    <p className="text-xs text-[#8A8A8A] mt-2">20% точность</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-[#14151A] border-[#2A2B32]">
+              <CardHeader>
+                <CardTitle className="text-lg text-white flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-[#00D26A]" />
+                  Как работает обучение
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4 text-sm text-[#8A8A8A]">
+                  <p>AI запоминает ваши правки и улучшает будущие генерации:</p>
+                  <ul className="space-y-2">
+                    <li className="flex items-start gap-2">
+                      <Badge className="bg-[#00D26A] shrink-0">1</Badge>
+                      <span>Вы редактируете контент командой /fix</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Badge className="bg-[#FFB800] shrink-0">2</Badge>
+                      <span>AI анализирует что вы изменили</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Badge className="bg-[#6C63FF] shrink-0">3</Badge>
+                      <span>Следующие генерации учитывают ваши предпочтения</span>
+                    </li>
+                  </ul>
+                  <div className="p-3 rounded-lg bg-[#6C63FF]/10 border border-[#6C63FF]/30">
+                    <p className="text-white text-xs">
+                      💡 Чем больше вы редактируете, тем лучше AI понимает ваш стиль
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Связка DeepSeek + Hunyuan */}
-      <Card className="bg-[#14151A] border-[#2A2B32]">
+      <Card className="bg-[#14151A] border-[#2A2B32] mt-6">
         <CardHeader>
           <CardTitle className="text-lg text-white flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-[#00D26A]" />
