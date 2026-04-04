@@ -333,7 +333,7 @@ export class WebhookDispatcher {
   }> {
     const testPayload: WebhookPayload = {
       id: crypto.randomUUID(),
-      event: 'test',
+      event: 'test' as WebhookEventType,
       timestamp: new Date().toISOString(),
       data: { test: true, message: 'Test webhook from МУКН | Трафик' },
     };

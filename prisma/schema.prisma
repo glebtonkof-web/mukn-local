@@ -3787,6 +3787,7 @@ model AIGeneratedContent {
   geo             String?
   style           String?
   language        String   @default("ru")
+  influencerId    String?
   
   // Использование
   usedInMethod    String?
@@ -3794,6 +3795,9 @@ model AIGeneratedContent {
   useCount        Int      @default(0)
   
   createdAt       DateTime @default(now())
+  
+  @@index([influencerId])
+  @@index([contentType])
 }
 
 // Фейковый контент
@@ -5315,14 +5319,22 @@ model Session {
 
 // Telegram Bot Events
 model TelegramBotEvent {
-  id           String   @id @default(cuid())
-  eventType    String   // message, callback, command
-  chatId       String?
-  userId       String?
-  username     String?
-  data         String?  // JSON
-  processed    Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  id              String   @id @default(cuid())
+  eventType       String   // message, callback, command
+  chatId          String?
+  userId          String?
+  username        String?
+  data            String?  // JSON
+  rawData         String?  // Raw JSON from Telegram
+  chatTitle       String?
+  messageId       String?
+  text            String?
+  accountId       String?
+  processed       Boolean  @default(false)
+  processedAt     DateTime?
+  processingError String?
+  notificationSent Boolean @default(false)
+  createdAt       DateTime @default(now())
   
   @@index([eventType])
   @@index([chatId])
@@ -5344,6 +5356,7 @@ model GoogleSheetsConnection {
   status          String   @default("disconnected") // connected, disconnected, error
   autoSync        Boolean  @default(false)
   syncInterval    Int      @default(60) // minutes
+  syncConfig      String?  // JSON sync configuration
   lastSyncAt      DateTime?
   lastError       String?
   totalExports    Int      @default(0)
@@ -5357,18 +5370,28 @@ model GoogleSheetsConnection {
 
 // Dashboard Widgets
 model DashboardWidget {
-  id          String   @id @default(cuid())
-  userId      String
-  widgetType  String   // chart, kpi, list, table, custom
-  title       String
-  config      String?  // JSON
-  position    Int      @default(0)
-  size        String   @default("medium") // small, medium, large
-  isVisible   Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(cuid())
+  userId          String
+  widgetType      String   // chart, kpi, list, table, custom
+  type            String?  // Alternative type field (pie, line, bar)
+  title           String
+  config          String?  // JSON
+  position        Int      @default(0)
+  positionX       Int      @default(0)
+  positionY       Int      @default(0)
+  width           Int      @default(1)
+  height          Int      @default(1)
+  size            String   @default("medium") // small, medium, large
+  dataSource      String?  // JSON data source config
+  filters         String?  // JSON filters
+  refreshInterval Int      @default(300) // seconds
+  isVisible       Boolean  @default(true)
+  isPinned        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
   
   @@index([userId])
+  @@index([isVisible])
 }
 
 // Webhook Delivery Log
@@ -5378,14 +5401,139 @@ model WebhookDeliveryLog {
   eventType     String
   payload       String?  // JSON
   responseCode  Int?
+  statusCode    Int?
   responseBody  String?
+  response      String?
   deliveredAt   DateTime?
+  sentAt        DateTime?
   attempts      Int      @default(0)
+  attemptCount  Int      @default(1)
+  maxAttempts   Int      @default(4)
   success       Boolean  @default(false)
+  status        String   @default("pending") // pending, sent, success, failed, retrying, cancelled
   error         String?
+  nextRetryAt   DateTime?
   createdAt     DateTime @default(now())
+  
+  webhook       Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
   
   @@index([webhookId])
   @@index([eventType])
   @@index([success])
+  @@index([status])
+}
+
+// Webhook configuration
+model Webhook {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  url             String
+  secret          String?
+  events          String   // JSON array of event types
+  isActive        Boolean  @default(true)
+  retryCount      Int      @default(3)
+  retryDelay      Int      @default(1000) // ms
+  timeout         Int      @default(5000) // ms
+  totalSent       Int      @default(0)
+  totalSuccess    Int      @default(0)
+  totalFailed     Int      @default(0)
+  lastSentAt      DateTime?
+  lastSuccessAt   DateTime?
+  lastError       String?
+  lastTriggeredAt DateTime?
+  triggerCount    Int      @default(0)
+  failureCount    Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  deliveryLogs    WebhookDeliveryLog[]
+  
+  @@index([userId])
+  @@index([isActive])
+}
+
+// Batch Operations
+model BatchOperation {
+  id              String   @id @default(cuid())
+  userId          String
+  operationType   String   // account_action, campaign_action, comment_generate
+  type            String?  // Alternative type field
+  action          String   // pause, resume, delete, generate
+  entityType      String   @default("generic") // account, campaign, influencer
+  entityIds       String?  // JSON array of IDs
+  targetIds       String?  // JSON array of target IDs
+  parameters      String?  // JSON parameters
+  status          String   @default("pending") // pending, running, completed, failed, cancelled
+  
+  // Progress tracking
+  totalItems      Int      @default(0)
+  processedItems  Int      @default(0)
+  successItems    Int      @default(0)
+  failedItems     Int      @default(0)
+  progress        Int      @default(0)
+  progressPercent Float    @default(0)
+  
+  // Results
+  result          String?  // JSON result
+  results         String?  // JSON array of results
+  errors          String?  // JSON array of errors
+  error           String?
+  
+  // Timestamps
+  startedAt       DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  estimatedEndAt  DateTime?
+  canCancel       Boolean  @default(true)
+  cancelReason    String?
+  
+  // Additional fields
+  entityIdsList   String?  // JSON array
+  targetIdsList   String?  // JSON array
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+  @@index([operationType])
+}
+
+// Google Sheets Export History
+model GoogleSheetsExport {
+  id              String   @id @default(cuid())
+  connectionId    String
+  userId          String
+  exportType      String   // campaigns, accounts, analytics, leads
+  dataType        String?  // Alternative data type field
+  range           String?  // A1:Z100
+  rowCount        Int      @default(0)
+  status          String   @default("pending") // pending, completed, failed
+  error           String?
+  exportedAt      DateTime?
+  createdAt       DateTime @default(now())
+  
+  @@index([connectionId])
+  @@index([userId])
+  @@index([exportType])
+}
+
+// Google Sheets Import History
+model GoogleSheetsImport {
+  id              String   @id @default(cuid())
+  connectionId    String
+  userId          String
+  importType      String   // campaigns, accounts, influencers
+  dataType        String?  // Alternative data type field
+  range           String?  // A1:Z100
+  rowCount        Int      @default(0)
+  status          String   @default("pending") // pending, completed, failed
+  error           String?
+  importedAt      DateTime?
+  createdAt       DateTime @default(now())
+  
+  @@index([connectionId])
+  @@index([userId])
+  @@index([importType])
 }

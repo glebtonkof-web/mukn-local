@@ -108,9 +108,12 @@ export class BatchProcessor {
     const operation = await db.batchOperation.create({
       data: {
         userId,
-        type,
-        action,
+        operationType: type,
+        type: type,
+        entityType: 'generic',
+        entityIds: JSON.stringify(targetIds),
         targetIds: JSON.stringify(targetIds),
+        action,
         parameters: parameters ? JSON.stringify(parameters) : null,
         status: 'pending',
         totalItems: targetIds.length,
