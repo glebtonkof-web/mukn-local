@@ -32,6 +32,9 @@ import {
   Keyboard,
   Heart,
   Menu,
+  Flame,
+  ArrowUpRight,
+  Monitor,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -54,6 +57,7 @@ const navSections = [
     title: 'Трафик',
     items: [
       { id: 'traffic', label: 'Методы трафика', icon: TrendingUp, badge: '130' },
+      { id: 'traffic-pour', label: 'Залив трафика', icon: ArrowUpRight, badge: 'NEW' },
       { id: 'offers', label: 'Офферы', icon: Target },
       { id: 'influencers', label: 'Инфлюенсеры', icon: UserCircle },
     ]
@@ -69,11 +73,17 @@ const navSections = [
     ]
   },
   {
+    title: 'Instagram',
+    items: [
+      { id: 'ig-warming', label: 'Прогрев IG', icon: Flame, badge: '21д' },
+      { id: 'shadow-ban', label: 'Shadow Ban', icon: Shield },
+    ]
+  },
+  {
     title: 'Advanced',
     items: [
       { id: 'advanced', label: 'Advanced Tools', icon: Cpu, badge: '17' },
       { id: 'warming', label: 'Прогрев', icon: Zap },
-      { id: 'shadow-ban', label: 'Shadow Ban', icon: Shield },
     ]
   },
   {
@@ -88,6 +98,7 @@ const navSections = [
     items: [
       { id: 'proxies', label: 'Прокси', icon: Globe },
       { id: 'sim-cards', label: 'SIM-карты', icon: Smartphone },
+      { id: 'antidetect', label: 'Антидетект', icon: Monitor, badge: 'NEW' },
     ]
   },
   {

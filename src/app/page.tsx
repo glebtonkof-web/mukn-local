@@ -19,6 +19,9 @@ import { AIPoolView } from '@/components/views/ai-pool-view';
 import { SettingsView } from '@/components/views/settings-view';
 import { HunyuanView } from '@/components/views/hunyuan-view';
 import { AnalyticsView } from '@/components/views/analytics-view';
+import { InstagramWarmingView } from '@/components/views/instagram-warming-view';
+import { TrafficPourView } from '@/components/views/traffic-pour-view';
+import { AntidetectView } from '@/components/views/antidetect-view';
 import { AIAssistantPanel } from '@/components/ai-assistant/ai-panel';
 import { ModeSwitcher } from '@/components/mode-switcher/index';
 import { OnboardingTour } from '@/components/onboarding/onboarding-tour';
@@ -1645,6 +1648,12 @@ export default function MUKNTrafficApp() {
         return <ProxiesView />;
       case 'sim-cards':
         return <SimCardsView />;
+      case 'ig-warming':
+        return <InstagramWarmingView />;
+      case 'traffic-pour':
+        return <TrafficPourView />;
+      case 'antidetect':
+        return <AntidetectView />;
       default:
         return <DashboardView />;
     }

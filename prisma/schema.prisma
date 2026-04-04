@@ -481,28 +481,36 @@ model AnalyticsSettings {
 }
 
 model AntidetectBrowser {
-  id               String    @id
-  browserType      String
-  profileId        String    @unique
-  profileName      String?
-  accountId        String?
-  proxyId          String?
-  proxyHost        String?
-  proxyPort        Int?
-  proxyUsername    String?
-  proxyPassword    String?
-  userAgent        String?
-  screenResolution String?
-  timezone         String?
-  language         String?
-  webglRenderer    String?
-  fingerprint      String?
-  status           String    @default("available")
-  lastUsedAt       DateTime?
-  sessionsCount    Int       @default(0)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime
-  Account          Account?  @relation(fields: [accountId], references: [id])
+  id                    String    @id
+  browserType           String
+  profileId             String    @unique
+  profileName           String?
+  accountId             String?
+  proxyId               String?
+  platform              String?   // Instagram, TikTok, YouTube
+  proxyType             String?   // mobile, residential
+  proxyHost             String?
+  proxyPort             Int?
+  proxyUsername         String?
+  proxyPassword         String?
+  userAgent             String?
+  screenResolution      String?
+  timezone              String?
+  language              String?
+  geolocation           String?   // lat,lng format
+  webglRenderer         String?
+  fingerprint           String?
+  fingerprintSettings   String?   // JSON string with advanced fingerprint config
+  status                String    @default("available") // available, in_use, paused, error
+  lastUsedAt            DateTime?
+  currentSessionStarted DateTime?
+  sessionsCount         Int       @default(0)
+  cpuUsage              Float     @default(0)
+  memoryUsage           Float     @default(0)
+  networkUsage          Float     @default(0)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime
+  Account               Account?  @relation(fields: [accountId], references: [id])
 }
 
 model ApiKey {
@@ -3653,6 +3661,68 @@ model WarmingSettings {
   User            User     @relation(fields: [userId], references: [id])
 }
 
+model InstagramWarming {
+  id                    String                 @id
+  accountId             String                 @unique
+  username              String
+  status                String                 @default("new")
+  currentDay            Int                    @default(1)
+  currentPhase          String                 @default("ghost")
+  warmingStartedAt      DateTime?
+  warmingEndsAt         DateTime?
+  
+  // Daily counters
+  todayLikes            Int                    @default(0)
+  todayFollows          Int                    @default(0)
+  todayComments         Int                    @default(0)
+  todayPosts            Int                    @default(0)
+  todayDm               Int                    @default(0)
+  todayStoriesViews     Int                    @default(0)
+  todayTimeSpent        Int                    @default(0)
+  
+  // Phase limits (calculated based on day)
+  maxLikes              Int                    @default(5)
+  maxFollows            Int                    @default(0)
+  maxComments           Int                    @default(0)
+  maxPosts              Int                    @default(0)
+  maxDm                 Int                    @default(0)
+  maxTimeSpent          Int                    @default(20)
+  
+  // Risk and stats
+  banRisk               Int                    @default(0)
+  totalLikes            Int                    @default(0)
+  totalFollows          Int                    @default(0)
+  totalComments         Int                    @default(0)
+  totalPosts            Int                    @default(0)
+  totalDm               Int                    @default(0)
+  
+  // Warnings
+  warnings              String?
+  lastWarningAt         DateTime?
+  
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime
+  InstagramWarmingAction InstagramWarmingAction[]
+}
+
+model InstagramWarmingAction {
+  id            String         @id
+  warmingId     String
+  actionType    String
+  target        String?
+  result        String?
+  success       Boolean        @default(true)
+  error         String?
+  day           Int
+  phase         String
+  createdAt     DateTime       @default(now())
+  InstagramWarming InstagramWarming @relation(fields: [warmingId], references: [id], onDelete: Cascade)
+  
+  @@index([warmingId])
+  @@index([actionType])
+  @@index([createdAt])
+}
+
 model Webhook {
   id                 String               @id
   userId             String
@@ -3731,4 +3801,140 @@ model WhiteLabelPayment {
   type              String
   createdAt         DateTime          @default(now())
   WhiteLabelLicense WhiteLabelLicense @relation(fields: [licenseId], references: [id])
+}
+
+// Instagram Traffic Pour Models
+model InstagramTrafficCampaign {
+  id              String   @id
+  name            String
+  description     String?
+  sourceType      String   // bio_link, reels, stories, dm, collaboration, ads
+  status          String   @default("draft")
+  budget          Float    @default(0)
+  spent           Float    @default(0)
+  currency        String   @default("USD")
+  
+  // Statistics
+  linkClicks      Int      @default(0)
+  conversions     Int      @default(0)
+  revenue         Float    @default(0)
+  cpc             Float    @default(0)
+  roi             Float    @default(0)
+  conversionRate  Float    @default(0)
+  
+  // UTM Settings
+  utmSource       String?
+  utmMedium       String?
+  utmCampaign     String?
+  utmContent      String?
+  utmTerm         String?
+  
+  // Targeting
+  targetGeo       String?
+  targetAgeMin    Int      @default(18)
+  targetAgeMax    Int      @default(45)
+  targetGender    String?  // male, female, all
+  targetInterests String?
+  
+  // Content
+  contentTemplateId String?
+  
+  // AI Service Integration
+  aiService       String?  // pathsocial, outfame, growthviral
+  aiServiceConfig String?
+  
+  // Schedule
+  startDate       DateTime?
+  endDate         DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+  
+  @@index([sourceType])
+  @@index([status])
+  @@index([aiService])
+}
+
+model InstagramContentTemplate {
+  id              String   @id
+  name            String
+  type            String   // reels, stories, cta
+  description     String?
+  content         String
+  variables       String?  // JSON array of variable names
+  previewUrl      String?
+  category        String?
+  tags            String?
+  avgEngagement   Float    @default(0)
+  usageCount      Int      @default(0)
+  successRate     Float    @default(0)
+  isPublic        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+  
+  @@index([type])
+  @@index([category])
+}
+
+model InstagramAIService {
+  id              String   @id
+  name            String   @unique // pathsocial, outfame, growthviral
+  displayName     String
+  description     String?
+  apiKey          String?
+  apiEndpoint     String?
+  isActive        Boolean  @default(false)
+  features        String?  // JSON array of supported features
+  pricing         String?  // JSON with pricing info
+  limits          String?  // JSON with rate limits
+  totalSpent      Float    @default(0)
+  totalCampaigns  Int      @default(0)
+  successRate     Float    @default(0)
+  lastUsedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+  
+  @@index([isActive])
+}
+
+model InstagramTrafficAnalytics {
+  id              String   @id
+  campaignId      String?
+  sourceType      String
+  date            DateTime
+  
+  // Metrics
+  impressions     Int      @default(0)
+  reach           Int      @default(0)
+  linkClicks      Int      @default(0)
+  profileVisits   Int      @default(0)
+  follows         Int      @default(0)
+  conversions     Int      @default(0)
+  revenue         Float    @default(0)
+  
+  // Calculated
+  ctr             Float    @default(0)
+  conversionRate  Float    @default(0)
+  cpc             Float    @default(0)
+  cpa             Float    @default(0)
+  roi             Float    @default(0)
+  
+  // Breakdown by source
+  bioLinkClicks   Int      @default(0)
+  reelsViews      Int      @default(0)
+  reelsClicks     Int      @default(0)
+  storiesViews    Int      @default(0)
+  storiesClicks   Int      @default(0)
+  dmSent          Int      @default(0)
+  dmReplied       Int      @default(0)
+  collabReach     Int      @default(0)
+  adsImpressions  Int      @default(0)
+  adsClicks       Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  
+  @@unique([campaignId, sourceType, date])
+  @@index([date])
+  @@index([sourceType])
+  @@index([campaignId])
 }
