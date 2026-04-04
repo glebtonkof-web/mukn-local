@@ -157,7 +157,7 @@ export class BatchProcessor {
         },
       });
 
-      const targetIds = JSON.parse(operation.targetIds) as string[];
+      const targetIds = JSON.parse(operation.targetIds || '[]') as string[];
       const parameters = operation.parameters ? JSON.parse(operation.parameters) : {};
       const results: { id: string; success: boolean; result?: unknown; error?: string }[] = [];
       const errors: { id: string; error: string }[] = [];
@@ -184,7 +184,7 @@ export class BatchProcessor {
         for (const targetId of batch) {
           try {
             const result = await this.processItem(
-              operation.type,
+              operation.type || operation.operationType,
               operation.action,
               targetId,
               parameters
@@ -370,7 +370,13 @@ export class BatchProcessor {
         const { proxyHost, proxyPort, proxyUsername, proxyPassword, proxyType } = parameters;
         await db.account.update({
           where: { id: accountId },
-          data: { proxyHost, proxyPort, proxyUsername, proxyPassword, proxyType },
+          data: {
+            proxyHost: proxyHost as string | null,
+            proxyPort: proxyPort as number | null,
+            proxyUsername: proxyUsername as string | null,
+            proxyPassword: proxyPassword as string | null,
+            proxyType: proxyType as string | null,
+          },
         });
         return { status: 'proxy_changed', proxy: `${proxyHost}:${proxyPort}` };
 
@@ -589,7 +595,7 @@ export class BatchProcessor {
     return {
       operation: {
         id: operation.id,
-        type: operation.type,
+        type: operation.type || operation.operationType,
         action: operation.action,
         status: operation.status,
         totalItems: operation.totalItems,
@@ -645,7 +651,7 @@ export class BatchProcessor {
     return {
       operations: operations.map(op => ({
         id: op.id,
-        type: op.type,
+        type: op.type || op.operationType,
         action: op.action,
         status: op.status,
         totalItems: op.totalItems,

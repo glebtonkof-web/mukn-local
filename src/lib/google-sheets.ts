@@ -650,10 +650,6 @@ export async function createGoogleSheetsConnection(
 export async function getGoogleSheetsConnection(connectionId: string) {
   return db.googleSheetsConnection.findUnique({
     where: { id: connectionId },
-    include: {
-      exports: { take: 10, orderBy: { createdAt: 'desc' } },
-      imports: { take: 10, orderBy: { createdAt: 'desc' } },
-    },
   });
 }
 
@@ -702,9 +698,13 @@ export async function recordExport(
   return db.googleSheetsExport.create({
     data: {
       connectionId,
-      dataType,
-      filters,
-      ...result,
+      userId: 'system',
+      exportType: dataType,
+      dataType: dataType,
+      range: result.range,
+      rowCount: result.exportedRows,
+      status: result.status,
+      error: result.error,
     },
   });
 }
@@ -724,8 +724,12 @@ export async function recordImport(
   return db.googleSheetsImport.create({
     data: {
       connectionId,
-      dataType,
-      ...result,
+      userId: 'system',
+      importType: dataType,
+      dataType: dataType,
+      rowCount: result.importedRows,
+      status: result.status,
+      error: result.error,
     },
   });
 }

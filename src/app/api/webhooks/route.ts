@@ -12,6 +12,7 @@ import {
   getWebhook,
   listWebhooks,
   WEBHOOK_EVENTS,
+  WebhookEventType,
 } from '@/lib/webhook-dispatcher';
 import { logger } from '@/lib/logger';
 import { db } from '@/lib/db';
@@ -158,7 +159,7 @@ export async function POST(request: NextRequest) {
 
     // Validate events
     const validEvents = WEBHOOK_EVENTS.map(e => e.value);
-    const invalidEvents = events.filter((e: string) => e !== '*' && !validEvents.includes(e));
+    const invalidEvents = events.filter((e: string) => e !== '*' && !validEvents.includes(e as WebhookEventType));
     if (invalidEvents.length > 0) {
       return NextResponse.json(
         { error: `Invalid events: ${invalidEvents.join(', ')}` },
@@ -246,7 +247,7 @@ export async function PUT(request: NextRequest) {
     // Validate events if provided
     if (events && Array.isArray(events)) {
       const validEvents = WEBHOOK_EVENTS.map(e => e.value);
-      const invalidEvents = events.filter((e: string) => e !== '*' && !validEvents.includes(e));
+      const invalidEvents = events.filter((e: string) => e !== '*' && !validEvents.includes(e as WebhookEventType));
       if (invalidEvents.length > 0) {
         return NextResponse.json(
           { error: `Invalid events: ${invalidEvents.join(', ')}` },

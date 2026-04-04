@@ -200,7 +200,7 @@ export function useRealtimeNotifications(options: UseRealtimeNotificationsOption
         },
         reconnection: true,
         reconnectionAttempts: maxReconnectAttempts,
-        reconnectionDelay,
+        reconnectionDelay: reconnectDelay,
       });
       
       socketRef.current = socket;

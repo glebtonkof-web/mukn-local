@@ -311,8 +311,8 @@ async function collectMetrics(campaignId: string, campaign: Record<string, unkno
     duration: campaign.startDate && campaign.endDate
       ? Math.ceil((new Date(campaign.endDate as string).getTime() - new Date(campaign.startDate as string).getTime()) / (1000 * 60 * 60 * 24))
       : null,
-    niche: campaign.niche,
-    geo: campaign.geo,
+    niche: campaign.niche as string | null,
+    geo: campaign.geo as string | null,
   };
 }
 

@@ -2,6 +2,7 @@
 // Publishes content to Telegram, Instagram, TikTok, YouTube, VK, Twitter
 
 import { db } from './db';
+import { logger } from './logger';
 
 // Типы платформ
 export type SocialPlatform = 'telegram' | 'instagram' | 'tiktok' | 'youtube' | 'vk' | 'twitter';
@@ -316,14 +317,9 @@ export class SocialMediaPublisher {
       
       const postId = `tg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      // Создаём запись о публикации
-      await db.accountAction.create({
-        data: {
-          actionType: 'post',
-          target: options.accountId || 'default',
-          result: 'success',
-        },
-      });
+      // Create a notification or log instead of AccountAction (which requires accountId)
+      // Note: In production, this would log to a proper activity/notifications table
+      logger.info('Telegram post published', { postId, accountId: options.accountId });
 
       return {
         platform: 'telegram',

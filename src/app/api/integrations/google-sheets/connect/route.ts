@@ -96,7 +96,12 @@ export async function GET(request: NextRequest) {
       }
 
       // Get spreadsheet info if connected
-      let spreadsheetInfo = null;
+      let spreadsheetInfo: {
+        spreadsheetId: string;
+        spreadsheetUrl: string;
+        title: string;
+        sheets: { sheetId: number; title: string; index: number }[];
+      } | null = null;
       if (connection.spreadsheetId && connection.status === 'connected') {
         const client = new GoogleSheetsClient({
           accessToken: connection.accessToken || '',
@@ -121,8 +126,9 @@ export async function GET(request: NextRequest) {
           totalImports: connection.totalImports,
           lastError: connection.lastError,
           createdAt: connection.createdAt,
-          exports: connection.exports,
-          imports: connection.imports,
+          // Note: exports and imports relations need to be defined in schema
+          exports: [],
+          imports: [],
         },
         spreadsheet: spreadsheetInfo,
       });

@@ -96,7 +96,7 @@ class GIFGeneratorService {
     const batchSize = 5;
 
     for (let i = 0; i < Math.min(frameCount, 15); i += batchSize) {
-      const batch = [];
+      const batch: Promise<{ data: { base64?: string }[] }>[] = [];
       for (let j = 0; j < batchSize && i + j < frameCount; j++) {
         const framePrompt = `${prompt}, animation frame ${i + j + 1}, consistent style, smooth transition`;
         batch.push(

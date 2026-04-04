@@ -91,7 +91,8 @@ export async function POST(request: NextRequest) {
     const widget = await db.dashboardWidget.create({
       data: {
         userId,
-        type,
+        widgetType: type,
+        type: type,
         title,
         positionX,
         positionY,

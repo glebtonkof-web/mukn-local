@@ -228,8 +228,18 @@ funny, shareable, social media format, 1:1 aspect ratio`;
   }
 
   // Пакетная генерация мемов
-  async generateBatch(topics: string[]): Promise<any[]> {
-    const results = [];
+  async generateBatch(topics: string[]): Promise<Array<{
+    id: string;
+    imageUrl: string;
+    topText?: string;
+    bottomText?: string;
+  }>> {
+    const results: Array<{
+      id: string;
+      imageUrl: string;
+      topText?: string;
+      bottomText?: string;
+    }> = [];
 
     for (const topic of topics) {
       try {

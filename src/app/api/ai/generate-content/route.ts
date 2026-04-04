@@ -374,14 +374,35 @@ export async function POST(request: NextRequest) {
     }
 
     // Получаем данные инфлюенсера если указан
-    let influencerData = null;
+    let influencerData: {
+      name?: string;
+      role?: string;
+      style?: string;
+      tone?: string;
+      phrases?: string;
+      personality?: string;
+      interests?: string;
+      bio?: string;
+    } | null = null;
     if (influencerId) {
-      influencerData = await db.influencer.findUnique({
+      const influencer = await db.influencer.findUnique({
         where: { id: influencerId },
         include: {
           account: true,
         },
       });
+      if (influencer) {
+        influencerData = {
+          name: influencer.name,
+          role: influencer.role,
+          style: influencer.style ?? undefined,
+          tone: influencer.tone ?? undefined,
+          phrases: influencer.phrases ?? undefined,
+          personality: influencer.personality ?? undefined,
+          interests: influencer.interests ?? undefined,
+          bio: influencer.bio ?? undefined,
+        };
+      }
     }
 
     // Формируем промпт
@@ -437,7 +458,7 @@ export async function POST(request: NextRequest) {
     if (generateImage && contentType === 'story') {
       try {
         const imagePrompt = buildImagePrompt(generatedContent.content, niche, storyTheme);
-        const imageBase64 = await generateImage(imagePrompt);
+        const imageBase64 = await generateImageFromPrompt(imagePrompt);
         generatedContent.image = {
           base64: imageBase64,
           prompt: imagePrompt,
@@ -453,15 +474,12 @@ export async function POST(request: NextRequest) {
       await db.aIGeneratedContent.create({
         data: {
           influencerId,
-          campaignId: campaignId || null,
           contentType,
-          content: generatedContent.content,
+          generatedText: generatedContent.content,
           style,
           niche,
-          metadata: JSON.stringify(generatedContent.metadata),
           aiModel: aiResult.model,
-          provider: aiResult.provider,
-          tokensUsed: aiResult.tokensIn + aiResult.tokensOut,
+          aiProvider: aiResult.provider,
         },
       });
     }
@@ -677,7 +695,7 @@ function buildImagePrompt(content: string, niche: NicheType, theme?: string): st
 /**
  * Генерация изображения через z-ai-web-dev-sdk
  */
-async function generateImage(prompt: string): Promise<string> {
+async function generateImageFromPrompt(prompt: string): Promise<string> {
   const zai = await ZAI.create();
   
   const response = await zai.images.generations.create({

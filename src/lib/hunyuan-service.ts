@@ -62,7 +62,7 @@ export interface ImageEditOptions {
 export class HunyuanService {
   private downloadDir: string;
   private isGenerating: boolean = false;
-  private queue: Array<{ id: string; config: HunyuanConfig; resolve: Function; reject: Function }> = [];
+  private queue: Array<{ id: string; config: HunyuanConfig; resolve: (value: GenerationResult) => void; reject: (reason: Error) => void }> = [];
 
   constructor() {
     this.downloadDir = path.join(process.cwd(), 'download', 'hunyuan');
@@ -419,6 +419,10 @@ export const hunyuanService = {
   generateContentForPlatform: async (options: ContentGenerationOptions) => {
     const service = getHunyuanService();
     return service.generateContentForPlatform(options);
+  },
+  generateBatch: async (items: ContentGenerationOptions[]) => {
+    const service = getHunyuanService();
+    return service.generateBatch(items);
   },
   getStatus: async (contentId: string) => {
     const service = getHunyuanService();

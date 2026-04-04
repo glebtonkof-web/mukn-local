@@ -393,7 +393,7 @@ export function ContentStudioChatInterface() {
           result: {
             success: successful.length > 0,
             contentId: currentContent.id,
-            platforms,
+            platforms: platforms as Platform[],
           },
           text,
         };

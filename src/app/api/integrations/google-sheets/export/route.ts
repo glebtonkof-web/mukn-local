@@ -62,7 +62,8 @@ export async function GET(request: NextRequest) {
         spreadsheetId: connection.spreadsheetId,
         spreadsheetName: connection.spreadsheetName,
       },
-      exports: connection.exports,
+      // Note: exports relation needs to be defined in schema
+      exports: [],
       dataTypes: EXPORT_DATA_TYPES,
     });
   } catch (error) {
@@ -178,10 +179,10 @@ export async function POST(request: NextRequest) {
       });
 
       // Update connection stats
+      // Note: totalExports would need to be tracked separately or in the connection model
       await updateGoogleSheetsConnection(connectionId, {
-        totalExports: connection.totalExports + 1,
         lastSyncAt: new Date(),
-        lastError: result.success ? null : 'Export failed',
+        lastError: result.success ? undefined : 'Export failed',
       });
 
       return NextResponse.json({

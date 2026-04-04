@@ -682,7 +682,7 @@ export async function GET(request: NextRequest) {
     
     const filename = `mukn-report-${type}-${new Date().toISOString().split('T')[0]}.pdf`;
     
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',

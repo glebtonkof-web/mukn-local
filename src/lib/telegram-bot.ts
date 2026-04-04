@@ -392,7 +392,7 @@ export class TelegramBotHandler {
         chatTitle: chat?.title,
         userId: user?.id?.toString(),
         username: user?.username,
-        messageId: message?.message_id,
+        messageId: message?.message_id?.toString(),
         text: message?.text || callbackData,
         processed: false,
       }

@@ -318,15 +318,15 @@ async function generateCampaignsExcel(campaignIds?: string[], startDate?: string
       influencersData.push(['Аналитика за последние 30 дней']);
       influencersData.push(['Дата', 'Показы', 'Клики', 'Лиды', 'Конверсии', 'Расход', 'Доход']);
       campaign.analytics.forEach(a => {
-        influencersData.push([
-          formatDate(a.date),
-          a.impressions,
-          a.clicks,
-          a.leads,
-          a.conversions,
-          a.spent,
-          a.revenue,
-        ]);
+      influencersData.push([
+        formatDate(a.date),
+        String(a.impressions),
+        String(a.clicks),
+        String(a.leads),
+        String(a.conversions),
+        String(a.spent),
+        String(a.revenue),
+      ]);
       });
     }
     
@@ -654,7 +654,7 @@ export async function GET(request: NextRequest) {
     
     const filename = `mukn-report-${type}-${new Date().toISOString().split('T')[0]}.xlsx`;
     
-    return new NextResponse(excelBuffer, {
+    return new NextResponse(new Uint8Array(excelBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

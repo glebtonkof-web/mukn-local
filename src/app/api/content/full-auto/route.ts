@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
       name: 'Auto Mode',
       postsPerDay: postsPerDay || 5,
       storiesPerDay: storiesPerDay || 3,
+      videosPerWeek: 2,
       workHoursStart: workHoursStart || '09:00',
       workHoursEnd: workHoursEnd || '22:00',
       timezone: 'Europe/Moscow',

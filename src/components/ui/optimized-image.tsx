@@ -420,7 +420,8 @@ export const BackgroundImage = memo(function BackgroundImage({
       <OptimizedImage
         src={src}
         alt="Background"
-        fill
+        width={1920}
+        height={1080}
         priority={priority}
         objectFit="cover"
         className={cn(blur > 0 && `blur-[${blur}px]`)}

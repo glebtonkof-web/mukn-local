@@ -1428,8 +1428,8 @@ export default function MUKNTrafficApp() {
   };
 
   // Adjust main content margin based on AI panel
-  const mainStyle = aiPanelOpen 
-    ? { marginRightRight: '380px' } 
+  const mainStyle = aiPanelOpen
+    ? { marginRight: '380px' }
     : {};
 
   return (

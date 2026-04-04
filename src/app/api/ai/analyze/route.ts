@@ -6,7 +6,7 @@ const AnalyzeRequestSchema = z.object({
   type: z.enum(['analytics', 'campaigns', 'accounts', 'channels', 'comments']).default('analytics'),
   dateRange: z.enum(['7d', '30d', '90d']).optional().default('7d'),
   entityId: z.string().optional(),
-  context: z.record(z.any()).optional(),
+  context: z.record(z.string(), z.any()).optional(),
 });
 
 // AI инсайты для аналитики
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { success: false, error: 'Invalid request data', details: error.errors },
+        { success: false, error: 'Invalid request data', details: error.issues },
         { status: 400 }
       );
     }

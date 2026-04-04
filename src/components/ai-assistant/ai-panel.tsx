@@ -122,7 +122,7 @@ export function AIAssistantPanel() {
 
       // Update tokens used
       if (data.usage?.tokens) {
-        addTokensUsed(data.usage.tokens);
+        useModeStore.getState().addTokensUsed(data.usage.tokens);
       }
 
       // Cache the response
@@ -144,9 +144,9 @@ export function AIAssistantPanel() {
       const assistantMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant' as const,
-        content: responses.text + '\n\n_⚠️ Оффлайн-режим (проверьте подключение)_',
+        content: responses.text + '\\n\\n_⚠️ Оффлайн-режим (проверьте подключение)_',
         timestamp: new Date(),
-        actions: responses.actions,
+        actions: responses.actions as AIAction[],
       };
 
       addAIMessage(assistantMessage);

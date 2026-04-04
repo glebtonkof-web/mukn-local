@@ -70,7 +70,7 @@ import {
 // Types
 interface Widget {
   id: string;
-  type: 'kpi' | 'chart' | 'table' | 'list' | 'custom';
+  type: 'kpi' | 'chart' | 'table' | 'list' | 'custom' | 'pie';
   title: string;
   positionX: number;
   positionY: number;
