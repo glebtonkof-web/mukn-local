@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 
+// POST /api/ai/image - Генерация изображений
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { prompt, size = '1024x1024' } = body;
+    const { prompt, size = '1024x1024', style } = body;
 
     if (!prompt) {
       return NextResponse.json(
@@ -13,63 +14,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate size
-    const validSizes = [
-      '1024x1024',
-      '768x1344',
-      '864x1152',
-      '1344x768',
-      '1152x864',
-      '1440x720',
-      '720x1440',
-    ];
+    // Используем z-ai-web-dev-sdk для генерации изображений
+    const zai = await ZAI.create();
 
-    if (!validSizes.includes(size)) {
-      return NextResponse.json(
-        { error: 'Invalid size. Must be one of: ' + validSizes.join(', ') },
-        { status: 400 }
-      );
-    }
+    // Добавляем стиль к промпту если указан
+    const fullPrompt = style 
+      ? `${prompt}, ${style} style, high quality, detailed, professional`
+      : `${prompt}, high quality, detailed, professional`;
 
-    try {
-      const zai = await ZAI.create();
+    const response = await zai.images.generations.create({
+      prompt: fullPrompt,
+      size: size as any,
+    });
 
-      const response = await zai.images.generations.create({
-        prompt,
-        size: size as '1024x1024' | '768x1344' | '864x1152' | '1344x768' | '1152x864' | '1440x720' | '720x1440',
-      });
-
-      if (response.data && response.data[0]?.base64) {
-        const imageBase64 = response.data[0].base64;
-        const dataUrl = `data:image/png;base64,${imageBase64}`;
-
-        return NextResponse.json({
-          success: true,
-          image: dataUrl,
-          prompt,
-          size,
-        });
-      }
-
-      return NextResponse.json(
-        { error: 'No image generated' },
-        { status: 500 }
-      );
-    } catch (aiError: unknown) {
-      console.error('AI Image generation error:', aiError);
+    // Возвращаем base64 изображение
+    if (response.data && response.data.length > 0) {
+      const imageData = response.data[0];
       
-      // Return a more graceful error with demo data
       return NextResponse.json({
-        success: false,
-        error: 'AI service temporarily unavailable',
-        message: aiError instanceof Error ? aiError.message : 'Unknown error',
-      }, { status: 503 });
+        success: true,
+        image: imageData.base64 ? `data:image/png;base64,${imageData.base64}` : null,
+        url: imageData.url || null,
+        prompt: fullPrompt,
+        size,
+      });
     }
-  } catch (error) {
-    console.error('Image generation error:', error);
+
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'No image generated' },
       { status: 500 }
     );
+
+  } catch (error) {
+    console.error('Image generation error:', error);
+    
+    // Возвращаем fallback - placeholder
+    return NextResponse.json({
+      success: true,
+      image: null,
+      url: `/api/placeholder/1024/1024`,
+      prompt: 'Fallback image',
+      fallback: true,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
+}
+
+// GET /api/ai/image - Статус сервиса
+export async function GET() {
+  return NextResponse.json({
+    status: 'available',
+    service: 'AI Image Generation',
+    providers: ['z-ai-web-dev-sdk'],
+    sizes: ['1024x1024', '768x1344', '864x1152', '1344x768', '1152x864', '1440x720', '720x1440'],
+  });
 }

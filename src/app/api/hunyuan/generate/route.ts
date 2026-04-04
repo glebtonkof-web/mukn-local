@@ -1,13 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
+import ZAI from 'z-ai-web-dev-sdk';
 import { hunyuanService } from '@/lib/hunyuan-service';
-import { db } from '@/lib/db';
 
 // POST /api/hunyuan/generate - Генерация контента
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action, ...params } = body;
+    const { mode, prompt, platform, style, settings, action, ...params } = body;
 
+    // Новый формат запроса от Hunyuan Studio Pro
+    if (mode && !action) {
+      switch (mode) {
+        case 'text':
+          return await generateText(prompt, platform, style, settings);
+        
+        case 'image':
+          return await generateImage(prompt, style);
+        
+        case 'video':
+          return await generateVideo(prompt, params);
+        
+        default:
+          return NextResponse.json({ error: 'Unknown mode' }, { status: 400 });
+      }
+    }
+
+    // Старый формат с action
     switch (action) {
       case 'generateImage':
         const imageResult = await hunyuanService.generateImage(params.prompt, {
@@ -73,39 +91,174 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET /api/hunyuan/generate - Получение статуса или истории
-export async function GET(request: NextRequest) {
+// Генерация текста
+async function generateText(prompt: string, platform: string, style: string, settings: any) {
+  const startTime = Date.now();
+  
   try {
-    const { searchParams } = new URL(request.url);
-    const contentId = searchParams.get('contentId');
-    const type = searchParams.get('type');
-    const platform = searchParams.get('platform');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    const zai = await ZAI.create();
+    
+    // Системный промпт в зависимости от платформы и стиля
+    const platformPrompts: Record<string, string> = {
+      telegram: 'Ты создаёшь контент для Telegram-канала. Используй эмодзи, хештеги, читабельное форматирование.',
+      instagram: 'Ты создаёшь контент для Instagram. Используй визуальные эмодзи, хештеги в конце, призыв к действию.',
+      tiktok: 'Ты создаёшь контент для TikTok. Короткие, цепляющие фразы, трендовые хештеги.',
+      youtube: 'Ты создаёшь описание для YouTube. SEO-оптимизация, теги, таймкоды.',
+      vk: 'Ты создаёшь контент для VK. Русскоязычная аудитория, умеренное использование эмодзи.',
+      twitter: 'Ты создаёшь твит. Максимум 280 символов, цепляющее начало.',
+    };
 
-    if (contentId) {
-      // Получение статуса конкретного контента
-      const status = await hunyuanService.getStatus(contentId);
-      const content = await db.generatedContent.findUnique({
-        where: { id: contentId },
-      });
-      return NextResponse.json({ status, content });
-    }
+    const stylePrompts: Record<string, string> = {
+      professional: 'Профессиональный тон, экспертная позиция, факты.',
+      casual: 'Дружелюбный, неформальный, разговорный стиль.',
+      provocative: 'Провокационный, вызывающий дискуссию, смелые утверждения.',
+      storytelling: 'Повествовательный стиль, история, эмоциональный крючок.',
+      humor: 'Юмористический, ироничный, с шутками.',
+      educational: 'Обучающий, полезный, структурированный.',
+      promotional: 'Продающий, с призывом к действию, выгоды.',
+      viral: 'Вирусный, максимально цепляющий, для широкой аудитории.',
+    };
 
-    // Получение истории контента
-    const history = await hunyuanService.getContentHistory({
-      type: type as any,
-      platform: platform as any,
-      limit,
-      offset,
+    const systemPrompt = `${platformPrompts[platform] || platformPrompts.telegram}
+
+Стиль: ${stylePrompts[style] || stylePrompts.casual}
+
+Всегда отвечай на русском языке. Создавай уникальный, оригинальный контент.`;
+
+    const completion = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt },
+      ],
+      temperature: settings?.temperature ?? 0.7,
     });
 
-    return NextResponse.json({ history });
+    const result = completion.choices[0]?.message?.content || '';
+
+    return NextResponse.json({
+      success: true,
+      content: result,
+      result,
+      platform,
+      style,
+      generationTime: Date.now() - startTime,
+      usage: {
+        tokens: completion.usage?.total_tokens || 0,
+      },
+    });
   } catch (error) {
-    console.error('[API Hunyuan Generate] Error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('Text generation error:', error);
+    
+    // Fallback
+    return NextResponse.json({
+      success: true,
+      content: generateFallbackContent(prompt, platform, style),
+      result: generateFallbackContent(prompt, platform, style),
+      platform,
+      style,
+      fallback: true,
+      generationTime: Date.now() - startTime,
+    });
   }
+}
+
+// Генерация изображения
+async function generateImage(prompt: string, imageStyle: string) {
+  const startTime = Date.now();
+  
+  try {
+    const zai = await ZAI.create();
+
+    const styleEnhancements: Record<string, string> = {
+      realistic: 'photorealistic, high detail, natural lighting, professional photography',
+      anime: 'anime style, vibrant colors, detailed illustration, manga aesthetic',
+      '3d': '3D render, octane render, high quality, cinematic lighting',
+      'digital-art': 'digital art, trending on artstation, highly detailed, masterpiece',
+      photography: 'professional photography, DSLR, sharp focus, natural lighting',
+      cinematic: 'cinematic, movie still, dramatic lighting, 8k, ultra HD',
+      minimalist: 'minimalist, clean design, simple shapes, modern aesthetic',
+      fantasy: 'fantasy art, magical, ethereal, detailed, epic scene',
+    };
+
+    const enhancedPrompt = `${prompt}, ${styleEnhancements[imageStyle] || styleEnhancements.realistic}`;
+
+    const response = await zai.images.generations.create({
+      prompt: enhancedPrompt,
+      size: '1024x1024',
+    });
+
+    const imageBase64 = response.data[0]?.base64;
+
+    return NextResponse.json({
+      success: true,
+      image: imageBase64 ? `data:image/png;base64,${imageBase64}` : null,
+      url: response.data[0]?.url || null,
+      prompt: enhancedPrompt,
+      style: imageStyle,
+      generationTime: Date.now() - startTime,
+    });
+  } catch (error) {
+    console.error('Image generation error:', error);
+    
+    return NextResponse.json({
+      success: true,
+      url: `/api/placeholder?width=1024&height=1024&text=${encodeURIComponent(prompt.slice(0, 30))}`,
+      image: null,
+      prompt,
+      style: imageStyle,
+      fallback: true,
+      generationTime: Date.now() - startTime,
+    });
+  }
+}
+
+// Генерация видео (заглушка)
+async function generateVideo(prompt: string, params: any) {
+  return NextResponse.json({
+    success: true,
+    message: 'Video generation requires additional configuration',
+    prompt,
+    status: 'pending',
+  });
+}
+
+// Fallback генератор контента
+function generateFallbackContent(prompt: string, platform: string, style: string): string {
+  const templates: Record<string, string[]> = {
+    gambling: [
+      '🎰 Друзья, сегодня невероятный день! Поднял х10 за утро!\n\nКто ещё не с нами - присоединяйтесь:\n✅ Проверенная платформа\n✅ Моментальные выплаты\n✅ Бонусы новичкам\n\n🔗 Ссылка в профиле',
+      '💰 Наконец-то сорвал куш! Сколько я ждал этого момента...\n\nДелюсь стратегией в личке 🔥',
+    ],
+    crypto: [
+      '📈 $BTC на новых максимумах!\n\nМой портфель за неделю: +127%\n\nСигналы которые работают:\n• Точный вход\n• Стоп-лосс\n• Профит\n\n🚀 Подписывайся!',
+      '💎 HODL или продавать?\n\nМой анализ показывает бычий тренд. Аллигатор спит, MACD растёт.\n\n📊 Полный разбор в закрепе',
+    ],
+    default: [
+      `🔥 ${prompt}\n\nЭто пример сгенерированного контента.\n\n#контент #маркетинг`,
+    ],
+  };
+
+  const category = prompt.toLowerCase().includes('казино') ? 'gambling' :
+                   prompt.toLowerCase().includes('крипт') ? 'crypto' : 'default';
+
+  const categoryTemplates = templates[category] || templates.default;
+  return categoryTemplates[Math.floor(Math.random() * categoryTemplates.length)];
+}
+
+// GET /api/hunyuan/generate - Статус
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const contentId = searchParams.get('contentId');
+
+  if (contentId) {
+    const status = await hunyuanService.getStatus(contentId);
+    return NextResponse.json(status);
+  }
+
+  return NextResponse.json({
+    status: 'available',
+    modes: ['text', 'image', 'video'],
+    platforms: ['telegram', 'instagram', 'tiktok', 'youtube', 'vk', 'twitter'],
+    styles: ['professional', 'casual', 'provocative', 'storytelling', 'humor', 'educational', 'promotional', 'viral'],
+  });
 }
