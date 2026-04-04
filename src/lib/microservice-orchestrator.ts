@@ -3,7 +3,6 @@
 
 import { EventEmitter } from 'events';
 import { spawn, ChildProcess } from 'child_process';
-import path from 'path';
 
 // ==================== ТИПЫ ====================
 
@@ -12,10 +11,10 @@ export interface MicroserviceConfig {
   script: string;
   port: number;
   healthCheckEndpoint?: string;
-  restartDelay: number; // ms
+  restartDelay: number;
   maxRestarts: number;
-  restartWindow: number; // ms - окно для подсчёта рестартов
-  dependencies: string[]; // имена зависимых сервисов
+  restartWindow: number;
+  dependencies: string[];
   env?: Record<string, string>;
 }
 
@@ -24,7 +23,7 @@ export interface ServiceStatus {
   status: 'running' | 'stopped' | 'crashed' | 'restarting';
   pid?: number;
   port: number;
-  uptime: number; // seconds
+  uptime: number;
   restartCount: number;
   lastStarted?: Date;
   lastCrash?: Date;
@@ -41,7 +40,7 @@ export const MICROSERVICES: MicroserviceConfig[] = [
     healthCheckEndpoint: '/health',
     restartDelay: 5000,
     maxRestarts: 10,
-    restartWindow: 60000, // 10 рестартов за минуту = критическая ошибка
+    restartWindow: 60000,
     dependencies: [],
     env: { SERVICE_NAME: 'ai-service' },
   },
@@ -53,7 +52,7 @@ export const MICROSERVICES: MicroserviceConfig[] = [
     restartDelay: 3000,
     maxRestarts: 15,
     restartWindow: 60000,
-    dependencies: ['ai-service'], // зависит от AI сервиса
+    dependencies: ['ai-service'],
   },
   {
     name: 'realtime-service',
@@ -124,25 +123,21 @@ class MicroserviceOrchestrator extends EventEmitter {
     }
   }
 
-  // Запуск отдельного сервиса
   async startService(name: string): Promise<void> {
     const config = MICROSERVICES.find(s => s.name === name);
     if (!config) {
       throw new Error(`Service "${name}" not found in configuration`);
     }
 
-    // Проверяем зависимости
     for (const depName of config.dependencies) {
       const depStatus = this.statuses.get(depName);
       if (!depStatus || depStatus.status !== 'running') {
         console.log(`[Orchestrator] Starting dependency "${depName}" for "${name}"`);
         await this.startService(depName);
-        // Ждём готовности зависимости
         await this.waitForService(depName, 30000);
       }
     }
 
-    // Если уже запущен - пропускаем
     if (this.processes.has(name)) {
       const status = this.statuses.get(name);
       if (status?.status === 'running') {
@@ -157,7 +152,6 @@ class MicroserviceOrchestrator extends EventEmitter {
     status.status = 'restarting';
     this.emit('service:starting', { name });
 
-    // Запускаем процесс
     const proc = spawn('bun', ['run', config.script], {
       cwd: process.cwd(),
       env: {
@@ -171,17 +165,14 @@ class MicroserviceOrchestrator extends EventEmitter {
 
     this.processes.set(name, proc);
 
-    // Обработка stdout
     proc.stdout?.on('data', (data: Buffer) => {
       console.log(`[${name}] ${data.toString().trim()}`);
     });
 
-    // Обработка stderr
     proc.stderr?.on('data', (data: Buffer) => {
       console.error(`[${name}:ERROR] ${data.toString().trim()}`);
     });
 
-    // Обработка падения процесса
     proc.on('exit', (code, signal) => {
       this.handleServiceExit(name, code, signal);
     });
@@ -191,7 +182,6 @@ class MicroserviceOrchestrator extends EventEmitter {
       this.handleServiceExit(name, 1, null);
     });
 
-    // Обновляем статус
     status.status = 'running';
     status.pid = proc.pid;
     status.lastStarted = new Date();
@@ -201,7 +191,6 @@ class MicroserviceOrchestrator extends EventEmitter {
     console.log(`[Orchestrator] Service "${name}" started (PID: ${proc.pid})`);
   }
 
-  // Обработка падения сервиса
   private async handleServiceExit(name: string, code: number | null, signal: string | null): Promise<void> {
     const config = MICROSERVICES.find(s => s.name === name);
     const status = this.statuses.get(name)!;
@@ -217,7 +206,6 @@ class MicroserviceOrchestrator extends EventEmitter {
 
     if (!config) return;
 
-    // Проверяем количество рестартов
     const now = Date.now();
     const history = this.restartHistory.get(name)!.filter(t => now - t < config.restartWindow);
     history.push(now);
@@ -229,7 +217,6 @@ class MicroserviceOrchestrator extends EventEmitter {
       return;
     }
 
-    // Автоматический перезапуск с задержкой
     console.log(`[Orchestrator] Restarting "${name}" in ${config.restartDelay}ms... (attempt ${history.length}/${config.maxRestarts})`);
     
     await new Promise(resolve => setTimeout(resolve, config.restartDelay));
@@ -242,7 +229,6 @@ class MicroserviceOrchestrator extends EventEmitter {
     }
   }
 
-  // Остановка сервиса
   async stopService(name: string): Promise<void> {
     const proc = this.processes.get(name);
     const status = this.statuses.get(name);
@@ -255,11 +241,8 @@ class MicroserviceOrchestrator extends EventEmitter {
     console.log(`[Orchestrator] Stopping service "${name}"...`);
     
     status!.status = 'stopped';
-    
-    // Graceful shutdown
     proc.kill('SIGTERM');
     
-    // Ждём 10 секунд, затем force kill
     await new Promise<void>((resolve) => {
       const timeout = setTimeout(() => {
         proc.kill('SIGKILL');
@@ -277,13 +260,11 @@ class MicroserviceOrchestrator extends EventEmitter {
     console.log(`[Orchestrator] Service "${name}" stopped`);
   }
 
-  // Перезапуск сервиса
   async restartService(name: string): Promise<void> {
     await this.stopService(name);
     await this.startService(name);
   }
 
-  // Ожидание готовности сервиса
   private async waitForService(name: string, timeoutMs: number): Promise<boolean> {
     const startTime = Date.now();
     const config = MICROSERVICES.find(s => s.name === name);
@@ -291,7 +272,6 @@ class MicroserviceOrchestrator extends EventEmitter {
     while (Date.now() - startTime < timeoutMs) {
       const status = this.statuses.get(name);
       if (status?.status === 'running') {
-        // Дополнительная проверка health endpoint
         if (config?.healthCheckEndpoint) {
           try {
             const response = await fetch(`http://localhost:${config.port}${config.healthCheckEndpoint}`);
@@ -309,25 +289,21 @@ class MicroserviceOrchestrator extends EventEmitter {
     return false;
   }
 
-  // Запуск всех сервисов
   async startAll(): Promise<void> {
     console.log('[Orchestrator] Starting all services...');
     
-    // Сортируем по зависимостям (топологическая сортировка)
     const sorted = this.topologicalSort();
     
     for (const name of sorted) {
       await this.startService(name);
     }
     
-    // Запускаем health check мониторинг
     this.startHealthMonitoring();
     
     console.log('[Orchestrator] All services started');
     this.emit('all:started');
   }
 
-  // Остановка всех сервисов
   async stopAll(): Promise<void> {
     console.log('[Orchestrator] Stopping all services...');
     
@@ -335,7 +311,6 @@ class MicroserviceOrchestrator extends EventEmitter {
       clearInterval(this.healthCheckInterval);
     }
     
-    // Останавливаем в обратном порядке зависимостей
     const sorted = this.topologicalSort().reverse();
     
     for (const name of sorted) {
@@ -346,7 +321,6 @@ class MicroserviceOrchestrator extends EventEmitter {
     this.emit('all:stopped');
   }
 
-  // Топологическая сортировка по зависимостям
   private topologicalSort(): string[] {
     const result: string[] = [];
     const visited = new Set<string>();
@@ -379,7 +353,6 @@ class MicroserviceOrchestrator extends EventEmitter {
     return result;
   }
 
-  // Мониторинг здоровья сервисов
   private startHealthMonitoring(): void {
     this.healthCheckInterval = setInterval(async () => {
       for (const config of MICROSERVICES) {
@@ -387,7 +360,6 @@ class MicroserviceOrchestrator extends EventEmitter {
         
         if (status.status !== 'running') continue;
         
-        // Проверяем health endpoint
         if (config.healthCheckEndpoint) {
           try {
             const response = await fetch(
@@ -400,7 +372,6 @@ class MicroserviceOrchestrator extends EventEmitter {
             }
           } catch (error) {
             console.warn(`[Orchestrator] Health check error for "${config.name}":`, error);
-            // Сервис может зависнуть - пробуем перезапустить
             const proc = this.processes.get(config.name);
             if (proc && status.status === 'running') {
               console.log(`[Orchestrator] Service "${config.name}" appears hung, restarting...`);
@@ -409,25 +380,21 @@ class MicroserviceOrchestrator extends EventEmitter {
           }
         }
 
-        // Обновляем uptime
         if (status.lastStarted) {
           status.uptime = Math.floor((Date.now() - status.lastStarted.getTime()) / 1000);
         }
       }
-    }, 15000); // каждые 15 секунд
+    }, 15000);
   }
 
-  // Получить статус всех сервисов
   getAllStatuses(): ServiceStatus[] {
     return Array.from(this.statuses.values());
   }
 
-  // Получить статус конкретного сервиса
   getStatus(name: string): ServiceStatus | undefined {
     return this.statuses.get(name);
   }
 
-  // Общий uptime оркестратора
   getOrchestratorUptime(): number {
     return Math.floor((Date.now() - this.startTime) / 1000);
   }
@@ -452,4 +419,5 @@ export const orchestrator = {
   restartService: (name: string) => getOrchestrator().restartService(name),
   getAllStatuses: () => getOrchestrator().getAllStatuses(),
   getStatus: (name: string) => getOrchestrator().getStatus(name),
+  getOrchestratorUptime: () => getOrchestrator().getOrchestratorUptime(),
 };
