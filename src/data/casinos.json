@@ -1,0 +1,224 @@
+{
+  "catcasino": {
+    "name": "Cat Casino",
+    "logo_path": "/logos/catcasino.png",
+    "primary_color": "#FF8C00",
+    "secondary_color": "#1A1A2E",
+    "cta_text_default": "ЗАБРАТЬ БОНУС",
+    "cta_by_geo": {
+      "RU": "ЗАБРАТЬ 500%",
+      "KZ": "БОНУС 100 000 KZT",
+      "BR": "GIRAR BÔNUS",
+      "DE": "BONUS HOLEN",
+      "UA": "ЗАБРАТИ 500%",
+      "BY": "ЗАБРАЦЬ 500%"
+    },
+    "bonus_text": {
+      "RU": "Бездепозитный бонус 500FS",
+      "KZ": "Тегін бонус 500FS",
+      "BR": "Bônus sem depósito 500FS",
+      "DE": "Keine Einzahlung 500FS",
+      "UA": "Бездепозитний бонус 500FS",
+      "BY": "Бясплатны бонус 500FS"
+    },
+    "offer_link": "https://catcasino.com/promo/stream",
+    "allowed_games": [
+      "gates-of-olympus-1000",
+      "sugar-rush-1000",
+      "plinko",
+      "sweet-bonanza",
+      "book-of-dead",
+      "starburst",
+      "big-bass-bonanza"
+    ],
+    "allowed_geo": ["RU", "KZ", "BR", "DE", "UA", "BY"],
+    "prohibited_elements": ["депозит", "кредит", "займ", "гарантия"],
+    "required_elements": ["🐱", "кошачий стиль"],
+    "style": {
+      "theme": "bright_orange",
+      "emoji": "🐱",
+      "font": "bold",
+      "animation": "pulse"
+    }
+  },
+  "frank": {
+    "name": "Frank Casino",
+    "logo_path": "/logos/frank.png",
+    "primary_color": "#000000",
+    "secondary_color": "#FFD700",
+    "cta_text_default": "ИГРАТЬ БЕСПЛАТНО",
+    "cta_by_geo": {
+      "PL": "GRAJ ZA DARMO",
+      "CZ": "HRÁT ZDARMA",
+      "RU": "ИГРАТЬ БЕСПЛАТНО",
+      "DE": "KOSTENLOS SPIELEN"
+    },
+    "bonus_text": {
+      "PL": "20€ bez depozytu",
+      "CZ": "20€ bez vkladu",
+      "RU": "20€ без депозита",
+      "DE": "20€ ohne Einzahlung"
+    },
+    "offer_link": "https://frank.com/free-spins",
+    "allowed_games": [
+      "aviamasters-2",
+      "chicken-road-2",
+      "mine-slot-2",
+      "razor-shark",
+      "fire-joker"
+    ],
+    "allowed_geo": ["PL", "CZ", "RU", "DE"],
+    "prohibited_elements": ["бомж", "халява", "лох", "кредит"],
+    "required_elements": ["латиница для PL/CZ"],
+    "style": {
+      "theme": "black_gold",
+      "emoji": null,
+      "font": "elegant",
+      "animation": "fade"
+    }
+  },
+  "volna": {
+    "name": "Volna Casino",
+    "logo_path": "/logos/volna.png",
+    "primary_color": "#0077BE",
+    "secondary_color": "#00CED1",
+    "cta_text_default": "ПОПРОБОВАТЬ",
+    "cta_by_geo": {
+      "RU": "ПОПРОБОВАТЬ",
+      "UA": "СПРОБУВАТИ",
+      "KZ": "СЫНАП КӨР",
+      "BY": "ПАСПРАБАВАЦЬ"
+    },
+    "bonus_text": {
+      "RU": "Волна удачи 300FS",
+      "UA": "Хвиля удачі 300FS",
+      "KZ": "Сәт толқыны 300FS",
+      "BY": "Хваля поспеху 300FS"
+    },
+    "offer_link": "https://volna.com/wave-bonus",
+    "allowed_games": [
+      "gates-of-olympus",
+      "poseidon-fortunes",
+      "atlantis-megaways",
+      "ocean-treasure",
+      "mermaid-millions"
+    ],
+    "allowed_geo": ["RU", "UA", "KZ", "BY"],
+    "prohibited_elements": ["нарик", "алко", "развод", "наркотик"],
+    "required_elements": ["морская тематика", "волны"],
+    "style": {
+      "theme": "ocean_blue",
+      "emoji": "🌊",
+      "font": "modern",
+      "animation": "wave"
+    }
+  },
+  "dragon": {
+    "name": "Dragon Money",
+    "logo_path": "/logos/dragon.png",
+    "primary_color": "#8B0000",
+    "secondary_color": "#FFD700",
+    "cta_text_default": "ЗАЖЕЧЬ ДРАКОНА",
+    "cta_by_geo": {
+      "RU": "ЗАЖЕЧЬ ДРАКОНА",
+      "KZ": "АЖДАРҒА ҰРЫС",
+      "UA": "ЗАПАЛИТИ ДРАКОНА",
+      "BR": "ACENDA O DRAGÃO"
+    },
+    "bonus_text": {
+      "RU": "Огненный бонус 777FS",
+      "KZ": "Отты бонус 777FS",
+      "UA": "Вогняний бонус 777FS",
+      "BR": "Bônus de fogo 777FS"
+    },
+    "offer_link": "https://dragon.money/fire",
+    "allowed_games": [
+      "dragon-kingdom",
+      "dragon-empire",
+      "fire-dragon",
+      "golden-dragon",
+      "dragon-hatch"
+    ],
+    "allowed_geo": ["RU", "KZ", "UA", "BR"],
+    "prohibited_elements": ["наркотик", "алко", "нарик"],
+    "required_elements": ["🐉", "дракон", "огонь"],
+    "style": {
+      "theme": "fire_red",
+      "emoji": "🐉",
+      "font": "bold",
+      "animation": "fire"
+    }
+  },
+  "fastpay": {
+    "name": "Fastpay Casino",
+    "logo_path": "/logos/fastpay.png",
+    "primary_color": "#00FF00",
+    "secondary_color": "#1C1C1C",
+    "cta_text_default": "БЫСТРЫЙ СТАРТ",
+    "cta_by_geo": {
+      "RU": "БЫСТРЫЙ СТАРТ",
+      "UA": "ШВИДКИЙ СТАРТ",
+      "KZ": "ЖЫЛДАМ БАСТАУ",
+      "DE": "SCHNELLER START"
+    },
+    "bonus_text": {
+      "RU": "Моментальный вывод",
+      "UA": "Миттєвий вивід",
+      "KZ": "Лезде шығару",
+      "DE": "Sofortige Auszahlung"
+    },
+    "offer_link": "https://fastpay.com/quick",
+    "allowed_games": [
+      "cash-choppers",
+      "money-train",
+      "quick-spin",
+      "turbo-games",
+      "speedy-gonzales"
+    ],
+    "allowed_geo": ["RU", "UA", "KZ", "DE"],
+    "prohibited_elements": ["медленно", "ожидание", "очередь"],
+    "required_elements": ["⚡", "скорость"],
+    "style": {
+      "theme": "neon_green",
+      "emoji": "⚡",
+      "font": "modern",
+      "animation": "flash"
+    }
+  },
+  "roX": {
+    "name": "ROX Casino",
+    "logo_path": "/logos/rox.png",
+    "primary_color": "#9400D3",
+    "secondary_color": "#FF1493",
+    "cta_text_default": "В РОКС",
+    "cta_by_geo": {
+      "RU": "В РОКС",
+      "UA": "В РОКС",
+      "KZ": "РОКСҚА",
+      "BY": "У РОКС"
+    },
+    "bonus_text": {
+      "RU": "ROX бонус 100%",
+      "UA": "ROX бонус 100%",
+      "KZ": "ROX бонус 100%",
+      "BY": "ROX бонус 100%"
+    },
+    "offer_link": "https://rox.com/welcome",
+    "allowed_games": [
+      "rock-n-roll",
+      "vip-blackjack",
+      "elite-roulette",
+      "premium-slots",
+      "luxury-life"
+    ],
+    "allowed_geo": ["RU", "UA", "KZ", "BY"],
+    "prohibited_elements": ["дёшево", "бесплатно", "халява"],
+    "required_elements": ["💎", "премиум"],
+    "style": {
+      "theme": "purple_gold",
+      "emoji": "💎",
+      "font": "elegant",
+      "animation": "glow"
+    }
+  }
+}
