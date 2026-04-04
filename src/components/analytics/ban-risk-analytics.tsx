@@ -640,7 +640,7 @@ export function BanRiskAnalytics() {
               {/* Stats */}
               <div className="grid grid-cols-4 gap-4">
                 <div className="text-center p-3 bg-[#1E1F26] rounded-lg">
-                  <p className="text-lg font-bold text-white">{selectedAccount.stats.followers.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-white">{selectedAccount.stats?.followers?.toLocaleString() || '0'}</p>
                   <p className="text-xs text-[#8A8A8A]">Подписчиков</p>
                 </div>
                 <div className="text-center p-3 bg-[#1E1F26] rounded-lg">

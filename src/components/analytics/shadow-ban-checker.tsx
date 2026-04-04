@@ -422,8 +422,8 @@ export function ShadowBanChecker() {
                   </div>
                   <div>
                     <p className="text-xs text-[#8A8A8A]">Соотношение</p>
-                    <p className="text-lg font-bold" style={{ color: getRiskColor(100 - result.checks.storyViews.ratio * 100) }}>
-                      {(result.checks.storyViews.ratio * 100).toFixed(0)}%
+                    <p className="text-lg font-bold" style={{ color: getRiskColor(100 - (result.checks.storyViews.ratio || 0) * 100) }}>
+                      {((result.checks.storyViews.ratio || 0) * 100).toFixed(0)}%
                     </p>
                   </div>
                 </div>
@@ -448,7 +448,7 @@ export function ShadowBanChecker() {
                 <div className="flex items-center gap-4 mt-2">
                   <div>
                     <p className="text-xs text-[#8A8A8A]">Текущая</p>
-                    <p className="text-lg font-bold text-white">{result.checks.engagementRate.rate.toFixed(2)}%</p>
+                    <p className="text-lg font-bold text-white">{(result.checks.engagementRate.rate || 0).toFixed(2)}%</p>
                   </div>
                   {result.checks.engagementRate.previousRate && (
                     <div className="flex items-center gap-1">
@@ -458,7 +458,7 @@ export function ShadowBanChecker() {
                         <TrendingUp className="w-4 h-4 text-[#00D26A]" />
                       )}
                       <span className="text-sm text-[#8A8A8A]">
-                        было {result.checks.engagementRate.previousRate.toFixed(2)}%
+                        было {(result.checks.engagementRate.previousRate || 0).toFixed(2)}%
                       </span>
                     </div>
                   )}

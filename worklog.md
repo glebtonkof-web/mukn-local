@@ -1976,3 +1976,38 @@ Stage Summary:
   1. Empty array type inference (never[]): Fixed with explicit type annotation
   2. Prisma compound unique constraint with nullable field: Cannot use findUnique with null values; must use findFirst for null case
 - All fixes verified with TypeScript compiler - no errors in target files
+
+---
+## Task ID: fix-null-issues
+### Work Task
+Fix null/undefined issues in React components for safer property access.
+
+### Work Summary
+Successfully fixed 4 null/undefined issues in analytics components:
+
+**1. ban-risk-analytics.tsx (Line 643)**
+- **Issue**: `selectedAccount.stats.followers.toLocaleString()` could throw if stats or followers is undefined
+- **Fix**: Added optional chaining with fallback: `selectedAccount.stats?.followers?.toLocaleString() || '0'`
+- **Pattern used**: `value?.toLocaleString() || '0'`
+
+**2. shadow-ban-checker.tsx (Line 426)**
+- **Issue**: `(result.checks.storyViews.ratio * 100).toFixed(0)` could throw if ratio is undefined
+- **Fix**: Added null coalescing with fallback: `((result.checks.storyViews.ratio || 0) * 100).toFixed(0)`
+- **Pattern used**: `(value || 0).toFixed()`
+- **Also fixed**: The getRiskColor call on the same line: `getRiskColor(100 - (result.checks.storyViews.ratio || 0) * 100)`
+
+**3. shadow-ban-checker.tsx (Line 451)**
+- **Issue**: `result.checks.engagementRate.rate.toFixed(2)` could throw if rate is undefined
+- **Fix**: Added null coalescing with fallback: `(result.checks.engagementRate.rate || 0).toFixed(2)`
+- **Pattern used**: `(value || 0).toFixed()`
+
+**4. shadow-ban-checker.tsx (Line 461)**
+- **Issue**: `result.checks.engagementRate.previousRate.toFixed(2)` could throw if previousRate is undefined
+- **Fix**: Added null coalescing with fallback: `(result.checks.engagementRate.previousRate || 0).toFixed(2)`
+- **Pattern used**: `(value || 0).toFixed()`
+
+**Files Modified**:
+- `/src/components/analytics/ban-risk-analytics.tsx` - 1 fix
+- `/src/components/analytics/shadow-ban-checker.tsx` - 3 fixes
+
+**Code Quality**: All fixes follow the recommended patterns for null safety in JavaScript/TypeScript.
