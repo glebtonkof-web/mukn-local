@@ -1,0 +1,61 @@
+# DeepSeek Free Industrial Service Configuration
+# ================================================
+
+# Server settings
+port: 8765
+log_level: INFO
+log_file: ./logs/deepseek-free.log
+
+# Account Pool Settings
+pool:
+  strategy: least_used  # round_robin, least_used, weighted, random
+  max_concurrent: 20
+  replication_factor: 1  # Number of accounts to use per request
+  min_accounts: 1
+  auto_heal: true
+
+# Cache Settings
+cache:
+  l1_size: 1000
+  l2_path: ./data/cache.db
+  l3_dir: ./data/cache_l3
+  semantic_search: true
+  default_ttl: 3600  # 1 hour
+
+# Queue Settings
+queue:
+  max_concurrent: 20
+  min_delay: 5
+  max_delay: 15
+  retry_delay: 30
+  max_retries: 3
+  dedup_window: 300  # 5 minutes
+
+# Auto-Registration Settings
+registration:
+  provider: temp_mail_org  # temp_mail_org, guerrilla_mail
+  password_length: 16
+  max_per_hour: 5
+  headless: true
+
+# Self-Healing Settings
+healing:
+  check_interval: 300  # 5 minutes
+  unhealthy_threshold: 5
+  degraded_threshold: 3
+  recovery_cooldown: 300
+  max_recovery_attempts: 3
+
+# Proxy Pool (optional)
+proxies: []
+  # - host: "proxy1.example.com"
+  #   port: 8080
+  #   type: "http"
+  #   username: "user"
+  #   password: "pass"
+
+# Pre-configured accounts (optional)
+accounts: []
+  # - email: "account1@example.com"
+  #   password: "password123"
+  #   proxy: null

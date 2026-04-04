@@ -22,6 +22,7 @@ import { AnalyticsView } from '@/components/views/analytics-view';
 import { InstagramWarmingView } from '@/components/views/instagram-warming-view';
 import { TrafficPourView } from '@/components/views/traffic-pour-view';
 import { AntidetectView } from '@/components/views/antidetect-view';
+import { DeepSeekFreePanelPro } from '@/components/deepseek-free/deepseek-free-panel-pro';
 import { AIAssistantPanel } from '@/components/ai-assistant/ai-panel';
 import { ModeSwitcher } from '@/components/mode-switcher/index';
 import { OnboardingTour } from '@/components/onboarding/onboarding-tour';
@@ -1654,6 +1655,8 @@ export default function MUKNTrafficApp() {
         return <TrafficPourView />;
       case 'antidetect':
         return <AntidetectView />;
+      case 'deepseek-free':
+        return <DeepSeekFreePanelPro />;
       default:
         return <DashboardView />;
     }
