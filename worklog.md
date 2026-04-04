@@ -1916,3 +1916,63 @@ Stage Summary:
 - Исправлено 60+ TypeScript ошибок
 - Осталось 32 некритичных ошибок (не блокируют сборку)
 - Prisma клиент регенерирован
+
+---
+Task ID: 2b-api-fixes
+Agent: general-purpose
+Task: Fix TypeScript errors in API routes batch 2
+
+Work Log:
+- Fixed /src/app/api/traffic/cross-platform-v2/route.ts: Variable 'campaign' initialized as null but assigned TrafficCampaign type. Added explicit type annotation `let campaign: Awaited<ReturnType<typeof db.trafficCampaign.update>> | null = null`
+- Fixed /src/app/api/traffic/cross-platform/route.ts: Same issue with campaign variable. Added explicit type annotation.
+- Fixed /src/app/api/traffic/instagram/route.ts: Same issue with campaign variable. Added explicit type annotation.
+- Fixed /src/app/api/traffic/telegram/route.ts: Same issue with campaign variable. Added explicit type annotation.
+- Fixed /src/app/api/traffic/tiktok/route.ts: Same issue with campaign variable. Added explicit type annotation.
+- Fixed /src/app/api/monetization/accounts/route.ts: Array 'orders' was inferred as never[]. Added explicit type `const orders: any[] = []`
+- Fixed /src/app/api/monetization/darknet/route.ts: Array 'schemes' was inferred as never[]. Added explicit type `const schemes: any[] = []`
+- Fixed /src/app/api/monetization/gap-scanner/route.ts: Array 'gaps' was inferred as never[]. Added explicit type `const gaps: any[] = []`
+- Fixed /src/app/api/monetization/trends/route.ts: Array 'trends' was inferred as never[]. Added explicit type `const trends: any[] = []`
+
+Stage Summary:
+- Fixed 9 TypeScript errors across 9 API route files
+- Two patterns identified and fixed:
+  1. Traffic routes: Variable initialized as null but assigned non-null value - fixed with explicit union type annotation
+  2. Monetization routes: Empty array inferred as never[] - fixed with explicit any[] type annotation
+
+---
+Task ID: 2-api-fixes
+Agent: general-purpose
+Task: Fix TypeScript errors in API routes
+
+Work Log:
+- Fixed /home/z/my-project/src/app/api/traffic/methods/route.ts: Variable `method` was initialized as `null` literal type, changed to explicit union type with object type. Variable `filteredMethods` needed explicit type annotation and type assertion for filtered assignment.
+- Fixed /home/z/my-project/src/app/api/advanced/ab-testing/route.ts: Variable `winner` was initialized as `null` literal type, changed to explicit union type `{ style: string; conversionRate: number; reason: string } | null`.
+- Fixed /home/z/my-project/src/app/api/advanced/case-study/route.ts: Variable `savedCase` was initialized as `null` literal type, changed to use `Awaited<ReturnType<typeof db.caseStudy.create>> | null`.
+- Fixed /home/z/my-project/src/app/api/advanced/emotion-analysis/route.ts: Variable `comment` was initialized as `null` literal type, changed to use `Awaited<ReturnType<typeof generateEmotionallyAwareComment>> | null`.
+- Fixed /home/z/my-project/src/app/api/advanced/legend-generate/route.ts: Variable `savedLegend` was initialized as `null` literal type, changed to use `Awaited<ReturnType<typeof db.accountLegend.create>> | null`.
+- Fixed /home/z/my-project/src/app/api/ofm/auto-story/route.ts: Variable `storyImageUrl` was initialized as `null` literal type, changed to explicit `string | null` type.
+- Fixed /home/z/my-project/src/app/api/traffic/fake-content/route.ts: Variable `imageBase64` was initialized as `null` literal type, changed to explicit `string | undefined | null` type.
+
+Stage Summary:
+- Fixed 7 TypeScript errors in 7 API route files
+- All errors were caused by incorrect type inference when initializing variables as `null` - TypeScript infers the type as `null` literal instead of a union type
+- Verified fixes with TypeScript compiler - no errors in target files
+- Root cause: When you write `let x = null`, TypeScript infers `x: null`. When you later assign a different type, it fails. The fix is to explicitly type as `ActualType | null`.
+
+---
+Task ID: 2c-api-fixes
+Agent: general-purpose
+Task: Fix TypeScript errors in API routes batch 3
+
+Work Log:
+- Fixed /home/z/my-project/src/app/api/advanced/learning/route.ts: Array 'updates' was inferred as never[] when initialized empty. Added explicit type `const updates: Promise<any>[] = []` to allow pushing Prisma update promises.
+- Fixed /home/z/my-project/src/app/api/advanced/load-balancer/route.ts: Array 'results' was inferred as never[] in health-check action. Added explicit type `const results: Array<{ serverId: string; healthy: boolean }> = []` to allow pushing health check results.
+- Fixed /home/z/my-project/src/app/api/ofm/reactions/route.ts: Array 'results' was inferred as never[]. Added explicit type `const results: any[] = []` to allow pushing Prisma results (both update and create operations).
+- Fixed /home/z/my-project/src/app/api/translate/route.ts (lines 236, 329): Prisma compound unique constraint doesn't support null values directly. The unique constraint type requires `context: string` not `string | null`. Fixed by using conditional logic: when context is provided, use findUnique with the compound key; when context is null/undefined, use findFirst with explicit null check in where clause.
+
+Stage Summary:
+- Fixed 6 TypeScript errors across 4 API route files
+- Three patterns identified and fixed:
+  1. Empty array type inference (never[]): Fixed with explicit type annotation
+  2. Prisma compound unique constraint with nullable field: Cannot use findUnique with null values; must use findFirst for null case
+- All fixes verified with TypeScript compiler - no errors in target files

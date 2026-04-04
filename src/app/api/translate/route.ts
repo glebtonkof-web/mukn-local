@@ -227,16 +227,30 @@ async function handleSingleTranslate(body: TranslateRequest) {
   const detectedSource = sourceLanguage || await detectLanguage(text);
 
   // Check cache first
-  const cached = await db.translationCache.findUnique({
-    where: {
-      sourceText_sourceLanguage_targetLanguage_context: {
+  // Note: Prisma compound unique constraint doesn't support null values directly
+  // So we use findFirst for null context and findUnique for non-null context
+  let cached;
+  if (context) {
+    cached = await db.translationCache.findUnique({
+      where: {
+        sourceText_sourceLanguage_targetLanguage_context: {
+          sourceText: text,
+          sourceLanguage: detectedSource,
+          targetLanguage: targetLanguage,
+          context: context
+        }
+      }
+    });
+  } else {
+    cached = await db.translationCache.findFirst({
+      where: {
         sourceText: text,
         sourceLanguage: detectedSource,
         targetLanguage: targetLanguage,
-        context: context || null
+        context: null
       }
-    }
-  });
+    });
+  }
 
   if (cached) {
     return NextResponse.json({
@@ -320,16 +334,30 @@ async function handleBatchTranslate(body: BatchTranslateRequest) {
 
   for (const text of texts) {
     // Check cache
-    const cached = await db.translationCache.findUnique({
-      where: {
-        sourceText_sourceLanguage_targetLanguage_context: {
+    // Note: Prisma compound unique constraint doesn't support null values directly
+    // So we use findFirst for null context and findUnique for non-null context
+    let cached;
+    if (context) {
+      cached = await db.translationCache.findUnique({
+        where: {
+          sourceText_sourceLanguage_targetLanguage_context: {
+            sourceText: text,
+            sourceLanguage: detectedSource,
+            targetLanguage: targetLanguage,
+            context: context
+          }
+        }
+      });
+    } else {
+      cached = await db.translationCache.findFirst({
+        where: {
           sourceText: text,
           sourceLanguage: detectedSource,
           targetLanguage: targetLanguage,
-          context: context || null
+          context: null
         }
-      }
-    });
+      });
+    }
 
     if (cached) {
       results.push({

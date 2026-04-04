@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       }));
       
       // Calculate winner if test is completed or running
-      let winner = null;
+      let winner: { style: string; conversionRate: number; reason: string } | null = null;
       if (test.status !== 'draft' && test.variants.length > 0) {
         winner = calculateWinner(variantsWithResults);
       }

@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const legend = await generateAccountLegend(channelTheme, influencerData, userId);
     
     // Сохраняем в базу если нужно
-    let savedLegend = null;
+    let savedLegend: Awaited<ReturnType<typeof db.accountLegend.create>> | null = null;
     if (saveToDb && userId) {
       savedLegend = await db.accountLegend.create({
         data: {

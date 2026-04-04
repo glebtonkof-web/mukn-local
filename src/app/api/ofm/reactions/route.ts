@@ -236,7 +236,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const results = [];
+    const results: any[] = [];
 
     for (const reaction of reactions) {
       const existing = await db.reactionAnalytics.findFirst({

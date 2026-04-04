@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const caseStudy = await generateCaseStudy(campaignData, userId);
     
     // Сохраняем в базу если нужно
-    let savedCase = null;
+    let savedCase: Awaited<ReturnType<typeof db.caseStudy.create>> | null = null;
     if (saveToDb) {
       savedCase = await db.caseStudy.create({
         data: {

@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
 
     // Generate story content
     let storyText = '';
-    let storyImageUrl = null;
+    let storyImageUrl: string | null = null;
 
     // Get profile for context
     const profile = await db.oFMProfile.findUnique({

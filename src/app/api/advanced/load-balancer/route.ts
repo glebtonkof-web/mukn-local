@@ -297,7 +297,7 @@ export async function PATCH(request: NextRequest) {
     if (action === 'health-check') {
       // Запуск проверки здоровья серверов
       const servers = await db.loadBalancer.findMany();
-      const results = [];
+      const results: Array<{ serverId: string; healthy: boolean }> = [];
 
       for (const server of servers) {
         // Симуляция health check (в реальной системе - пинг сервера)

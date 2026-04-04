@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Создаём заказ на прогрев аккаунтов
-    const orders = [];
+    const orders: any[] = [];
     for (let i = 0; i < (quantity || 1); i++) {
       // Создаём фиктивный аккаунт
       const account = await db.account.create({

@@ -129,8 +129,8 @@ function createDemoGaps() {
 
 // Симуляция сканирования
 async function simulateGapScan(networks: string[] = ['all'], minROI: number = 100) {
-  const gaps = [];
-  const networkList = networks.includes('all') 
+  const gaps: any[] = [];
+  const networkList = networks.includes('all')
     ? ['Admitad', 'CPAlead', 'Cashbox', 'MonsterAds', 'Custom']
     : networks;
 

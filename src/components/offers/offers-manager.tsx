@@ -297,10 +297,10 @@ export function OffersManager() {
 
   // Stats calculation
   const stats = useMemo(() => {
-    const totalClicks = offersList.reduce((sum, o) => sum + o.clicks, 0);
-    const totalLeads = offersList.reduce((sum, o) => sum + o.leads, 0);
-    const totalRevenue = offersList.reduce((sum, o) => sum + o.revenue, 0);
-    const avgROI = offersList.reduce((sum, o) => sum + (o.roi || 0), 0) / offersList.length;
+    const totalClicks = offersList.reduce((sum, o) => sum + (o.clicks || 0), 0);
+    const totalLeads = offersList.reduce((sum, o) => sum + (o.leads || 0), 0);
+    const totalRevenue = offersList.reduce((sum, o) => sum + (o.revenue || 0), 0);
+    const avgROI = offersList.length > 0 ? offersList.reduce((sum, o) => sum + (o.roi || 0), 0) / offersList.length : 0;
     return { totalClicks, totalLeads, totalRevenue, avgROI };
   }, [offersList]);
 
@@ -511,9 +511,9 @@ export function OffersManager() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-white font-medium">${offer.payout}</TableCell>
-                      <TableCell className="text-white">{offer.clicks.toLocaleString()}</TableCell>
-                      <TableCell className="text-white">{offer.leads}</TableCell>
-                      <TableCell className="text-[#00D26A] font-medium">${offer.revenue.toLocaleString()}</TableCell>
+                      <TableCell className="text-white">{(offer.clicks || 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-white">{offer.leads || 0}</TableCell>
+                      <TableCell className="text-[#00D26A] font-medium">${(offer.revenue || 0).toLocaleString()}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           {(offer.roi || 0) >= 100 ? (

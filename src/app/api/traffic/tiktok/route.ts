@@ -486,7 +486,7 @@ export async function PUT(request: NextRequest) {
     });
 
     // Update campaign if provided
-    let campaign = null;
+    let campaign: Awaited<ReturnType<typeof db.trafficCampaign.update>> | null = null;
     if (campaignId) {
       campaign = await db.trafficCampaign.update({
         where: { id: campaignId },

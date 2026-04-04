@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
         // Генерация изображения скриншота
         const imagePrompt = `A realistic screenshot of ${params.platform || 'Binance'} crypto wallet mobile app showing balance. Professional UI, dark mode, realistic. No text overlay.`;
         
-        let imageBase64 = null;
+        let imageBase64: string | undefined | null = null;
         try {
           const imageResponse = await zai.images.generations.create({
             prompt: imagePrompt,

@@ -223,8 +223,8 @@ export async function PUT(request: NextRequest) {
       }
     });
 
-    const updates = [];
-    
+    const updates: Promise<any>[] = [];
+
     for (const pattern of patterns) {
       const samples = await db.learningSample.findMany({
         where: { patternId: pattern.id }

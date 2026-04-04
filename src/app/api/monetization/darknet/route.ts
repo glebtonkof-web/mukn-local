@@ -142,7 +142,7 @@ function createDemoDigests() {
 }
 
 async function simulateDarknetParse(forums: string[], keywords: string[]) {
-  const schemes = [];
+  const schemes: any[] = [];
   const templates = [
     {
       title: 'Новый метод прогрева аккаунтов',

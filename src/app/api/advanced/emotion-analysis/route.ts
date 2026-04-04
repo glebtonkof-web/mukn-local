@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const emotionalProfile = await analyzeEmotionalContext(postContent, userId);
     
     // Если нужно, генерируем комментарий
-    let comment = null;
+    let comment: Awaited<ReturnType<typeof generateEmotionallyAwareComment>> | null = null;
     if (generateComment && offerInfo) {
       comment = await generateEmotionallyAwareComment(
         postContent,

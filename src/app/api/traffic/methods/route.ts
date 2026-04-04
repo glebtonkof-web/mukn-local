@@ -313,7 +313,7 @@ export async function GET(request: NextRequest) {
     // Get specific method
     if (methodId) {
       const id = parseInt(methodId);
-      let method = null;
+      let method: { id: number; name: string; risk: string; category: string; platform: string; prompt: { system: string; user: string } | undefined } | null = null;
       
       for (const [cat, methods] of Object.entries(TRAFFIC_METHODS)) {
         const found = methods.find(m => m.id === id);
@@ -336,9 +336,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Filter by category
-    let filteredMethods = TRAFFIC_METHODS;
+    let filteredMethods: typeof TRAFFIC_METHODS = TRAFFIC_METHODS;
     if (category && category in TRAFFIC_METHODS) {
-      filteredMethods = { [category]: TRAFFIC_METHODS[category as keyof typeof TRAFFIC_METHODS] };
+      filteredMethods = { [category]: TRAFFIC_METHODS[category as keyof typeof TRAFFIC_METHODS] } as typeof TRAFFIC_METHODS;
     }
 
     // Count total

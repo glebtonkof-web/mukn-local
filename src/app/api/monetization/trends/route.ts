@@ -156,7 +156,7 @@ function createDemoTrends() {
 }
 
 async function analyzeTrends(sources: string[], keywords: string[]) {
-  const trends = [];
+  const trends: any[] = [];
   const nicheTemplates = [
     { name: 'AI-автоматизация бизнеса', category: 'tech', baseGrowth: 250 },
     { name: 'Новые платежные системы', category: 'finance', baseGrowth: 180 },

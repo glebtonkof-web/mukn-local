@@ -14,10 +14,10 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: Record<string, Date | number | string | undefined> = {};
     
-    if (startDate || endDate) {
-      where.date = {};
-      if (startDate) where.date = new Date(startDate);
-      if (endDate) where.date = new Date(endDate);
+    if (startDate) {
+      where.date = new Date(startDate);
+    } else if (endDate) {
+      where.date = new Date(endDate);
     }
     
     if (methodId) where.methodId = parseInt(methodId);
@@ -199,26 +199,31 @@ export async function POST(request: NextRequest) {
 
     let analytics;
     if (existing) {
-      const updateData: Record<string, number | undefined> = {
-        [field]: { increment: count },
+      // Increment the field
+      const currentFieldValue = (existing as Record<string, unknown>)[field] as number || 0;
+      const updateData: Record<string, number> = {
+        [field]: currentFieldValue + count,
       };
-      if (revenue) updateData.revenue = { increment: revenue };
+      if (revenue) updateData.revenue = (existing.revenue || 0) + revenue;
 
       analytics = await db.trafficFunnelAnalytics.update({
         where: { id: existing.id },
         data: updateData,
       });
     } else {
-      const createData: Record<string, Date | number | string | undefined> = {
-        date: recordDate,
-        [field]: count,
-      };
-      if (methodId) createData.methodId = methodId;
-      if (sourceId) createData.sourceId = sourceId;
-      if (revenue) createData.revenue = revenue;
-
+      // Create new record with proper typing
       analytics = await db.trafficFunnelAnalytics.create({
-        data: createData,
+        data: {
+          date: recordDate,
+          comments: field === 'comments' ? count : 0,
+          profileViews: field === 'profileViews' ? count : 0,
+          storyViews: field === 'storyViews' ? count : 0,
+          channelJoins: field === 'channelJoins' ? count : 0,
+          payments: field === 'payments' ? count : 0,
+          revenue: revenue || 0,
+          methodId: methodId || null,
+          sourceId: sourceId || null,
+        },
       });
     }
 
