@@ -10,16 +10,83 @@ import {
   Rocket,
   Zap,
   Bell,
+  Brain,
+  DollarSign,
+  TrendingUp,
+  Globe,
+  Cpu,
+  MessageSquare,
+  Target,
+  UserCircle,
+  Briefcase,
+  Shield,
+  Smartphone,
+  Video,
+  Calendar,
+  Sparkles,
+  Layers,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useState } from 'react';
 
-const navItems = [
-  { id: 'dashboard', label: 'Главная', icon: LayoutDashboard },
-  { id: 'campaigns', label: 'Кампании', icon: Rocket },
-  { id: 'accounts', label: 'Аккаунты', icon: Users },
-  { id: 'analytics', label: 'Аналитика', icon: BarChart3 },
-  { id: 'settings', label: 'Настройки', icon: Settings },
+const navSections = [
+  {
+    title: 'Основное',
+    items: [
+      { id: 'dashboard', label: 'Главная', icon: LayoutDashboard },
+      { id: 'campaigns', label: 'Кампании', icon: Rocket },
+      { id: 'accounts', label: 'Аккаунты', icon: Users },
+      { id: 'analytics', label: 'Аналитика', icon: BarChart3 },
+    ]
+  },
+  {
+    title: 'Трафик',
+    items: [
+      { id: 'traffic', label: 'Методы трафика', icon: TrendingUp, badge: '130' },
+      { id: 'offers', label: 'Офферы', icon: Target },
+      { id: 'influencers', label: 'Инфлюенсеры', icon: UserCircle },
+    ]
+  },
+  {
+    title: 'AI & Автоматизация',
+    items: [
+      { id: 'ai-comments', label: 'AI Комментарии', icon: MessageSquare },
+      { id: 'ai-pool', label: 'AI Pool', icon: Brain },
+      { id: 'content', label: 'Контент', icon: Calendar },
+      { id: 'video-generator', label: 'Видео генератор', icon: Video },
+    ]
+  },
+  {
+    title: 'Advanced',
+    items: [
+      { id: 'advanced', label: 'Advanced Tools', icon: Cpu, badge: '17' },
+      { id: 'warming', label: 'Прогрев', icon: Zap },
+      { id: 'shadow-ban', label: 'Shadow Ban', icon: Shield },
+    ]
+  },
+  {
+    title: 'Монетизация',
+    items: [
+      { id: 'monetization', label: 'Монетизация', icon: DollarSign },
+      { id: 'ofm', label: 'OFM', icon: Briefcase },
+    ]
+  },
+  {
+    title: 'Инфраструктура',
+    items: [
+      { id: 'proxies', label: 'Прокси', icon: Globe },
+      { id: 'sim-cards', label: 'SIM-карты', icon: Smartphone },
+    ]
+  },
+  {
+    title: 'Система',
+    items: [
+      { id: 'settings', label: 'Настройки', icon: Settings },
+    ]
+  },
 ];
 
 interface SidebarProps {
@@ -29,20 +96,29 @@ interface SidebarProps {
 
 export function Sidebar({ unreadNotifications = 0, onNotificationsClick }: SidebarProps) {
   const { activeTab, setActiveTab, notifications } = useAppStore();
+  const [collapsedSections, setCollapsedSections] = useState<string[]>([]);
   
   const actualUnreadCount = notifications.filter(n => !n.isRead).length || unreadNotifications;
+
+  const toggleSection = (title: string) => {
+    setCollapsedSections(prev => 
+      prev.includes(title) 
+        ? prev.filter(s => s !== title)
+        : [...prev, title]
+    );
+  };
 
   return (
     <div className="flex flex-col h-full w-64 bg-[#14151A] border-r border-[#2A2B32]">
       {/* Logo */}
-      <div className="p-6">
+      <div className="p-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6C63FF] to-[#00D26A] flex items-center justify-center">
             <Zap className="w-6 h-6 text-white" />
           </div>
           <div>
             <h1 className="text-lg font-bold text-white">МУКН</h1>
-            <p className="text-xs text-[#8A8A8A]">Трафик</p>
+            <p className="text-xs text-[#8A8A8A]">Трафик Enterprise</p>
           </div>
         </div>
       </div>
@@ -50,42 +126,65 @@ export function Sidebar({ unreadNotifications = 0, onNotificationsClick }: Sideb
       <Separator className="bg-[#2A2B32]" />
 
       {/* Navigation */}
-      <div className="flex-1 px-3 py-4">
-        <nav className="space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={cn(
-                  'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200',
-                  isActive
-                    ? 'bg-[#6C63FF] text-white shadow-lg shadow-[#6C63FF]/25'
-                    : 'text-[#8A8A8A] hover:bg-[#1E1F26] hover:text-white'
-                )}
-              >
-                <Icon className="w-5 h-5" />
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
+      <div className="flex-1 overflow-y-auto px-2 py-2">
+        {navSections.map((section) => (
+          <div key={section.title} className="mb-2">
+            <button
+              onClick={() => toggleSection(section.title)}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-[#6C63FF] uppercase tracking-wider hover:text-[#8A8A8A] transition-colors"
+            >
+              <span>{section.title}</span>
+              {collapsedSections.includes(section.title) ? (
+                <ChevronRight className="w-3 h-3" />
+              ) : (
+                <ChevronDown className="w-3 h-3" />
+              )}
+            </button>
+            
+            {!collapsedSections.includes(section.title) && (
+              <nav className="space-y-0.5">
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      className={cn(
+                        'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
+                        isActive
+                          ? 'bg-[#6C63FF] text-white shadow-lg shadow-[#6C63FF]/25'
+                          : 'text-[#8A8A8A] hover:bg-[#1E1F26] hover:text-white'
+                      )}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span className="flex-1 text-left">{item.label}</span>
+                      {item.badge && (
+                        <Badge className="bg-[#6C63FF]/20 text-[#6C63FF] text-xs px-1.5 py-0">
+                          {item.badge}
+                        </Badge>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+            )}
+          </div>
+        ))}
       </div>
 
       <Separator className="bg-[#2A2B32]" />
 
       {/* Bottom section */}
-      <div className="p-3 space-y-1">
+      <div className="p-2">
         <button
           onClick={onNotificationsClick}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[#8A8A8A] hover:bg-[#1E1F26] hover:text-white transition-all relative"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#8A8A8A] hover:bg-[#1E1F26] hover:text-white transition-all relative"
         >
-          <Bell className="w-5 h-5" />
+          <Bell className="w-4 h-4" />
           Уведомления
           {actualUnreadCount > 0 && (
-            <Badge className="ml-auto bg-[#FF4D4D] text-white text-xs px-2 py-0.5">
+            <Badge className="ml-auto bg-[#FF4D4D] text-white text-xs px-1.5 py-0">
               {actualUnreadCount}
             </Badge>
           )}
@@ -93,8 +192,9 @@ export function Sidebar({ unreadNotifications = 0, onNotificationsClick }: Sideb
       </div>
 
       {/* Version */}
-      <div className="p-4 text-center">
-        <p className="text-xs text-[#8A8A8A]">v2.0.0 Enterprise</p>
+      <div className="p-3 text-center border-t border-[#2A2B32]">
+        <p className="text-xs text-[#8A8A8A]">v2.1.0 Enterprise</p>
+        <p className="text-xs text-[#6C63FF]">130 методов трафика</p>
       </div>
     </div>
   );

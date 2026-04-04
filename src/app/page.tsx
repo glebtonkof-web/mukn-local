@@ -3,6 +3,18 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAppStore, Campaign, Account, ActivityItem } from '@/store';
 import { Sidebar } from '@/components/dashboard/sidebar';
+import { TrafficView } from '@/components/views/traffic-view';
+import { AdvancedView } from '@/components/views/advanced-view';
+import { AICommentsView } from '@/components/views/ai-comments-view';
+import { MonetizationView } from '@/components/views/monetization-view';
+import { OFMView } from '@/components/views/ofm-view';
+import { ProxiesView, SimCardsView } from '@/components/views/infrastructure-view';
+import { ContentView, VideoGeneratorView } from '@/components/views/content-view';
+import { OffersView } from '@/components/views/offers-view';
+import { InfluencersView } from '@/components/views/influencers-view';
+import { WarmingView } from '@/components/views/warming-view';
+import { ShadowBanView } from '@/components/views/shadow-ban-view';
+import { AIPoolView } from '@/components/views/ai-pool-view';
 import { NotificationsSheet } from '@/components/notifications/notifications-sheet';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -1864,6 +1876,34 @@ export default function MUKNTrafficApp() {
         return <AnalyticsView />;
       case 'settings':
         return <SettingsView />;
+      case 'traffic':
+        return <TrafficView />;
+      case 'offers':
+        return <OffersView />;
+      case 'influencers':
+        return <InfluencersView />;
+      case 'ai-comments':
+        return <AICommentsView />;
+      case 'ai-pool':
+        return <AIPoolView />;
+      case 'content':
+        return <ContentView />;
+      case 'video-generator':
+        return <VideoGeneratorView />;
+      case 'advanced':
+        return <AdvancedView />;
+      case 'warming':
+        return <WarmingView />;
+      case 'shadow-ban':
+        return <ShadowBanView />;
+      case 'monetization':
+        return <MonetizationView />;
+      case 'ofm':
+        return <OFMView />;
+      case 'proxies':
+        return <ProxiesView />;
+      case 'sim-cards':
+        return <SimCardsView />;
       default:
         return <DashboardView />;
     }
