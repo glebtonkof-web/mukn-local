@@ -32,7 +32,7 @@ import { useHotkeys, HotkeysHelp, HotkeysHelpDialog } from '@/components/hotkeys
 import { useModeStore } from '@/store/mode-store';
 import { MobileMenu, MobileHeader } from '@/components/ui/mobile-menu';
 import { NotificationsSheet } from '@/components/notifications/notifications-sheet';
-import { AIProvidersSettings } from '@/components/settings/ai-providers-settings';
+
 import { AutoEarnWizard } from '@/components/auto-earn/auto-earn-wizard';
 import { AutoEarnDashboard } from '@/components/auto-earn/auto-earn-dashboard';
 import { MonetizationWizard } from '@/components/wizards/monetization-wizard';
@@ -275,7 +275,7 @@ export default function Page() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [campaignModalOpen, setCampaignModalOpen] = useState(false);
   const [hotkeysDialogOpen, setHotkeysDialogOpen] = useState(false);
-  const [aiProvidersOpen, setAiProvidersOpen] = useState(false);
+
   const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
 
   // Горячие клавиши
@@ -395,12 +395,6 @@ export default function Page() {
         <NotificationsSheet
           open={notificationsOpen}
           onOpenChange={setNotificationsOpen}
-        />
-
-        {/* AI Providers Settings */}
-        <AIProvidersSettings
-          open={aiProvidersOpen}
-          onOpenChange={setAiProvidersOpen}
         />
 
         {/* AI Assistant Panel - Right Side */}
