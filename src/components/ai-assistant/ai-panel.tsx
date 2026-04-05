@@ -37,13 +37,14 @@ export function AIAssistantPanel() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Автоматическая прокрутка вниз при новых сообщениях
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [aiMessages]);
+  }, [aiMessages, loading]);
 
   if (!aiPanelOpen) {
     return (
@@ -260,7 +261,7 @@ export function AIAssistantPanel() {
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <ScrollArea className="flex-1 p-4">
         {aiMessages.length === 0 ? (
           <div className="text-center py-8">
             <Bot className="w-12 h-12 mx-auto text-[#6C63FF] mb-4" />
@@ -334,6 +335,8 @@ export function AIAssistantPanel() {
                 </div>
               </div>
             )}
+            {/* Якорь для автоматической прокрутки вниз */}
+            <div ref={messagesEndRef} />
           </div>
         )}
       </ScrollArea>

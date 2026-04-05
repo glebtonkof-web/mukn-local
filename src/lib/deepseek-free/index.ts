@@ -13,6 +13,7 @@
 import { PrismaClient } from '@prisma/client'
 import crypto from 'crypto'
 import { nanoid } from 'nanoid'
+import ZAI from 'z-ai-web-dev-sdk'
 
 const prisma = new PrismaClient()
 
@@ -736,17 +737,11 @@ export class DeepSeekFreeManager {
       }
     }
 
-    // 2. Получаем лучший аккаунт
+    // 2. Получаем лучший аккаунт (опционально)
     const account = await this.accountPool.getBestAccount(userId)
-    if (!account) {
-      return {
-        success: false,
-        error: 'Нет доступных аккаунтов DeepSeek'
-      }
-    }
 
-    // 3. Проверяем rate limit
-    if (!this.rateLimiter.canMakeRequest(account.id)) {
+    // 3. Проверяем rate limit (если есть аккаунт)
+    if (account && !this.rateLimiter.canMakeRequest(account.id)) {
       // Добавляем в очередь
       const queueId = await this.queue.enqueue(
         userId,
@@ -762,58 +757,66 @@ export class DeepSeekFreeManager {
       }
     }
 
-    // 4. Выполняем запрос через браузерную автоматизацию
-    // В реальной реализации здесь будет Playwright код
-    // Для демо возвращаем мок ответ
-
+    // 4. Выполняем запрос через DeepSeek API
     try {
-      // Симуляция запроса
-      const delay = this.behaviorSim.getRandomDelay(2000, 5000)
-      await new Promise(resolve => setTimeout(resolve, delay))
+      // Реальный запрос через z-ai-web-dev-sdk
+      const zai = await ZAI.create()
+      
+      const systemPrompt = 'Ты — AI-ассистент DeepSeek. Отвечай кратко и по делу на русском языке.'
+      
+      const completion = await zai.chat.completions.create({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+      })
 
-      // В реальной реализации здесь будет:
-      // const response = await this.executeBrowserRequest(account, prompt)
-
-      const mockResponse = this.generateMockResponse(prompt)
+      const response = completion.choices[0]?.message?.content || ''
+      const tokensUsed = completion.usage?.total_tokens || 0
 
       // 5. Кэшируем результат
-      await this.cache.set(prompt, mockResponse, account.id)
+      await this.cache.set(prompt, response, account?.id)
 
-      // 6. Записываем использование
-      await this.accountPool.recordUsage(account.id, true)
-      this.rateLimiter.recordRequest(account.id)
+      // 6. Записываем использование (если есть аккаунт)
+      if (account) {
+        await this.accountPool.recordUsage(account.id, true)
+        this.rateLimiter.recordRequest(account.id)
 
-      // 7. Логируем запрос
-      await prisma.deepSeekRequestLog.create({
-        data: {
-          id: nanoid(),
-          accountId: account.id,
-          promptHash: crypto.createHash('sha256').update(prompt).digest('hex'),
-          promptPreview: prompt.substring(0, 100),
-          success: true,
-          responseTime: Date.now() - startTime,
-          estimatedCost: 0.001, // Примерная стоимость
-          tokensIn: prompt.length / 4,
-          tokensOut: mockResponse.length / 4
-        }
-      })
+        // 7. Логируем запрос
+        await prisma.deepSeekRequestLog.create({
+          data: {
+            id: nanoid(),
+            accountId: account.id,
+            promptHash: crypto.createHash('sha256').update(prompt).digest('hex'),
+            promptPreview: prompt.substring(0, 100),
+            success: true,
+            responseTime: Date.now() - startTime,
+            estimatedCost: 0,
+            tokensIn: tokensUsed,
+            tokensOut: Math.floor(response.length / 4)
+          }
+        })
+      }
 
       return {
         success: true,
-        response: mockResponse,
+        response,
         fromCache: false,
         responseTime: Date.now() - startTime,
-        accountId: account.id
+        accountId: account?.id
       }
 
     } catch (error: any) {
-      await this.accountPool.recordUsage(account.id, false)
+      if (account) {
+        await this.accountPool.recordUsage(account.id, false)
+      }
       
       return {
         success: false,
         error: error.message || 'Ошибка при выполнении запроса',
         responseTime: Date.now() - startTime,
-        accountId: account.id
+        accountId: account?.id
       }
     }
   }
@@ -950,30 +953,6 @@ ${channelPosts.slice(0, 5).join('\n---\n')}
         completedAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) }
       }
     })
-  }
-
-  private generateMockResponse(prompt: string): string {
-    // Мок-ответ для тестирования
-    if (prompt.includes('комментарий')) {
-      const comments = [
-        'Интересная мысль, надо подумать 🤔',
-        'Спасибо за информацию, как раз то что искал!',
-        'Не соглашусь с некоторыми моментами, но в целом неплохо.',
-        'Пользуюсь уже месяц, работает отлично 👍',
-        'А где подробнее можно узнать?',
-        'Хорошо расписано, сохраню себе.'
-      ]
-      return comments[Math.floor(Math.random() * comments.length)]
-    }
-    
-    if (prompt.includes('анализ') || prompt.includes('JSON')) {
-      return JSON.stringify({
-        result: 'success',
-        data: { analyzed: true }
-      }, null, 2)
-    }
-
-    return 'Это тестовый ответ от DeepSeek Free Manager. В реальной реализации здесь будет ответ от chat.deepseek.com через браузерную автоматизацию.'
   }
 }
 
