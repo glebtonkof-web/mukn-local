@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +41,7 @@ import {
   Heart,
   Search,
   Filter,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -63,7 +64,7 @@ interface OFMProfile {
     followersGained: number;
     revenue: number;
   };
-  createdAt: Date;
+  createdAt: string;
 }
 
 const nicheOptions = [
@@ -81,50 +82,14 @@ const styleOptions = [
   { value: 'provocative', label: 'Провокационный' },
 ];
 
-// Mock data
-const mockProfiles: OFMProfile[] = [
-  {
-    id: '1',
-    name: 'Анна Секрет',
-    age: 24,
-    bio: 'Психолог по жизни, эксперт по отношениям 💕',
-    niche: 'relationships',
-    style: 'playful',
-    customCommentPrompt: 'Комментируй как игривая девушка, используй эмодзи',
-    isActive: true,
-    metrics: { commentsCount: 1234, storiesCount: 89, followersGained: 567, revenue: 15000 },
-    createdAt: new Date('2024-01-15'),
-  },
-  {
-    id: '2',
-    name: 'Макс Крипто',
-    age: 28,
-    bio: 'Крипто-энтузиаст, делюсь инсайтами',
-    niche: 'crypto',
-    style: 'mysterious',
-    isActive: true,
-    metrics: { commentsCount: 567, storiesCount: 45, followersGained: 234, revenue: 8500 },
-    createdAt: new Date('2024-02-01'),
-  },
-  {
-    id: '3',
-    name: 'Лена Бизнес',
-    age: 26,
-    bio: 'Строю бизнес с нуля, показываю путь',
-    niche: 'business',
-    style: 'friendly',
-    isActive: false,
-    metrics: { commentsCount: 890, storiesCount: 67, followersGained: 345, revenue: 12000 },
-    createdAt: new Date('2024-01-20'),
-  },
-];
-
 export function ProfilesPanel() {
-  const [profiles, setProfiles] = useState<OFMProfile[]>(mockProfiles);
+  const [profiles, setProfiles] = useState<OFMProfile[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterNiche, setFilterNiche] = useState<string>('all');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<OFMProfile | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -137,70 +102,136 @@ export function ProfilesPanel() {
     customStoryPrompt: '',
   });
 
+  // Fetch profiles from API
+  const fetchProfiles = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/ofm/profiles');
+      
+      if (response.ok) {
+        const data = await response.json();
+        setProfiles(data.profiles || []);
+      } else {
+        // If API doesn't exist yet, show empty state
+        setProfiles([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch profiles:', error);
+      setProfiles([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProfiles();
+  }, [fetchProfiles]);
+
   const filteredProfiles = profiles.filter((p) => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesNiche = filterNiche === 'all' || p.niche === filterNiche;
     return matchesSearch && matchesNiche;
   });
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!formData.name.trim()) {
       toast.error('Введите имя профиля');
       return;
     }
 
-    const newProfile: OFMProfile = {
-      id: Date.now().toString(),
-      name: formData.name,
-      age: formData.age,
-      bio: formData.bio,
-      niche: formData.niche,
-      style: formData.style,
-      customCommentPrompt: formData.customCommentPrompt || undefined,
-      customStoryPrompt: formData.customStoryPrompt || undefined,
-      isActive: true,
-      metrics: { commentsCount: 0, storiesCount: 0, followersGained: 0, revenue: 0 },
-      createdAt: new Date(),
-    };
+    setSaving(true);
+    try {
+      const response = await fetch('/api/ofm/profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          isActive: true,
+        }),
+      });
 
-    setProfiles([newProfile, ...profiles]);
-    setIsCreateOpen(false);
-    resetForm();
-    toast.success('Профиль создан');
+      if (response.ok) {
+        const data = await response.json();
+        setProfiles([data.profile, ...profiles]);
+        setIsCreateOpen(false);
+        resetForm();
+        toast.success('Профиль создан');
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Ошибка создания профиля');
+      }
+    } catch (error) {
+      toast.error('Ошибка создания профиля');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!editingProfile) return;
 
-    setProfiles(profiles.map((p) =>
-      p.id === editingProfile.id
-        ? {
-            ...p,
-            name: formData.name,
-            age: formData.age,
-            bio: formData.bio,
-            niche: formData.niche,
-            style: formData.style,
-            customCommentPrompt: formData.customCommentPrompt || undefined,
-            customStoryPrompt: formData.customStoryPrompt || undefined,
-          }
-        : p
-    ));
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/ofm/profiles/${editingProfile.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
 
-    setEditingProfile(null);
-    resetForm();
-    toast.success('Профиль обновлён');
+      if (response.ok) {
+        const data = await response.json();
+        setProfiles(profiles.map((p) =>
+          p.id === editingProfile.id ? data.profile : p
+        ));
+        setEditingProfile(null);
+        resetForm();
+        toast.success('Профиль обновлён');
+      } else {
+        toast.error('Ошибка обновления профиля');
+      }
+    } catch (error) {
+      toast.error('Ошибка обновления профиля');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setProfiles(profiles.filter((p) => p.id !== id));
-    toast.success('Профиль удалён');
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await fetch(`/api/ofm/profiles/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setProfiles(profiles.filter((p) => p.id !== id));
+        toast.success('Профиль удалён');
+      } else {
+        toast.error('Ошибка удаления профиля');
+      }
+    } catch (error) {
+      toast.error('Ошибка удаления профиля');
+    }
   };
 
-  const handleToggleActive = (id: string) => {
-    setProfiles(profiles.map((p) =>
-      p.id === id ? { ...p, isActive: !p.isActive } : p
-    ));
+  const handleToggleActive = async (id: string) => {
+    const profile = profiles.find(p => p.id === id);
+    if (!profile) return;
+
+    try {
+      const response = await fetch(`/api/ofm/profiles/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !profile.isActive }),
+      });
+
+      if (response.ok) {
+        setProfiles(profiles.map((p) =>
+          p.id === id ? { ...p, isActive: !p.isActive } : p
+        ));
+      }
+    } catch (error) {
+      toast.error('Ошибка изменения статуса');
+    }
   };
 
   const resetForm = () => {
@@ -237,6 +268,14 @@ export function ProfilesPanel() {
     }),
     { comments: 0, stories: 0, followers: 0, revenue: 0 }
   );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-[#FF6B9D]" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -442,10 +481,21 @@ export function ProfilesPanel() {
             );
           })}
 
-          {filteredProfiles.length === 0 && (
+          {filteredProfiles.length === 0 && !loading && (
             <div className="text-center py-12">
               <Users className="w-16 h-16 mx-auto text-[#8A8A8A] opacity-50 mb-4" />
               <p className="text-[#8A8A8A]">Профили не найдены</p>
+              <Button
+                onClick={() => {
+                  resetForm();
+                  setIsCreateOpen(true);
+                }}
+                variant="outline"
+                className="mt-4 border-[#FF6B9D] text-[#FF6B9D] hover:bg-[#FF6B9D]/10"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Создать первый профиль
+              </Button>
             </div>
           )}
         </div>
@@ -569,13 +619,16 @@ export function ProfilesPanel() {
                 resetForm();
               }}
               className="border-[#2A2B32] text-[#8A8A8A]"
+              disabled={saving}
             >
               Отмена
             </Button>
             <Button
               onClick={editingProfile ? handleEdit : handleCreate}
               className="bg-[#FF6B9D] hover:bg-[#FF6B9D]/80"
+              disabled={saving}
             >
+              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {editingProfile ? 'Сохранить' : 'Создать'}
             </Button>
           </DialogFooter>

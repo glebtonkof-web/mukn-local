@@ -1,9 +1,11 @@
 /**
  * МУКН | Трафик - CRM Сервис
  * Лиды, заказы, платежи, Shopify интеграция
+ * Реальная интеграция с Shopify API
  */
 
 import { db } from './db'
+import { logger } from './logger'
 
 export interface Lead {
   id: string
@@ -189,6 +191,64 @@ export interface ShopifyConfig {
   syncProducts: boolean
   syncOrders: boolean
   syncCustomers: boolean
+}
+
+// Shopify API Types
+interface ShopifyProduct {
+  id: number
+  title: string
+  body_html?: string
+  vendor?: string
+  product_type?: string
+  handle?: string
+  variants: ShopifyVariant[]
+  images?: { src: string }[]
+  tags?: string
+  status: string
+}
+
+interface ShopifyVariant {
+  id: number
+  product_id: number
+  title: string
+  price: string
+  sku?: string
+  inventory_quantity?: number
+}
+
+interface ShopifyOrder {
+  id: number
+  email?: string
+  name: string
+  total_price: string
+  currency: string
+  financial_status: string
+  fulfillment_status?: string
+  created_at: string
+  updated_at: string
+  customer?: {
+    first_name?: string
+    last_name?: string
+    email?: string
+    phone?: string
+  }
+  line_items: {
+    id: number
+    product_id?: number
+    title: string
+    variant_id?: number
+    quantity: number
+    price: string
+    sku?: string
+  }[]
+  shipping_address?: {
+    address1: string
+    address2?: string
+    city: string
+    province?: string
+    zip: string
+    country: string
+  }
 }
 
 class CRMService {
@@ -521,6 +581,44 @@ class CRMService {
    */
   configureShopify(config: ShopifyConfig): void {
     this.shopifyConfig = config
+    logger.info('Shopify configured', { storeUrl: config.storeUrl })
+  }
+
+  /**
+   * Выполнить запрос к Shopify API
+   */
+  private async shopifyRequest<T>(
+    endpoint: string,
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
+    body?: any
+  ): Promise<T> {
+    if (!this.shopifyConfig) {
+      throw new Error('Shopify not configured')
+    }
+
+    const { storeUrl, accessToken } = this.shopifyConfig
+    const url = `https://${storeUrl}/admin/api/2024-01/${endpoint}.json`
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'X-Shopify-Access-Token': accessToken,
+          'Content-Type': 'application/json'
+        },
+        body: body ? JSON.stringify(body) : undefined
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Shopify API error: ${response.status} - ${errorText}`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      logger.error('Shopify API request failed', error as Error, { endpoint, method })
+      throw error
+    }
   }
 
   /**
@@ -531,58 +629,220 @@ class CRMService {
       throw new Error('Shopify not configured')
     }
 
-    // В реальной реализации - вызов Shopify API
-    // Здесь симуляция
-    const mockProducts: Product[] = [
-      {
-        id: 'shopify_product_1',
-        catalogId: 'default',
-        name: 'Product from Shopify',
-        price: 99.99,
-        currency: 'USD',
-        isActive: true,
-        metadata: { shopifyId: '12345' }
+    try {
+      const response = await this.shopifyRequest<{ products: ShopifyProduct[] }>('products')
+      const syncedProducts: Product[] = []
+
+      for (const shopifyProduct of response.products) {
+        // Берем первый вариант для цены
+        const firstVariant = shopifyProduct.variants[0]
+        
+        const product: Product = {
+          id: `shopify_${shopifyProduct.id}`,
+          catalogId: 'shopify_sync',
+          name: shopifyProduct.title,
+          description: shopifyProduct.body_html,
+          sku: firstVariant?.sku,
+          price: parseFloat(firstVariant?.price || '0'),
+          currency: 'USD', // Shopify usually uses store default currency
+          imageUrl: shopifyProduct.images?.[0]?.src,
+          images: shopifyProduct.images?.map(img => img.src),
+          category: shopifyProduct.product_type,
+          tags: shopifyProduct.tags?.split(', ') || [],
+          inventory: firstVariant?.inventory_quantity,
+          isActive: shopifyProduct.status === 'active',
+          metadata: { 
+            shopifyId: shopifyProduct.id,
+            handle: shopifyProduct.handle,
+            vendor: shopifyProduct.vendor
+          }
+        }
+
+        this.products.set(product.id, product)
+        syncedProducts.push(product)
       }
-    ]
 
-    for (const product of mockProducts) {
-      this.products.set(product.id, product)
+      logger.info('Shopify products synced', { count: syncedProducts.length })
+      return syncedProducts
+    } catch (error) {
+      logger.error('Failed to sync Shopify products', error as Error)
+      throw error
     }
-
-    return mockProducts
   }
 
   /**
    * Импорт заказов из Shopify
    */
-  async importShopifyOrders(): Promise<Order[]> {
+  async importShopifyOrders(limit: number = 50): Promise<Order[]> {
     if (!this.shopifyConfig) {
       throw new Error('Shopify not configured')
     }
 
-    // В реальной реализации - вызов Shopify API
-    // Здесь симуляция
-    const mockOrders: Order[] = []
+    try {
+      const response = await this.shopifyRequest<{ orders: ShopifyOrder[] }>(`orders?limit=${limit}&status=any`)
+      const importedOrders: Order[] = []
 
-    return mockOrders
+      for (const shopifyOrder of response.orders) {
+        const order: Order = {
+          id: `shopify_order_${shopifyOrder.id}`,
+          customerEmail: shopifyOrder.email || shopifyOrder.customer?.email || '',
+          customerName: shopifyOrder.customer 
+            ? `${shopifyOrder.customer.first_name || ''} ${shopifyOrder.customer.last_name || ''}`.trim()
+            : undefined,
+          customerPhone: shopifyOrder.customer?.phone,
+          customerAddress: shopifyOrder.shipping_address ? {
+            line1: shopifyOrder.shipping_address.address1,
+            line2: shopifyOrder.shipping_address.address2,
+            city: shopifyOrder.shipping_address.city,
+            state: shopifyOrder.shipping_address.province,
+            postalCode: shopifyOrder.shipping_address.zip,
+            country: shopifyOrder.shipping_address.country
+          } : undefined,
+          items: shopifyOrder.line_items.map(item => ({
+            id: `item_${item.id}`,
+            productId: item.product_id?.toString() || '',
+            productName: item.title,
+            productSku: item.sku,
+            quantity: item.quantity,
+            unitPrice: parseFloat(item.price),
+            total: parseFloat(item.price) * item.quantity
+          })),
+          subtotal: parseFloat(shopifyOrder.total_price),
+          discount: 0,
+          tax: 0,
+          total: parseFloat(shopifyOrder.total_price),
+          currency: shopifyOrder.currency,
+          status: this.mapShopifyFulfillmentStatus(shopifyOrder.fulfillment_status),
+          paymentStatus: this.mapShopifyPaymentStatus(shopifyOrder.financial_status),
+          source: 'shopify',
+          createdAt: new Date(shopifyOrder.created_at),
+          updatedAt: new Date(shopifyOrder.updated_at)
+        }
+
+        this.orders.set(order.id, order)
+        importedOrders.push(order)
+      }
+
+      logger.info('Shopify orders imported', { count: importedOrders.length })
+      return importedOrders
+    } catch (error) {
+      logger.error('Failed to import Shopify orders', error as Error)
+      throw error
+    }
+  }
+
+  /**
+   * Маппинг статусов выполнения Shopify
+   */
+  private mapShopifyFulfillmentStatus(status?: string): Order['status'] {
+    switch (status) {
+      case 'fulfilled':
+        return 'delivered'
+      case 'partial':
+        return 'shipped'
+      case 'restocked':
+        return 'cancelled'
+      case null:
+      case undefined:
+        return 'confirmed'
+      default:
+        return 'processing'
+    }
+  }
+
+  /**
+   * Маппинг статусов оплаты Shopify
+   */
+  private mapShopifyPaymentStatus(status: string): Order['paymentStatus'] {
+    switch (status) {
+      case 'paid':
+        return 'paid'
+      case 'partially_paid':
+        return 'partial'
+      case 'refunded':
+        return 'refunded'
+      case 'voided':
+        return 'refunded'
+      default:
+        return 'pending'
+    }
   }
 
   /**
    * Отправить заказ в Shopify
    */
-  async createShopifyOrder(order: Order): Promise<any> {
+  async createShopifyOrder(order: Order): Promise<{ success: boolean; shopifyOrderId?: string; error?: string }> {
     if (!this.shopifyConfig) {
       throw new Error('Shopify not configured')
     }
 
-    // В реальной реализации - вызов Shopify API
-    return { success: true, shopifyOrderId: `shopify_${Date.now()}` }
+    try {
+      const shopifyOrder = {
+        order: {
+          email: order.customerEmail,
+          line_items: order.items.map(item => ({
+            title: item.productName,
+            quantity: item.quantity,
+            price: item.unitPrice.toString()
+          })),
+          customer: order.customerName ? {
+            first_name: order.customerName.split(' ')[0],
+            last_name: order.customerName.split(' ').slice(1).join(' ')
+          } : undefined,
+          billing_address: order.customerAddress ? {
+            address1: order.customerAddress.line1,
+            address2: order.customerAddress.line2,
+            city: order.customerAddress.city,
+            province: order.customerAddress.state,
+            zip: order.customerAddress.postalCode,
+            country: order.customerAddress.country
+          } : undefined,
+          shipping_address: order.customerAddress ? {
+            address1: order.customerAddress.line1,
+            address2: order.customerAddress.line2,
+            city: order.customerAddress.city,
+            province: order.customerAddress.state,
+            zip: order.customerAddress.postalCode,
+            country: order.customerAddress.country
+          } : undefined,
+          tags: order.source,
+          metafields: [
+            {
+              namespace: 'mukn',
+              key: 'original_order_id',
+              value: order.id,
+              type: 'single_line_text_field'
+            }
+          ]
+        }
+      }
+
+      const response = await this.shopifyRequest<{ order: { id: number } }>('orders', 'POST', shopifyOrder)
+      
+      logger.info('Shopify order created', { 
+        localOrderId: order.id, 
+        shopifyOrderId: response.order.id 
+      })
+
+      return { 
+        success: true, 
+        shopifyOrderId: `shopify_${response.order.id}` 
+      }
+    } catch (error) {
+      logger.error('Failed to create Shopify order', error as Error, { orderId: order.id })
+      return { 
+        success: false, 
+        error: (error as Error).message 
+      }
+    }
   }
 
   /**
    * Обработка вебхука Shopify
    */
   handleShopifyWebhook(event: string, data: any): void {
+    logger.info('Processing Shopify webhook', { event })
+
     switch (event) {
       case 'orders/create':
         this.handleShopifyOrderCreated(data)
@@ -590,23 +850,32 @@ class CRMService {
       case 'orders/updated':
         this.handleShopifyOrderUpdated(data)
         break
+      case 'orders/cancelled':
+        this.handleShopifyOrderCancelled(data)
+        break
       case 'products/create':
         this.handleShopifyProductCreated(data)
         break
       case 'products/update':
         this.handleShopifyProductUpdated(data)
         break
+      case 'inventory_levels/update':
+        this.handleShopifyInventoryUpdated(data)
+        break
     }
   }
 
-  private handleShopifyOrderCreated(data: any): void {
-    this.createOrder({
+  private handleShopifyOrderCreated(data: ShopifyOrder): void {
+    const order = this.createOrder({
+      id: `shopify_order_${data.id}`,
       source: 'shopify',
-      customerEmail: data.email,
-      customerName: `${data.customer.first_name} ${data.customer.last_name}`,
-      items: data.line_items.map((item: any) => ({
+      customerEmail: data.email || '',
+      customerName: data.customer 
+        ? `${data.customer.first_name} ${data.customer.last_name}`.trim()
+        : undefined,
+      items: data.line_items.map(item => ({
         id: `item_${item.id}`,
-        productId: String(item.product_id),
+        productId: item.product_id?.toString() || '',
         productName: item.title,
         quantity: item.quantity,
         unitPrice: parseFloat(item.price),
@@ -614,21 +883,69 @@ class CRMService {
       })),
       total: parseFloat(data.total_price),
       currency: data.currency,
-      status: 'confirmed',
-      paymentStatus: data.financial_status === 'paid' ? 'paid' : 'pending'
+      status: this.mapShopifyFulfillmentStatus(data.fulfillment_status),
+      paymentStatus: this.mapShopifyPaymentStatus(data.financial_status)
     })
+
+    logger.info('Shopify order created via webhook', { orderId: order.id })
   }
 
-  private handleShopifyOrderUpdated(data: any): void {
-    // Обновление заказа
+  private handleShopifyOrderUpdated(data: ShopifyOrder): void {
+    const orderId = `shopify_order_${data.id}`
+    const order = this.orders.get(orderId)
+    
+    if (order) {
+      order.status = this.mapShopifyFulfillmentStatus(data.fulfillment_status)
+      order.paymentStatus = this.mapShopifyPaymentStatus(data.financial_status)
+      order.updatedAt = new Date()
+      logger.info('Shopify order updated via webhook', { orderId })
+    }
   }
 
-  private handleShopifyProductCreated(data: any): void {
-    // Добавление товара
+  private handleShopifyOrderCancelled(data: ShopifyOrder): void {
+    const orderId = `shopify_order_${data.id}`
+    const order = this.orders.get(orderId)
+    
+    if (order) {
+      order.status = 'cancelled'
+      order.updatedAt = new Date()
+      logger.info('Shopify order cancelled via webhook', { orderId })
+    }
   }
 
-  private handleShopifyProductUpdated(data: any): void {
-    // Обновление товара
+  private handleShopifyProductCreated(data: ShopifyProduct): void {
+    const product: Product = {
+      id: `shopify_${data.id}`,
+      catalogId: 'shopify_sync',
+      name: data.title,
+      description: data.body_html,
+      price: parseFloat(data.variants[0]?.price || '0'),
+      currency: 'USD',
+      imageUrl: data.images?.[0]?.src,
+      isActive: data.status === 'active',
+      metadata: { shopifyId: data.id }
+    }
+
+    this.products.set(product.id, product)
+    logger.info('Shopify product created via webhook', { productId: product.id })
+  }
+
+  private handleShopifyProductUpdated(data: ShopifyProduct): void {
+    const productId = `shopify_${data.id}`
+    const product = this.products.get(productId)
+    
+    if (product) {
+      product.name = data.title
+      product.description = data.body_html
+      product.price = parseFloat(data.variants[0]?.price || '0')
+      product.isActive = data.status === 'active'
+      logger.info('Shopify product updated via webhook', { productId })
+    }
+  }
+
+  private handleShopifyInventoryUpdated(data: any): void {
+    // Обновление инвентаря
+    logger.info('Shopify inventory updated via webhook', { inventoryItemId: data.inventory_item_id })
   }
 
   // ==================== АНАЛИТИКА ====================
