@@ -1036,32 +1036,115 @@ export function AIAssistantPanel() {
     // Останавливаем любой предыдущий синтез
     synth.cancel();
 
-    // Создаём utterance
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'ru-RU';
-    utterance.rate = 1;
-    utterance.pitch = 1;
-    utterance.volume = 1;
+    // Очищаем текст от markdown и спецсимволов
+    const cleanText = text
+      .replace(/```[\s\S]*?```/g, '') // Удаляем блоки кода
+      .replace(/`[^`]+`/g, '') // Удаываем инлайн код
+      .replace(/\*\*([^*]+)\*\*/g, '$1') // Убираем жирное выделение
+      .replace(/\*([^*]+)\*/g, '$1') // Убираем курсив
+      .replace(/#{1,6}\s/g, '') // Убираем заголовки
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Убираем ссылки
+      .replace(/\n+/g, '. ') // Заменяем переносы на точки
+      .replace(/\s+/g, ' ') // Убираем лишние пробелы
+      .trim();
 
-    // Получаем русский голос если доступен
-    const voices = synth.getVoices();
-    const russianVoice = voices.find(v => v.lang.startsWith('ru'));
-    if (russianVoice) {
-      utterance.voice = russianVoice;
+    if (!cleanText) {
+      toast.error('Нет текста для озвучки');
+      return;
     }
 
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = (e) => {
-      console.error('Speech error:', e);
-      setIsSpeaking(false);
-      if (e.error !== 'canceled') {
-        toast.error('Ошибка озвучки');
+    // Разбиваем на части если текст слишком длинный (лимит ~200 символов для стабильности)
+    const maxLength = 200;
+    const chunks: string[] = [];
+
+    if (cleanText.length > maxLength) {
+      const sentences = cleanText.match(/[^.!?]+[.!?]+/g) || [cleanText];
+      let currentChunk = '';
+
+      for (const sentence of sentences) {
+        if ((currentChunk + sentence).length > maxLength && currentChunk) {
+          chunks.push(currentChunk.trim());
+          currentChunk = sentence;
+        } else {
+          currentChunk += sentence;
+        }
       }
+      if (currentChunk.trim()) {
+        chunks.push(currentChunk.trim());
+      }
+    } else {
+      chunks.push(cleanText);
+    }
+
+    let currentIndex = 0;
+
+    const speakChunk = () => {
+      if (currentIndex >= chunks.length) {
+        setIsSpeaking(false);
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(chunks[currentIndex]);
+      utterance.lang = 'ru-RU';
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+
+      // Получаем русский голос если доступен
+      const voices = synth.getVoices();
+      const russianVoice = voices.find(v => v.lang.startsWith('ru'));
+      if (russianVoice) {
+        utterance.voice = russianVoice;
+      }
+
+      utterance.onstart = () => {
+        if (currentIndex === 0) setIsSpeaking(true);
+      };
+
+      utterance.onend = () => {
+        currentIndex++;
+        // Небольшая пауза между чанками
+        setTimeout(() => speakChunk(), 100);
+      };
+
+      utterance.onerror = (e) => {
+        console.error('Speech error:', e.error || e);
+        setIsSpeaking(false);
+
+        // Если ошибка не отмены — пробуем продолжить
+        if (e.error === 'canceled' || e.error === 'interrupted') {
+          return;
+        }
+
+        // Пробуем без указания голоса
+        if (utterance.voice) {
+          const retryUtterance = new SpeechSynthesisUtterance(chunks[currentIndex]);
+          retryUtterance.lang = 'ru-RU';
+          retryUtterance.rate = 1;
+
+          retryUtterance.onend = () => {
+            currentIndex++;
+            setTimeout(() => speakChunk(), 100);
+          };
+          retryUtterance.onerror = () => {
+            setIsSpeaking(false);
+          };
+
+          synth.speak(retryUtterance);
+          return;
+        }
+
+        toast.error('Ошибка озвучки. Попробуйте ещё раз.');
+      };
+
+      // Важный фикс для Chrome — нужно добавить задержку
+      setTimeout(() => {
+        synth.speak(utterance);
+      }, 50);
     };
 
-    synth.speak(utterance);
     setIsSpeaking(true);
+    speakChunk();
   };
 
   // Очистка чата
