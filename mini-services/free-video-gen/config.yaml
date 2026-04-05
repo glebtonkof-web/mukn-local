@@ -1,0 +1,111 @@
+# Free Video Generator Configuration
+# Автоматическая генерация коротких и длинных видео
+
+# Server settings
+server:
+  host: "0.0.0.0"
+  port: 8766
+  workers: 4
+
+# Video providers configuration
+providers:
+  kling:
+    enabled: true
+    url: "https://klingai.com"
+    daily_credits: 100
+    max_requests_per_hour: 5
+    max_requests_per_day: 50
+    video_duration: [5, 10]  # seconds
+    max_resolution: "1080p"
+    priority: 1  # Primary provider
+    
+  luma:
+    enabled: true
+    url: "https://lumalabs.ai/dream-machine"
+    monthly_limit: 30
+    video_duration: [5]
+    max_resolution: "1080p"
+    priority: 2  # Backup provider
+    
+  runway:
+    enabled: true
+    url: "https://runwayml.com"
+    initial_credits: 125
+    video_duration: [5, 10]
+    max_resolution: "1080p"
+    priority: 3  # Last resort
+
+# Video processing settings
+video:
+  default_duration: 10  # seconds per scene
+  default_ratio: "9:16"  # 9:16 (vertical), 16:9 (horizontal), 1:1 (square)
+  default_fps: 30
+  default_bitrate: "4M"  # For TikTok/Instagram
+  
+  # Output directories
+  output_dir: "./output/videos"
+  temp_dir: "./output/temp"
+  scenes_dir: "./output/scenes"
+  
+  # Watermark handling
+  watermark:
+    method: "crop"  # crop, blur, logo, none
+    crop_percent: 5  # Percent to crop from edges
+
+# Transitions between scenes
+transitions:
+  default: "crossfade"
+  duration: 0.5  # seconds
+  types:
+    - fade
+    - crossfade
+    - zoom_in
+    - zoom_out
+    - slide_left
+    - slide_right
+
+# Audio settings
+audio:
+  tts:
+    enabled: true
+    engine: "gtts"  # gtts, edge_tts, coqui
+    default_language: "ru"
+    default_voice: "ru-RU"
+    
+  background_music:
+    enabled: true
+    source: "pixabay"  # pixabay, freesound, local
+    default_volume: 0.3  # 0.0 - 1.0
+    voice_volume: 0.7
+    
+# Queue settings
+queue:
+  max_workers: 3
+  max_retries: 3
+  retry_delays: [300, 900, 3600]  # 5min, 15min, 1hour
+  timeout: 600  # 10 minutes per task
+
+# Cache settings
+cache:
+  enabled: true
+  ttl: 86400  # 24 hours
+  max_size: 5GB
+  
+# Account pool settings  
+accounts:
+  auto_register: false
+  max_per_provider: 3
+  rotation_enabled: true
+  
+# Logging
+logging:
+  level: "INFO"
+  file: "./logs/free-video-gen.log"
+  max_size: "10MB"
+  retention: "7 days"
+
+# LLM for scene splitting
+llm:
+  provider: "z-ai"  # z-ai, openai, local
+  model: "default"
+  max_tokens: 2000
