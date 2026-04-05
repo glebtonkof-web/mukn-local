@@ -24,7 +24,8 @@ import { AIAssistantView } from '@/components/views/ai-assistant-view';
 import { TrafficPourView } from '@/components/views/traffic-pour-view';
 import { AntidetectView } from '@/components/views/antidetect-view';
 import { DeepSeekFreePanelPro } from '@/components/deepseek-free/deepseek-free-panel-pro';
-// AI Assistant теперь доступен через вкладку, не как панель
+// AI Panel - боковая панель с браузером
+import { AIPanel } from '@/components/ai-assistant/ai-panel';
 import { ModeSwitcher } from '@/components/mode-switcher/index';
 import { OnboardingTour } from '@/components/onboarding/onboarding-tour';
 import { BeginnerHints } from '@/components/onboarding/beginner-hints';
@@ -275,14 +276,14 @@ export default function Page() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [campaignModalOpen, setCampaignModalOpen] = useState(false);
   const [hotkeysDialogOpen, setHotkeysDialogOpen] = useState(false);
-
-  // AI Panel удалён - теперь AI Ассистент доступен через вкладку
+  const [aiPanelOpen, setAiPanelOpen] = useState(true); // AI Panel справа
 
   // Горячие клавиши
   useHotkeys([
     { key: 'n', ctrl: true, action: () => setCampaignModalOpen(true), description: 'Новая кампания' },
     { key: 's', ctrl: true, action: () => setSettingsOpen(true), description: 'Настройки' },
     { key: '/', action: () => setHotkeysDialogOpen(true), description: 'Горячие клавиши' },
+    { key: 'a', ctrl: true, action: () => setAiPanelOpen(prev => !prev), description: 'AI Ассистент' },
     { key: 'Escape', action: () => { setSettingsOpen(false); setCampaignModalOpen(false); }, description: 'Закрыть' },
   ]);
 
@@ -399,7 +400,8 @@ export default function Page() {
           onOpenChange={setNotificationsOpen}
         />
 
-        {/* AI Assistant Panel - удалён, теперь доступен через вкладку */}
+        {/* AI Assistant Panel - боковая панель справа */}
+        <AIPanel isOpen={aiPanelOpen} onOpenChange={setAiPanelOpen} />
 
         {/* Hotkeys Dialog */}
         <HotkeysHelpDialog open={hotkeysDialogOpen} onOpenChange={setHotkeysDialogOpen} />
