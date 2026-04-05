@@ -36,7 +36,13 @@ export function AIAssistantPanel() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Избегаем гидратации - рендерим данные только на клиенте
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Автоматическая прокрутка вниз при новых сообщениях
   useEffect(() => {
@@ -195,8 +201,8 @@ export function AIAssistantPanel() {
     }
   };
 
-  const tokenPercent = (tokensUsed / tokensLimit) * 100;
-  const remainingTokens = getRemainingTokens();
+  const tokenPercent = mounted ? (tokensUsed / tokensLimit) * 100 : 0;
+  const remainingTokens = mounted ? getRemainingTokens() : tokensLimit;
 
   return (
     <div 
@@ -231,7 +237,9 @@ export function AIAssistantPanel() {
       <div className="px-4 py-2 border-b border-[#2A2B32]">
         <div className="flex items-center justify-between text-xs mb-1">
           <span className="text-[#8A8A8A]">Токенов</span>
-          <span className="text-white">{tokensUsed.toLocaleString()} / {tokensLimit.toLocaleString()}</span>
+          <span className="text-white">
+            {mounted ? `${tokensUsed.toLocaleString()} / ${tokensLimit.toLocaleString()}` : '— / —'}
+          </span>
         </div>
         <div className="h-1.5 bg-[#1E1F26] rounded-full overflow-hidden">
           <div 
@@ -240,7 +248,7 @@ export function AIAssistantPanel() {
           />
         </div>
         <p className="text-xs text-[#8A8A8A] mt-1">
-          Осталось: ~{Math.floor(remainingTokens / 500)} комментариев
+          Осталось: ~{mounted ? Math.floor(remainingTokens / 500) : '—'} комментариев
         </p>
       </div>
 
