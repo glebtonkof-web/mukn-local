@@ -515,35 +515,36 @@ export function DeepSeekFreePanelPro() {
     <ScrollArea className="h-[calc(100vh-120px)]">
       <div className="space-y-6 pr-4">
       {/* Заголовок */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Brain className="w-6 h-6 text-blue-500" />
-            DeepSeek Free — Промышленная версия
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500 shrink-0" />
+            <span className="truncate">DeepSeek Free — Промышленная версия</span>
           </h2>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground truncate">
             Бесплатный безлимитный доступ к DeepSeek с промышленным масштабированием
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
-            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            Обновить
+        <div className="flex gap-2 shrink-0">
+          <Button onClick={handleRefresh} disabled={refreshing} variant="outline" size="sm" className="h-9">
+            <RefreshCw className={`w-4 h-4 sm:mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Обновить</span>
           </Button>
-          <Button onClick={() => setAutoRegisterOpen(true)}>
-            <UserPlus className="w-4 h-4 mr-2" />
-            Авто-регистрация
+          <Button onClick={() => setAutoRegisterOpen(true)} size="sm" className="h-9">
+            <UserPlus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Авто-регистрация</span>
+            <span className="sm:hidden">Рег</span>
           </Button>
         </div>
       </div>
 
       {/* Метрики */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-green-500" />
-              <span className="text-sm text-muted-foreground">Активных</span>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        <Card className="min-w-0 overflow-hidden">
+          <CardContent className="p-3 sm:p-4 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Users className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 shrink-0" />
+              <span className="text-xs sm:text-sm text-muted-foreground truncate">Активных</span>
             </div>
             <p className="text-2xl font-bold mt-1">
               {status?.pool.activeAccounts || 0} / {status?.pool.totalAccounts || 0}
@@ -551,11 +552,11 @@ export function DeepSeekFreePanelPro() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Activity className="w-5 h-5 text-blue-500" />
-              <span className="text-sm text-muted-foreground">Запросов сегодня</span>
+        <Card className="min-w-0 overflow-hidden">
+          <CardContent className="p-3 sm:p-4 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 shrink-0" />
+              <span className="text-xs sm:text-sm text-muted-foreground truncate">Запросов сегодня</span>
             </div>
             <p className="text-2xl font-bold mt-1">
               {status?.pool.requestsToday || 0}
@@ -566,11 +567,11 @@ export function DeepSeekFreePanelPro() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-purple-500" />
-              <span className="text-sm text-muted-foreground">Кэш HIT</span>
+        <Card className="min-w-0 overflow-hidden">
+          <CardContent className="p-3 sm:p-4 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Database className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500 shrink-0" />
+              <span className="text-xs sm:text-sm text-muted-foreground truncate">Кэш HIT</span>
             </div>
             <p className="text-2xl font-bold mt-1">
               {((status?.cache.hit_rate || 0) * 100).toFixed(0)}%
@@ -581,11 +582,11 @@ export function DeepSeekFreePanelPro() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-cyan-500" />
-              <span className="text-sm text-muted-foreground">Успешность</span>
+        <Card className="min-w-0 overflow-hidden">
+          <CardContent className="p-3 sm:p-4 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-500 shrink-0" />
+              <span className="text-xs sm:text-sm text-muted-foreground truncate">Успешность</span>
             </div>
             <p className="text-2xl font-bold mt-1">
               {((status?.pool.successRate || 0) * 100).toFixed(0)}%
@@ -593,31 +594,31 @@ export function DeepSeekFreePanelPro() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-yellow-500" />
-              <span className="text-sm text-muted-foreground">Экономия</span>
+        <Card className="min-w-0 overflow-hidden">
+          <CardContent className="p-3 sm:p-4 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500 shrink-0" />
+              <span className="text-xs sm:text-sm text-muted-foreground truncate">Экономия</span>
             </div>
-            <p className="text-2xl font-bold mt-1">
+            <p className="text-lg sm:text-2xl font-bold mt-1 truncate">
               {calculateSavings()}
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground truncate">
               Сэкономлено сегодня
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Cpu className="w-5 h-5 text-orange-500" />
-              <span className="text-sm text-muted-foreground">Мощность</span>
+        <Card className="min-w-0 overflow-hidden">
+          <CardContent className="p-3 sm:p-4 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Cpu className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500 shrink-0" />
+              <span className="text-xs sm:text-sm text-muted-foreground truncate">Мощность</span>
             </div>
-            <p className="text-2xl font-bold mt-1">
+            <p className="text-lg sm:text-2xl font-bold mt-1 truncate">
               {status?.pool.availableCapacity || 0}
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground truncate">
               Запросов в час
             </p>
           </CardContent>
@@ -654,42 +655,51 @@ export function DeepSeekFreePanelPro() {
 
       {/* Табы */}
       <Tabs defaultValue="accounts">
-        <TabsList className="grid grid-cols-6 w-full">
-          <TabsTrigger value="accounts">
-            <Users className="w-4 h-4 mr-2" />
-            Аккаунты
-          </TabsTrigger>
-          <TabsTrigger value="cache">
-            <Database className="w-4 h-4 mr-2" />
-            Кэш
-          </TabsTrigger>
-          <TabsTrigger value="queue">
-            <Clock className="w-4 h-4 mr-2" />
-            Очередь
-          </TabsTrigger>
-          <TabsTrigger value="healing">
-            <Shield className="w-4 h-4 mr-2" />
-            Самовосстановление
-          </TabsTrigger>
-          <TabsTrigger value="settings">
-            <Settings className="w-4 h-4 mr-2" />
-            Настройки
-          </TabsTrigger>
-          <TabsTrigger value="test">
-            <Zap className="w-4 h-4 mr-2" />
-            Тест
-          </TabsTrigger>
-        </TabsList>
+        <ScrollArea className="w-full">
+          <TabsList className="grid grid-cols-3 sm:grid-cols-6 w-full min-w-max">
+            <TabsTrigger value="accounts" className="min-w-0">
+              <Users className="w-4 h-4 sm:mr-2 shrink-0" />
+              <span className="hidden sm:inline truncate">Аккаунты</span>
+              <span className="sm:hidden text-xs">Акк</span>
+            </TabsTrigger>
+            <TabsTrigger value="cache" className="min-w-0">
+              <Database className="w-4 h-4 sm:mr-2 shrink-0" />
+              <span className="hidden sm:inline truncate">Кэш</span>
+              <span className="sm:hidden text-xs">Кэш</span>
+            </TabsTrigger>
+            <TabsTrigger value="queue" className="min-w-0">
+              <Clock className="w-4 h-4 sm:mr-2 shrink-0" />
+              <span className="hidden sm:inline truncate">Очередь</span>
+              <span className="sm:hidden text-xs">Очередь</span>
+            </TabsTrigger>
+            <TabsTrigger value="healing" className="min-w-0">
+              <Shield className="w-4 h-4 sm:mr-2 shrink-0" />
+              <span className="hidden sm:inline truncate">Самовосстановление</span>
+              <span className="sm:hidden text-xs">Хил</span>
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="min-w-0">
+              <Settings className="w-4 h-4 sm:mr-2 shrink-0" />
+              <span className="hidden sm:inline truncate">Настройки</span>
+              <span className="sm:hidden text-xs">Настр</span>
+            </TabsTrigger>
+            <TabsTrigger value="test" className="min-w-0">
+              <Zap className="w-4 h-4 sm:mr-2 shrink-0" />
+              <span className="hidden sm:inline truncate">Тест</span>
+              <span className="sm:hidden text-xs">Тест</span>
+            </TabsTrigger>
+          </TabsList>
+        </ScrollArea>
 
         {/* Аккаунты */}
         <TabsContent value="accounts" className="space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <h3 className="text-lg font-semibold">Пул аккаунтов DeepSeek</h3>
             <Dialog open={addAccountOpen} onOpenChange={setAddAccountOpen}>
               <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Добавить аккаунт
+                <Button size="sm" className="h-9">
+                  <Plus className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Добавить аккаунт</span>
+                  <span className="sm:hidden">Добавить</span>
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -759,28 +769,28 @@ export function DeepSeekFreePanelPro() {
               </Card>
             ) : (
               accounts.map((account) => (
-                <Card key={account.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-4 h-4 text-muted-foreground" />
-                          <span className="font-medium">{account.email}</span>
-                          {getStatusBadge(account.status)}
+                <Card key={account.id} className="min-w-0 overflow-hidden">
+                  <CardContent className="p-3 sm:p-4 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
+                          <span className="font-medium truncate">{account.email}</span>
+                          <span className="shrink-0">{getStatusBadge(account.status)}</span>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          Приоритет: {account.priority} • 
-                          Запросов: {account.totalRequests} • 
+                        <div className="text-xs sm:text-sm text-muted-foreground truncate">
+                          Приоритет: {account.priority} •
+                          Запросов: {account.totalRequests} •
                           Успешно: {account.successRequests}
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="text-sm">Часовой лимит</p>
+                      <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+                        <div className="text-right min-w-0">
+                          <p className="text-xs sm:text-sm">Часовой лимит</p>
                           <div className="flex items-center gap-2">
-                            <Progress 
-                              value={(account.hourlyUsed / account.hourlyLimit) * 100} 
-                              className="w-24 h-2"
+                            <Progress
+                              value={(account.hourlyUsed / account.hourlyLimit) * 100}
+                              className="w-16 sm:w-24 h-2"
                             />
                             <span className="text-xs">{account.hourlyUsed}/{account.hourlyLimit}</span>
                           </div>
@@ -792,7 +802,7 @@ export function DeepSeekFreePanelPro() {
                         </div>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" className="shrink-0">
                               <Trash2 className="w-4 h-4 text-red-500" />
                             </Button>
                           </AlertDialogTrigger>
@@ -822,20 +832,21 @@ export function DeepSeekFreePanelPro() {
 
         {/* Кэш */}
         <TabsContent value="cache" className="space-y-4">
-          <Card>
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>Многоуровневый кэш</CardTitle>
-                  <CardDescription>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div className="min-w-0">
+                  <CardTitle className="truncate">Многоуровневый кэш</CardTitle>
+                  <CardDescription className="truncate">
                     L1 (RAM) + L2 (SQLite) + L3 (File) с семантическим поиском
                   </CardDescription>
                 </div>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive">
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Очистить кэш
+                    <Button variant="destructive" size="sm" className="h-9 shrink-0">
+                      <Trash2 className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Очистить кэш</span>
+                      <span className="sm:hidden">Очистить</span>
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -856,23 +867,23 @@ export function DeepSeekFreePanelPro() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="text-center p-4 bg-muted rounded-lg">
-                  <HardDrive className="w-8 h-8 mx-auto mb-2 text-blue-500" />
-                  <p className="text-2xl font-bold">{status?.cache.l1_size || 0}</p>
-                  <p className="text-sm text-muted-foreground">L1 (RAM)</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+                <div className="text-center p-3 sm:p-4 bg-muted rounded-lg min-w-0">
+                  <HardDrive className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 text-blue-500 shrink-0" />
+                  <p className="text-xl sm:text-2xl font-bold">{status?.cache.l1_size || 0}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">L1 (RAM)</p>
                   <p className="text-xs text-muted-foreground">&lt; 1 мс</p>
                 </div>
-                <div className="text-center p-4 bg-muted rounded-lg">
-                  <Database className="w-8 h-8 mx-auto mb-2 text-purple-500" />
-                  <p className="text-2xl font-bold">{status?.cache.l2_size || 0}</p>
-                  <p className="text-sm text-muted-foreground">L2 (SQLite)</p>
+                <div className="text-center p-3 sm:p-4 bg-muted rounded-lg min-w-0">
+                  <Database className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 text-purple-500 shrink-0" />
+                  <p className="text-xl sm:text-2xl font-bold">{status?.cache.l2_size || 0}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">L2 (SQLite)</p>
                   <p className="text-xs text-muted-foreground">&lt; 10 мс</p>
                 </div>
-                <div className="text-center p-4 bg-muted rounded-lg">
-                  <Server className="w-8 h-8 mx-auto mb-2 text-green-500" />
-                  <p className="text-2xl font-bold">{status?.cache.l3_size || 0}</p>
-                  <p className="text-sm text-muted-foreground">L3 (File)</p>
+                <div className="text-center p-3 sm:p-4 bg-muted rounded-lg min-w-0">
+                  <Server className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 text-green-500 shrink-0" />
+                  <p className="text-xl sm:text-2xl font-bold">{status?.cache.l3_size || 0}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">L3 (File)</p>
                   <p className="text-xs text-muted-foreground">&lt; 100 мс</p>
                 </div>
               </div>
@@ -903,33 +914,33 @@ export function DeepSeekFreePanelPro() {
 
         {/* Очередь */}
         <TabsContent value="queue" className="space-y-4">
-          <div className="grid grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4 text-center">
-                <Clock className="w-6 h-6 mx-auto mb-2 text-yellow-500" />
-                <p className="text-2xl font-bold">{status?.queue.pending || 0}</p>
-                <p className="text-sm text-muted-foreground">В очереди</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <Card className="min-w-0 overflow-hidden">
+              <CardContent className="p-3 sm:p-4 text-center min-w-0">
+                <Clock className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-yellow-500 shrink-0" />
+                <p className="text-xl sm:text-2xl font-bold">{status?.queue.pending || 0}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">В очереди</p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <PlayCircle className="w-6 h-6 mx-auto mb-2 text-blue-500" />
-                <p className="text-2xl font-bold">{status?.queue.processing || 0}</p>
-                <p className="text-sm text-muted-foreground">Выполняется</p>
+            <Card className="min-w-0 overflow-hidden">
+              <CardContent className="p-3 sm:p-4 text-center min-w-0">
+                <PlayCircle className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-blue-500 shrink-0" />
+                <p className="text-xl sm:text-2xl font-bold">{status?.queue.processing || 0}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">Выполняется</p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <CheckCircle className="w-6 h-6 mx-auto mb-2 text-green-500" />
-                <p className="text-2xl font-bold">{status?.queue.completed || 0}</p>
-                <p className="text-sm text-muted-foreground">Завершено</p>
+            <Card className="min-w-0 overflow-hidden">
+              <CardContent className="p-3 sm:p-4 text-center min-w-0">
+                <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-green-500 shrink-0" />
+                <p className="text-xl sm:text-2xl font-bold">{status?.queue.completed || 0}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">Завершено</p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <XCircle className="w-6 h-6 mx-auto mb-2 text-red-500" />
-                <p className="text-2xl font-bold">{status?.queue.failed || 0}</p>
-                <p className="text-sm text-muted-foreground">Ошибок</p>
+            <Card className="min-w-0 overflow-hidden">
+              <CardContent className="p-3 sm:p-4 text-center min-w-0">
+                <XCircle className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-red-500 shrink-0" />
+                <p className="text-xl sm:text-2xl font-bold">{status?.queue.failed || 0}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">Ошибок</p>
               </CardContent>
             </Card>
           </div>
@@ -953,36 +964,36 @@ export function DeepSeekFreePanelPro() {
 
         {/* Самовосстановление */}
         <TabsContent value="healing" className="space-y-4">
-          <Card>
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Self-Healing система</CardTitle>
-                  <CardDescription>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <CardTitle className="truncate">Self-Healing система</CardTitle>
+                  <CardDescription className="truncate">
                     Автоматическое восстановление при ошибках и блоках
                   </CardDescription>
                 </div>
-                <Badge className={status?.healing?.monitoring_active ? "bg-green-500" : "bg-gray-500"}>
+                <Badge className={status?.healing?.monitoring_active ? "bg-green-500 shrink-0" : "bg-gray-500 shrink-0"}>
                   {status?.healing?.monitoring_active ? 'Активен' : 'Остановлен'}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-muted rounded-lg">
-                  <Shield className="w-8 h-8 mx-auto mb-2 text-red-500" />
-                  <p className="text-2xl font-bold">{status?.healing?.quarantine_count || 0}</p>
-                  <p className="text-sm text-muted-foreground">В карантине</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                <div className="text-center p-3 sm:p-4 bg-muted rounded-lg min-w-0">
+                  <Shield className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 text-red-500 shrink-0" />
+                  <p className="text-xl sm:text-2xl font-bold">{status?.healing?.quarantine_count || 0}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">В карантине</p>
                 </div>
-                <div className="text-center p-4 bg-muted rounded-lg">
-                  <RotateCcw className="w-8 h-8 mx-auto mb-2 text-yellow-500" />
-                  <p className="text-2xl font-bold">{Object.keys(status?.healing?.recovery_attempts || {}).length}</p>
-                  <p className="text-sm text-muted-foreground">Попыток восстановления</p>
+                <div className="text-center p-3 sm:p-4 bg-muted rounded-lg min-w-0">
+                  <RotateCcw className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 text-yellow-500 shrink-0" />
+                  <p className="text-xl sm:text-2xl font-bold">{Object.keys(status?.healing?.recovery_attempts || {}).length}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Попыток восстановления</p>
                 </div>
-                <div className="text-center p-4 bg-muted rounded-lg">
-                  <Globe className="w-8 h-8 mx-auto mb-2 text-blue-500" />
-                  <p className="text-2xl font-bold">{status?.healing?.proxy_assignments || 0}</p>
-                  <p className="text-sm text-muted-foreground">Прокси назначено</p>
+                <div className="text-center p-3 sm:p-4 bg-muted rounded-lg min-w-0">
+                  <Globe className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 text-blue-500 shrink-0" />
+                  <p className="text-xl sm:text-2xl font-bold">{status?.healing?.proxy_assignments || 0}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Прокси назначено</p>
                 </div>
               </div>
             </CardContent>

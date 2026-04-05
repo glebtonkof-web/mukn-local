@@ -670,6 +670,147 @@ html {
   -webkit-overflow-scrolling: touch;
 }
 
+/* ==================== MODAL AND DIALOG FIXES ==================== */
+/* Ensure dialogs are always on top */
+[role="dialog"],
+[data-radix-popper-content-wrapper] {
+  z-index: 100 !important;
+}
+
+/* Dialog content scrollable */
+.dialog-content-scrollable {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+/* Dialog content responsive */
+@media (max-width: 640px) {
+  [role="dialog"] {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+    margin: 1vh auto !important;
+  }
+  
+  [role="dialog"] h2 {
+    font-size: 1rem !important;
+  }
+  
+  [role="dialog"] p {
+    font-size: 0.875rem !important;
+  }
+}
+
+/* AlertDialog content fix */
+[data-radix-alert-dialog-content] {
+  z-index: 100 !important;
+  max-width: 90vw !important;
+}
+
+/* Popover and dropdown z-index */
+[data-radix-popover-content],
+[data-radix-dropdown-menu-content] {
+  z-index: 60 !important;
+}
+
+/* ==================== GRID RESPONSIVE FIXES ==================== */
+/* Standard responsive grid patterns */
+.grid-responsive-2 {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .grid-responsive-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.grid-responsive-3 {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .grid-responsive-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-responsive-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.grid-responsive-4 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .grid-responsive-4 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-responsive-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.grid-responsive-6 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .grid-responsive-6 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-responsive-6 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+/* ==================== TAB RESPONSIVE FIXES ==================== */
+/* Horizontal scrolling tabs on mobile */
+.tabs-scrollable {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tabs-scrollable::-webkit-scrollbar {
+  display: none;
+}
+
+.tabs-scrollable [role="tablist"] {
+  min-width: max-content;
+}
+
+/* Tab button responsive */
+@media (max-width: 640px) {
+  [role="tab"] {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.75rem !important;
+  }
+  
+  [role="tab"] svg {
+    width: 0.875rem !important;
+    height: 0.875rem !important;
+  }
+}
+
 /* ==================== PRINT STYLES ==================== */
 @media print {
   .no-print {
