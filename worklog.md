@@ -1,6 +1,87 @@
 # Worklog - МУКН | Трафик
 
 ---
+Task ID: 7
+Agent: Main Agent
+Task: Полное тестирование софта МУКН, исправление всех найденных проблем
+
+## Найденные и исправленные проблемы:
+
+### 1. AI Ассистент - КРИТИЧЕСКИЕ ОШИБКИ
+**Проблемы:**
+- API возвращает `result`, а компоненты ожидают `content` - ответы не отображались!
+- Кнопка открытия панели не работала (if (!isOpen) return null скрывал кнопку)
+- Дублирование состояния aiPanelOpen
+
+**Исправлено:**
+- `/src/components/ai-assistant/ai-panel.tsx`:
+  - Исправлен формат ответа: `data.result || data.content || data.message?.content`
+  - Переработан рендер: кнопка теперь видна когда панель закрыта
+  - Добавлен hover эффект на кнопку
+- `/src/components/views/ai-assistant-view.tsx`:
+  - Исправлен формат ответа: `data.result || data.content || ...`
+
+### 2. Hunyuan Studio Pro - IFRAME НЕ РАБОТАЛ
+**Проблемы:**
+- hunyuan.tencent.com блокирует iframe через X-Frame-Options: DENY
+- Видео-генерация была заглушкой
+
+**Исправлено:**
+- `/src/components/hunyuan/hunyuan-studio-pro.tsx`:
+  - Полностью переписан компонент (~600 строк)
+  - Убран неработающий iframe
+  - Добавлена реальная генерация через API routes
+  - 4 вкладки: Генерация, Видео, Картинки, История
+  - Интеграция с z-ai-web-dev-sdk через API
+  - Выбор стилей и форматов
+  - История генераций в localStorage
+  - Кнопки открытия внешнего сайта
+
+### 3. DeepSeek Free - НЕСООТВЕТСТВИЕ ТИПОВ
+**Проблемы:**
+- CacheStats: панель ожидала l1_size, l2_size, hit_rate, API возвращал другой формат
+- PoolStatus: панель ожидала totalAccounts, API возвращал total
+- QueueStats: панель ожидала поля на верхнем уровне, API возвращал вложенно
+- Отсутствовали поля canMakeRequest, waitTime в аккаунтах
+
+**Исправлено:**
+- `/src/app/api/deepseek-free/status/route.ts`:
+  - Полностью переработан ответ API
+  - Добавлены все ожидаемые поля
+  - Формат соответствует интерфейсам панели
+  - Добавлен fallback при ошибке
+- `/src/app/api/deepseek-free/accounts/route.ts`:
+  - Добавлены вычисляемые поля canMakeRequest, waitTime
+  - Установлены дефолтные значения hourlyLimit, dailyLimit
+
+### 4. Браузер справа (AI Panel)
+**Статус:** Работает корректно
+- Компонент AIPanel правильно подключён в page.tsx
+- Состояние aiPanelOpen управляется через useState
+- Горячие клавиши Ctrl+A переключают панель
+- Есть режим чата и браузера
+- Quick links для DeepSeek, ChatGPT, Claude, Gemini
+
+## Статистика исправлений:
+| Компонент | Проблем | Исправлено |
+|-----------|---------|------------|
+| AI Ассистент | 3 | ✅ 3 |
+| Hunyuan Studio | 2 | ✅ 2 |
+| DeepSeek Free | 4 | ✅ 4 |
+| **Всего** | **9** | **✅ 9** |
+
+## Файлы изменены:
+- `/src/components/ai-assistant/ai-panel.tsx`
+- `/src/components/views/ai-assistant-view.tsx`
+- `/src/components/hunyuan/hunyuan-studio-pro.tsx`
+- `/src/app/api/deepseek-free/status/route.ts`
+- `/src/app/api/deepseek-free/accounts/route.ts`
+
+## Проверка:
+- `npm run build`: ✅ Успешно (208 страниц)
+- Все компоненты компилируются без ошибок
+
+---
 Task ID: 6
 Agent: Main Agent
 Task: Исправление проблем в МУКН Dashboard (дублирование контента, прокси, AI Ассистент, видео генератор)

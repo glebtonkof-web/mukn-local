@@ -112,7 +112,7 @@ export function AIPanel({ isOpen, onOpenChange }: AIPanelProps) {
       const assistantMessage: Message = {
         id: `msg-${Date.now()}-response`,
         role: 'assistant',
-        content: data.content || data.message?.content || 'Нет ответа',
+        content: data.result || data.content || data.message?.content || 'Нет ответа',
         timestamp: new Date(),
       };
 
@@ -164,15 +164,28 @@ export function AIPanel({ isOpen, onOpenChange }: AIPanelProps) {
     navigateTo('https://chat.deepseek.com');
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div 
-      className={cn(
-        "fixed right-0 top-0 h-full bg-[#0f0f12] border-l border-[#2A2B32] flex flex-col z-40 transition-all duration-300",
-        isExpanded ? "w-[600px]" : "w-[400px]"
+    <>
+      {/* Floating button when closed */}
+      {!isOpen && (
+        <Button
+          variant="default"
+          size="icon"
+          className="fixed right-4 bottom-4 h-12 w-12 rounded-full bg-gradient-to-r from-[#6C63FF] to-[#00D26A] shadow-lg z-50 hover:scale-110 transition-transform"
+          onClick={() => onOpenChange(true)}
+        >
+          <Bot className="w-5 h-5" />
+        </Button>
       )}
-    >
+      
+      {/* Panel when open */}
+      {isOpen && (
+        <div 
+          className={cn(
+            "fixed right-0 top-0 h-full bg-[#0f0f12] border-l border-[#2A2B32] flex flex-col z-40 transition-all duration-300",
+            isExpanded ? "w-[600px]" : "w-[400px]"
+          )}
+        >
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-[#2A2B32]">
         <div className="flex items-center gap-2">
@@ -365,17 +378,9 @@ export function AIPanel({ isOpen, onOpenChange }: AIPanelProps) {
         </TabsContent>
       </Tabs>
 
-      {/* Toggle Button when closed */}
-      <Button
-        variant="default"
-        size="icon"
-        className="fixed right-4 bottom-4 h-12 w-12 rounded-full bg-gradient-to-r from-[#6C63FF] to-[#00D26A] shadow-lg z-50"
-        onClick={() => onOpenChange(true)}
-        style={{ display: isOpen ? 'none' : 'flex' }}
-      >
-        <Bot className="w-5 h-5" />
-      </Button>
-    </div>
+        </div>
+      )}
+    </>
   );
 }
 

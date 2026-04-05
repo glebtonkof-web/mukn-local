@@ -45,9 +45,25 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Добавляем вычисляемые поля
+    const accountsWithExtras = accounts.map(acc => {
+      const hourlyLimit = acc.hourlyLimit || 25
+      const waitTime = acc.status === 'cooldown' && acc.cooldownUntil
+        ? Math.max(0, acc.cooldownUntil.getTime() - Date.now())
+        : 0
+
+      return {
+        ...acc,
+        hourlyLimit,
+        dailyLimit: acc.dailyLimit || 200,
+        canMakeRequest: acc.status === 'active' && (acc.hourlyUsed || 0) < hourlyLimit,
+        waitTime: Math.ceil(waitTime / 1000) // в секундах
+      }
+    })
+
     return NextResponse.json({
       success: true,
-      accounts
+      accounts: accountsWithExtras
     })
 
   } catch (error: any) {

@@ -247,7 +247,7 @@ export function AIAssistantView() {
       const assistantMessage: Message = {
         id: `msg-${Date.now()}-response`,
         role: 'assistant',
-        content: data.content || data.message?.content || 'Нет ответа',
+        content: data.result || data.content || data.message?.content || 'Нет ответа',
         timestamp: new Date(),
       };
 
