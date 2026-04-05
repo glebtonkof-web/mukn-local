@@ -403,6 +403,9 @@ export default function Page() {
           onOpenChange={setAiProvidersOpen}
         />
 
+        {/* AI Assistant Panel - Right Side */}
+        <AIAssistantPanel />
+
         {/* Hotkeys Dialog */}
         <HotkeysHelpDialog open={hotkeysDialogOpen} onOpenChange={setHotkeysDialogOpen} />
 

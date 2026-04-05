@@ -512,7 +512,8 @@ export function DeepSeekFreePanelPro() {
   }
 
   return (
-    <div className="space-y-6">
+    <ScrollArea className="h-[calc(100vh-120px)]">
+      <div className="space-y-6 pr-4">
       {/* Заголовок */}
       <div className="flex items-center justify-between">
         <div>
@@ -1260,7 +1261,8 @@ export function DeepSeekFreePanelPro() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </ScrollArea>
   )
 }
 
