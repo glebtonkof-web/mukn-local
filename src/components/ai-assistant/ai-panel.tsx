@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useModeStore, AIAction } from '@/store/mode-store';
-import { useAppStore } from '@/store';
+import { useModeStore } from '@/store/mode-store';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -14,12 +13,12 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 const quickPrompts = [
-  { id: 'casino', label: '🎰 Казино', prompt: 'Сгенерируй 3 комментария для казино' },
-  { id: 'crypto', label: '💰 Крипта', prompt: 'Сгенерируй 3 комментария для крипто-канала' },
-  { id: 'dating', label: '❤️ Дейтинг', prompt: 'Сгенерируй 3 комментария для дейтинга' },
-  { id: 'analyze', label: '📊 Анализ', prompt: 'Проанализируй каналы и дай рекомендации' },
-  { id: 'budget', label: '💵 Бюджет', prompt: 'Помоги рассчитать бюджет для кампании' },
-  { id: 'optimize', label: '⚙️ Оптимизация', prompt: 'Как оптимизировать настройки для максимального дохода?' },
+  { id: 'code', label: '💻 Код', prompt: 'Напиши пример кода на Python' },
+  { id: 'explain', label: '📚 Объясни', prompt: 'Объясни простыми словами как работает blockchain' },
+  { id: 'translate', label: '🌐 Переведи', prompt: 'Переведи на английский: Привет, как дела?' },
+  { id: 'creative', label: '✨ Творчество', prompt: 'Напиши короткую историю о космосе' },
+  { id: 'math', label: '🔢 Математика', prompt: 'Реши уравнение: x² + 5x + 6 = 0' },
+  { id: 'help', label: '❓ Помощь', prompt: 'Что ты умеешь?' },
 ];
 
 export function AIAssistantPanel() {
@@ -27,22 +26,13 @@ export function AIAssistantPanel() {
     aiPanelOpen, aiPanelWidth, aiPanelExpanded,
     setAIPanelOpen, setAIPanelExpanded,
     aiMessages, addAIMessage, clearAIMessages,
-    tokensUsed, tokensLimit, getRemainingTokens,
     getCachedResponse, cacheResponse,
   } = useModeStore();
-  
-  const { campaigns, accounts } = useAppStore();
   
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Избегаем гидратации - рендерим данные только на клиенте
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Автоматическая прокрутка вниз при новых сообщениях
   useEffect(() => {
@@ -100,13 +90,8 @@ export function AIAssistantPanel() {
             ...aiMessages.map(m => ({ role: m.role, content: m.content })),
             { role: 'user', content: input }
           ],
-          context: {
-            campaignsCount: campaigns.length,
-            accountsCount: accounts.length,
-            activeView: 'dashboard',
-          },
           temperature: 0.7,
-          maxTokens: 1500,
+          maxTokens: 2000,
         }),
       });
 
@@ -121,15 +106,9 @@ export function AIAssistantPanel() {
         role: 'assistant' as const,
         content: data.result,
         timestamp: new Date(),
-        actions: extractActions(data.result),
       };
 
       addAIMessage(assistantMessage);
-
-      // Update tokens used
-      if (data.usage?.tokens) {
-        useModeStore.getState().addTokensUsed(data.usage.tokens);
-      }
 
       // Cache the response
       cacheResponse({
@@ -145,14 +124,13 @@ export function AIAssistantPanel() {
       console.error('AI Chat error:', error);
 
       // Fallback to simulated response
-      const responses = generateContextualResponse(input, { campaigns: campaigns.length, accounts: accounts.length });
+      const fallbackText = generateFallbackResponse(input);
 
       const assistantMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant' as const,
-        content: responses.text + '\\n\\n_⚠️ Оффлайн-режим (проверьте подключение)_',
+        content: fallbackText + '\n\n_⚠️ Оффлайн-режим (проверьте подключение)_',
         timestamp: new Date(),
-        actions: responses.actions as AIAction[],
       };
 
       addAIMessage(assistantMessage);
@@ -161,48 +139,12 @@ export function AIAssistantPanel() {
     setLoading(false);
   };
 
-  // Extract actionable items from AI response
-  const extractActions = (text: string): AIAction[] => {
-    const actions: AIAction[] = [];
-
-    if (text.includes('кампанию') || text.includes('кампания')) {
-      actions.push({ type: 'create_campaign', label: 'Создать кампанию', params: {} });
-    }
-    if (text.includes('настройки') || text.includes('настроить')) {
-      actions.push({ type: 'open_settings', label: 'Открыть настройки', params: {} });
-    }
-    if (text.includes('комментар')) {
-      actions.push({ type: 'generate_comment', label: 'Генерировать комментарии', params: {} });
-    }
-
-    return actions.slice(0, 2); // Max 2 actions
-  };
-
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
     toast.success('Скопировано');
   };
-
-  const executeAction = (action: AIAction) => {
-    switch (action.type) {
-      case 'create_campaign':
-        toast.success('Кампания создана через AI');
-        break;
-      case 'open_settings':
-        useAppStore.getState().setActiveTab('settings');
-        break;
-      case 'generate_comment':
-        useAppStore.getState().setActiveTab('ai-comments');
-        break;
-      default:
-        toast.info(`Выполняю: ${action.label}`);
-    }
-  };
-
-  const tokenPercent = mounted ? (tokensUsed / tokensLimit) * 100 : 0;
-  const remainingTokens = mounted ? getRemainingTokens() : tokensLimit;
 
   return (
     <div 
@@ -233,26 +175,18 @@ export function AIAssistantPanel() {
         </div>
       </div>
 
-      {/* Token status */}
+      {/* Безлимитный статус */}
       <div className="px-4 py-2 border-b border-[#2A2B32]">
-        <div className="flex items-center justify-between text-xs mb-1">
-          <span className="text-[#8A8A8A]">Токенов</span>
-          <span className="text-white">
-            {mounted ? `${tokensUsed.toLocaleString()} / ${tokensLimit.toLocaleString()}` : '— / —'}
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-[#00D26A] flex items-center gap-1">
+            <span className="w-2 h-2 bg-[#00D26A] rounded-full animate-pulse" />
+            Безлимитный режим
           </span>
+          <span className="text-[#8A8A8A]">DeepSeek AI</span>
         </div>
-        <div className="h-1.5 bg-[#1E1F26] rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-[#00D26A] to-[#6C63FF] transition-all"
-            style={{ width: `${Math.min(tokenPercent, 100)}%` }}
-          />
-        </div>
-        <p className="text-xs text-[#8A8A8A] mt-1">
-          Осталось: ~{mounted ? Math.floor(remainingTokens / 500) : '—'} комментариев
-        </p>
       </div>
 
-      {/* Quick prompts */}
+      {/* Quick prompts - общие темы */}
       <div className="px-4 py-2 border-b border-[#2A2B32] flex gap-1 flex-wrap">
         {quickPrompts.map((qp) => (
           <Button
@@ -278,16 +212,16 @@ export function AIAssistantPanel() {
         {aiMessages.length === 0 ? (
           <div className="text-center py-8">
             <Bot className="w-12 h-12 mx-auto text-[#6C63FF] mb-4" />
-            <h4 className="text-white font-medium mb-2">Чем могу помочь?</h4>
+            <h4 className="text-white font-medium mb-2">Привет! Чем могу помочь?</h4>
             <p className="text-sm text-[#8A8A8A] mb-4">
-              Спросите о кампаниях, комментариях или настройках
+              Спроси меня о чём угодно — я отвечу!
             </p>
             <div className="space-y-2 text-left max-w-[280px] mx-auto">
               <div className="p-3 bg-[#1E1F26] rounded-lg text-sm text-[#8A8A8A]">
-                💡 "Как увеличить доход?"
+                💡 "Напиши код на Python"
               </div>
               <div className="p-3 bg-[#1E1F26] rounded-lg text-sm text-[#8A8A8A]">
-                💡 "Сгенерируй 5 комментариев"
+                💡 "Объясни квантовую физику"
               </div>
             </div>
           </div>
@@ -381,100 +315,11 @@ export function AIAssistantPanel() {
   );
 }
 
-// Contextual response generator
-function generateContextualResponse(input: string, context: { campaigns: number; accounts: number }) {
-  const lowerInput = input.toLowerCase();
-  
-  if (lowerInput.includes('комментар') && (lowerInput.includes('казино') || lowerInput.includes('crypto'))) {
-    const style = lowerInput.includes('казино') ? 'казино' : 'крипто';
-    return {
-      text: `Вот 3 варианта комментариев для ${style}:
+// Fallback response generator для оффлайн-режима
+function generateFallbackResponse(input: string): string {
+  return `Извини, сейчас я не могу подключиться к серверу. 
 
-1. "Класс! Я тоже вчера поднял неплохо, результаты поражают 🚀"
+Пожалуйста, проверьте интернет-соединение и попробуйте ещё раз.
 
-2. "Давно искал нормальный канал с сигналами. Подписался, посмотрю 👀"
-
-3. "Спасибо за инфу! Уже получил хороший результат, продолжаю следить"
-
-💡 Совет: Публикуйте в первые 5 минут после поста.`,
-      actions: [
-        { type: 'generate_comment', label: 'Ещё варианты', params: { style } },
-        { type: 'create_campaign', label: 'Создать кампанию', params: { type: style } },
-      ]
-    };
-  }
-  
-  if (lowerInput.includes('доход') || lowerInput.includes('заработок') || lowerInput.includes('увеличить')) {
-    return {
-      text: `📊 Анализ вашего дохода:
-
-Текущие показатели:
-• Кампаний: ${context.campaigns}
-• Аккаунтов: ${context.accounts}
-
-Рекомендации для увеличения дохода в 2 раза:
-
-1. **Добавьте аккаунты** — сейчас ${context.accounts}, оптимально 20-30
-
-2. **Оптимизируйте время постинга** — лучший период 20:00-23:00
-
-3. **A/B тестирование** — тестируйте разные стили
-
-4. **Расширьте каналы** — добавьте 5-10 новых`,
-      actions: [
-        { type: 'open_settings', label: 'Настройки' },
-        { type: 'create_campaign', label: 'Новая кампания' },
-      ]
-    };
-  }
-  
-  if (lowerInput.includes('анализ') || lowerInput.includes('канал')) {
-    return {
-      text: `🔍 Анализ канала:
-
-Для точного анализа отправьте ссылку на канал.
-
-Общие рекомендации:
-• Проверьте активность канала
-• Оцените модерацию
-• Изучите аудиторию
-
-⚠️ Важно: Не спамьте в каналах с агрессивной модерацией.`,
-      actions: [
-        { type: 'apply_settings', label: 'Добавить канал' },
-      ]
-    };
-  }
-  
-  if (lowerInput.includes('бюджет') || lowerInput.includes('расчёт')) {
-    return {
-      text: `💰 Калькулятор бюджета:
-
-Пример расчёта для 1000₽/день:
-• Понадобится ~15 аккаунтов
-• 500 комментариев в день
-• Расходы на прокси: ~150₽/день
-• Ожидаемый ROI: 1:4
-
-Хотите точный расчёт?`,
-      actions: [
-        { type: 'create_campaign', label: 'Создать с бюджетом' },
-      ]
-    };
-  }
-  
-  // Default response
-  return {
-    text: `Я понимаю ваш запрос. Вот что я могу сделать:
-
-• **Генерация комментариев** — для любых офферов
-• **Анализ каналов** — проверка перед спамом
-• **Расчёт бюджета** — оптимизация расходов
-• **Настройка кампаний** — автоматическое создание
-
-Выберите один из быстрых шаблонов выше.
-
-💡 Совет: Чем точнее вопрос, тем полезнее ответ!`,
-    actions: []
-  };
+Ваш вопрос: "${input.substring(0, 100)}${input.length > 100 ? '...' : ''}"`;
 }
