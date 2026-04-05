@@ -6,7 +6,6 @@ import { useAppStore } from '@/store';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Bot, Send, Maximize2, Minimize2, X, 
   Copy, Check, Trash2
@@ -261,7 +260,13 @@ export function AIAssistantPanel() {
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4">
+      <div 
+        className="flex-1 overflow-y-auto p-4 min-h-0 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-[#1E1F26] [&::-webkit-scrollbar-thumb]:bg-[#6C63FF] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#8B7FFF]"
+        style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#6C63FF #1E1F26'
+        }}
+      >
         {aiMessages.length === 0 ? (
           <div className="text-center py-8">
             <Bot className="w-12 h-12 mx-auto text-[#6C63FF] mb-4" />
@@ -339,7 +344,7 @@ export function AIAssistantPanel() {
             <div ref={messagesEndRef} />
           </div>
         )}
-      </ScrollArea>
+      </div>
 
       {/* Input */}
       <div className="p-4 border-t border-[#2A2B32]">
