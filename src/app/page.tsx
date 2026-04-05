@@ -24,7 +24,7 @@ import { AIAssistantView } from '@/components/views/ai-assistant-view';
 import { TrafficPourView } from '@/components/views/traffic-pour-view';
 import { AntidetectView } from '@/components/views/antidetect-view';
 import { DeepSeekFreePanelPro } from '@/components/deepseek-free/deepseek-free-panel-pro';
-import { AIAssistantPanel } from '@/components/ai-assistant/ai-panel';
+// AI Assistant теперь доступен через вкладку, не как панель
 import { ModeSwitcher } from '@/components/mode-switcher/index';
 import { OnboardingTour } from '@/components/onboarding/onboarding-tour';
 import { BeginnerHints } from '@/components/onboarding/beginner-hints';
@@ -270,18 +270,13 @@ function AutoEarnView() {
 
 export default function Page() {
   const { activeTab, setActiveTab, settings, updateSettings, settingsOpen, setSettingsOpen } = useAppStore();
-  const { terminalMode, aiPanelOpen, aiPanelWidth, aiPanelDrawerMode } = useModeStore();
+  const { terminalMode } = useModeStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [campaignModalOpen, setCampaignModalOpen] = useState(false);
   const [hotkeysDialogOpen, setHotkeysDialogOpen] = useState(false);
 
-  // Calculate main content margin based on AI panel state
-  // Only apply margin on desktop (not drawer mode) when panel is open
-  const showAIPanelMargin = aiPanelOpen && !aiPanelDrawerMode;
-  const mainContentStyle = showAIPanelMargin 
-    ? { marginRight: `${aiPanelWidth}px` } as React.CSSProperties
-    : undefined;
+  // AI Panel удалён - теперь AI Ассистент доступен через вкладку
 
   // Горячие клавиши
   useHotkeys([
@@ -369,8 +364,7 @@ export default function Page() {
 
         {/* Main content */}
         <div 
-          className="flex-1 flex flex-col overflow-hidden transition-all duration-300 min-w-0"
-          style={mainContentStyle}
+          className="flex-1 flex flex-col overflow-hidden min-w-0"
         >
           {/* Header */}
           <MobileHeader
@@ -405,8 +399,7 @@ export default function Page() {
           onOpenChange={setNotificationsOpen}
         />
 
-        {/* AI Assistant Panel - Right Side */}
-        <AIAssistantPanel />
+        {/* AI Assistant Panel - удалён, теперь доступен через вкладку */}
 
         {/* Hotkeys Dialog */}
         <HotkeysHelpDialog open={hotkeysDialogOpen} onOpenChange={setHotkeysDialogOpen} />

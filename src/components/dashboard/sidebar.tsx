@@ -49,7 +49,6 @@ const navSections = [
     title: '🚀 Быстрый старт',
     items: [
       { id: 'auto-earn', label: 'Авто-заработок', icon: Zap, badge: 'NEW' },
-      { id: 'monetization-wizard', label: 'Мастер монетизации', icon: Rocket, badge: 'WIZARD' },
     ]
   },
   {
@@ -57,7 +56,6 @@ const navSections = [
     items: [
       { id: 'dashboard', label: 'Главная', icon: LayoutDashboard },
       { id: 'campaigns', label: 'Кампании', icon: Rocket },
-      { id: 'accounts', label: 'Аккаунты', icon: Users },
       { id: 'analytics', label: 'Аналитика', icon: BarChart3 },
     ]
   },
@@ -85,7 +83,7 @@ const navSections = [
   {
     title: 'Instagram',
     items: [
-      { id: 'ig-warming', label: 'Прогрев IG', icon: Flame, badge: '21д' },
+      { id: 'instagram-warming', label: 'Прогрев IG', icon: Flame, badge: '21д' },
       { id: 'shadow-ban', label: 'Shadow Ban', icon: Shield },
     ]
   },
