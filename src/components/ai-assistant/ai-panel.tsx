@@ -1873,6 +1873,7 @@ export function AIAssistantPanel() {
           systemPrompt: settings.systemPrompt,
           model: settings.model,
           stream: true,
+          loadContext: true, // Всегда загружать контекст аналитики
         }),
         signal: controller.signal,
       });

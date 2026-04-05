@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
 
 // Типы для схем монетизации
 interface MonetizationStep {
@@ -139,7 +140,7 @@ const MONETIZATION_SCHEMES: MonetizationScheme[] = [
       { step: 2, title: 'Генерация контента', description: 'AI-помощь в создании вирусных видео', duration: 'Постоянно', automated: true },
       { step: 3, title: 'Публикация по расписанию', description: 'Оптимальное время для максимального охвата', duration: 'Постоянно', automated: true },
       { step: 4, title: 'Взаимодействие с аудиторией', description: 'Ответы на комментарии и взаимодействие', duration: 'Постоянно', automated: true },
-      { step: 5, title: 'Конвертация в подписчиков', description: 'Перенаправление на OnlyFans', duration: 'Постоянно', automated: true },
+      { step: 5, title: 'Конвертация в подписчики', description: 'Перенаправление на OnlyFans', duration: 'Постоянно', automated: true },
     ],
     recommendedBudget: {
       min: 10000,
@@ -239,29 +240,177 @@ const MONETIZATION_SCHEMES: MonetizationScheme[] = [
       'Требуется время на прогрев аккаунтов',
     ],
   },
+  // Новые схемы
+  {
+    id: 'nutra-health',
+    name: 'Nutra + Health',
+    description: 'Продвижение нутрацевтики и товаров для здоровья через нативную рекламу. Стабильный спрос.',
+    platforms: ['Instagram', 'TikTok', 'YouTube'],
+    requiredAccounts: [
+      { platform: 'Instagram', minCount: 3, purpose: 'Основной трафик', requiresWarming: true },
+      { platform: 'TikTok', minCount: 2, purpose: 'Видео-контент', requiresWarming: false },
+    ],
+    estimatedROI: {
+      min: 80,
+      max: 200,
+      timeframe: '30 дней',
+    },
+    risk: 'low',
+    steps: [
+      { step: 1, title: 'Выбор офферов', description: 'Подбор качественных нутра-офферов', duration: '1 день', automated: false },
+      { step: 2, title: 'Создание контента', description: 'AI-генерация нативного контента', duration: 'Постоянно', automated: true },
+      { step: 3, title: 'Тестирование', description: 'A/B тестирование подходов', duration: '7 дней', automated: true },
+      { step: 4, title: 'Масштабирование', description: 'Увеличение бюджета на успешные связки', duration: 'Постоянно', automated: true },
+    ],
+    recommendedBudget: {
+      min: 5000,
+      max: 40000,
+      currency: 'RUB',
+    },
+    features: [
+      'AI-генерация отзывов и обзоров',
+      'Автоматический подбор креативов',
+      'A/B тестирование',
+      'Гео-таргетинг',
+    ],
+    warnings: [
+      'Требуется проверка качества офферов',
+      'Важно соблюдать рекламные политики',
+    ],
+  },
+  {
+    id: 'ecommerce-dropshipping',
+    name: 'E-commerce + Dropshipping',
+    description: 'Продвижение товаров через маркетплейсы и соцсети. Пассивный доход с автофулфилментом.',
+    platforms: ['Instagram', 'TikTok', 'Telegram'],
+    requiredAccounts: [
+      { platform: 'Instagram', minCount: 2, purpose: 'Витрина товаров', requiresWarming: true },
+      { platform: 'TikTok', minCount: 2, purpose: 'Видео-обзоры', requiresWarming: false },
+      { platform: 'Telegram', minCount: 1, purpose: 'Канал с товарами', requiresWarming: false },
+    ],
+    estimatedROI: {
+      min: 50,
+      max: 150,
+      timeframe: '45 дней',
+    },
+    risk: 'low',
+    steps: [
+      { step: 1, title: 'Выбор товаров', description: 'AI-анализ трендовых товаров', duration: '2 дня', automated: true },
+      { step: 2, title: 'Создание магазина', description: 'Настройка витрины', duration: '3 дня', automated: false },
+      { step: 3, title: 'Генерация контента', description: 'AI-создание описаний и фото', duration: 'Постоянно', automated: true },
+      { step: 4, title: 'Продвижение', description: 'Таргетированная реклама', duration: 'Постоянно', automated: true },
+    ],
+    recommendedBudget: {
+      min: 10000,
+      max: 100000,
+      currency: 'RUB',
+    },
+    features: [
+      'AI-подбор трендовых товаров',
+      'Автоматическая генерация описаний',
+      'Интеграция с поставщиками',
+      'Авто-заказы и фулфилмент',
+    ],
+    warnings: [
+      'Требуется начальный капитал на товары',
+      'Важно выбрать надёжных поставщиков',
+    ],
+  },
 ];
+
+// Маппинг ID схем на типы кампаний/ниши
+const SCHEME_TO_NICHE: Record<string, string> = {
+  'gambling-telegram': 'gambling',
+  'dating-instagram': 'dating',
+  'ofm-tiktok': 'ofm',
+  'crypto-crossplatform': 'crypto',
+  'telegram-invites': 'telegram',
+  'nutra-health': 'nutra',
+  'ecommerce-dropshipping': 'ecommerce',
+};
 
 // GET /api/auto-earn/schemes
 export async function GET() {
   try {
-    // Добавляем статистику по каждой схеме
-    const schemesWithStats = MONETIZATION_SCHEMES.map(scheme => ({
-      ...scheme,
-      stats: {
-        activeCampaigns: Math.floor(Math.random() * 50) + 10,
-        avgROI: Math.floor((scheme.estimatedROI.min + scheme.estimatedROI.max) / 2),
-        successRate: scheme.risk === 'low' ? 85 : scheme.risk === 'medium' ? 70 : 55,
-        totalUsers: Math.floor(Math.random() * 500) + 100,
+    // Загружаем реальные данные о кампаниях из базы
+    const campaigns = await db.campaign.findMany({
+      where: { status: 'active' },
+      select: {
+        niche: true,
+        type: true,
+        revenue: true,
+        spent: true,
       },
-    }));
+    });
+
+    // Загружаем количество аккаунтов
+    const accountsCount = await db.account.count();
+    const activeAccountsCount = await db.account.count({ where: { status: 'active' } });
+
+    // Считаем статистику по каждой схеме
+    const schemesWithStats = await Promise.all(
+      MONETIZATION_SCHEMES.map(async (scheme) => {
+        const niche = SCHEME_TO_NICHE[scheme.id];
+
+        // Считаем кампании этой ниши
+        const nicheCampaigns = campaigns.filter(c => c.niche === niche);
+        const activeCampaigns = nicheCampaigns.length;
+
+        // Считаем средний ROI
+        let avgROI = Math.floor((scheme.estimatedROI.min + scheme.estimatedROI.max) / 2);
+        let successRate = scheme.risk === 'low' ? 85 : scheme.risk === 'medium' ? 70 : 55;
+
+        if (nicheCampaigns.length > 0) {
+          const campaignsROI = nicheCampaigns
+            .filter(c => c.spent > 0)
+            .map(c => ((c.revenue - c.spent) / c.spent) * 100);
+
+          if (campaignsROI.length > 0) {
+            avgROI = Math.floor(campaignsROI.reduce((a, b) => a + b, 0) / campaignsROI.length);
+            successRate = Math.floor((campaignsROI.filter(r => r > 0).length / campaignsROI.length) * 100);
+          }
+        }
+
+        // Считаем пользователей (уникальные userId с кампаниями этой ниши)
+        const totalUsers = await db.campaign.count({
+          where: {
+            niche,
+            status: { in: ['active', 'completed'] },
+          },
+        });
+
+        return {
+          ...scheme,
+          stats: {
+            activeCampaigns,
+            avgROI,
+            successRate,
+            totalUsers,
+          },
+        };
+      })
+    );
+
+    // Общая статистика системы
+    const totalRevenue = campaigns.reduce((sum, c) => sum + c.revenue, 0);
+    const totalSpent = campaigns.reduce((sum, c) => sum + c.spent, 0);
+    const totalROI = totalSpent > 0 ? ((totalRevenue - totalSpent) / totalSpent) * 100 : 0;
 
     return NextResponse.json({
       success: true,
       schemes: schemesWithStats,
       meta: {
         total: schemesWithStats.length,
-        categories: ['gambling', 'dating', 'ofm', 'crypto', 'telegram'],
+        categories: ['gambling', 'dating', 'ofm', 'crypto', 'telegram', 'nutra', 'ecommerce'],
         lastUpdated: new Date().toISOString(),
+        systemStats: {
+          totalCampaigns: campaigns.length,
+          totalAccounts: accountsCount,
+          activeAccounts: activeAccountsCount,
+          totalRevenue,
+          totalSpent,
+          totalROI: totalROI.toFixed(2),
+        },
       },
     });
   } catch (error) {

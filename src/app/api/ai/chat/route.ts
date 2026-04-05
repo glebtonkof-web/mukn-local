@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
+import { db } from '@/lib/db';
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -18,29 +19,167 @@ interface ChatRequest {
   systemPrompt?: string;
   model?: string;
   stream?: boolean;
+  loadContext?: boolean; // Загружать ли реальный контекст данных
 }
 
-// Системный промпт для AI-ассистента - безлимитный чат на любые темы
-const DEFAULT_SYSTEM_PROMPT = `Ты — дружелюбный AI-ассистент DeepSeek.
+// Ключевые слова, при которых нужно загружать контекст
+const CONTEXT_KEYWORDS = [
+  'аналитик', 'статистик', 'кампани', 'доход', 'расход', 'прибыль', 'убыток',
+  'roi', 'конверси', 'лид', 'бюджет', 'аккаунт', 'прогрев', 'трафик',
+  'заработок', 'монетизац', 'показател', 'метрик', 'отчёт', 'отчет',
+  'эффективност', 'оптимизаци', 'масштабир', 'анализ', 'данные',
+  'сколько', 'какой', 'какая', 'какие', 'количество', 'всего',
+  'топ', 'лучши', 'худш', 'сравн', 'динамик', 'тренд',
+  'выручк', 'инфлюенсер', 'оффер', 'offer', 'influencer'
+];
 
-Ты можешь обсуждать абсолютно любые темы:
-- Программирование и технологии
-- Наука, математика, физика
-- История, философия, литература
-- Бизнес, финансы, маркетинг
-- Творчество, искусство, музыка
-- Повседневные вопросы
-- И абсолютно любые другие темы
+// Функция для определения нужен ли контекст
+function needsContext(message: string): boolean {
+  const lowerMessage = message.toLowerCase();
+  return CONTEXT_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
+}
 
-Правила общения:
-- Отвечай развернуто и полезно
-- Будь дружелюбным и позитивным
-- Используй эмодзи умеренно
-- Форматируй списки через • или цифры
-- Если что-то не знаешь — честно признай
-- Давай примеры и пояснения
+// Функция загрузки контекста аналитики
+async function loadAnalyticsContext(): Promise<string> {
+  try {
+    // Получаем кампании
+    const campaigns = await db.campaign.findMany({
+      include: {
+        CampaignInfluencer: { include: { Influencer: true } },
+        CampaignOffer: { include: { Offer: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
-Отвечай на том языке, на котором задан вопрос.`;
+    // Получаем аккаунты
+    const accounts = await db.account.findMany({
+      select: {
+        id: true,
+        username: true,
+        platform: true,
+        status: true,
+        niche: true,
+        warmingDay: true,
+        warmingPhase: true,
+      },
+    });
+
+    // Получаем инфлюенсеров
+    const influencers = await db.influencer.findMany({
+      select: {
+        id: true,
+        name: true,
+        platform: true,
+        subscribers: true,
+        leadsCount: true,
+        revenue: true,
+      },
+    });
+
+    // Получаем офферы
+    const offers = await db.offer.findMany({
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        payout: true,
+        conversions: true,
+      },
+    });
+
+    // Вычисляем статистику
+    const totalCampaigns = campaigns.length;
+    const activeCampaigns = campaigns.filter(c => c.status === 'active').length;
+    const totalBudget = campaigns.reduce((sum, c) => sum + (c.budget || 0), 0);
+    const totalSpent = campaigns.reduce((sum, c) => sum + (c.spent || 0), 0);
+    const totalRevenue = campaigns.reduce((sum, c) => sum + (c.revenue || 0), 0);
+    const totalLeads = campaigns.reduce((sum, c) => sum + (c.leadsCount || 0), 0);
+    const overallROI = totalSpent > 0 ? ((totalRevenue - totalSpent) / totalSpent * 100).toFixed(2) : '0';
+
+    const accountsByPlatform = accounts.reduce((acc, a) => {
+      acc[a.platform] = (acc[a.platform] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const warmingAccounts = accounts.filter(a => a.status === 'warming');
+    const activeAccounts = accounts.filter(a => a.status === 'active');
+
+    // Топ кампании
+    const topCampaigns = campaigns
+      .filter(c => c.revenue > 0)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5)
+      .map(c => ({
+        name: c.name,
+        type: c.type,
+        niche: c.niche,
+        status: c.status,
+        revenue: c.revenue,
+        spent: c.spent,
+        roi: c.spent > 0 ? ((c.revenue - c.spent) / c.spent * 100).toFixed(2) : '0',
+        leads: c.leadsCount,
+      }));
+
+    // Формируем контекст
+    const contextData = `
+## 📊 АКТУАЛЬНЫЕ ДАННЫЕ СИСТЕМЫ (реальные данные)
+
+### 📈 Общая статистика:
+- **Всего кампаний**: ${totalCampaigns}
+- **Активных кампаний**: ${activeCampaigns}
+- **Общий бюджет**: ${totalBudget.toLocaleString()} ₽
+- **Потрачено**: ${totalSpent.toLocaleString()} ₽
+- **Выручка**: ${totalRevenue.toLocaleString()} ₽
+- **Прибыль**: ${(totalRevenue - totalSpent).toLocaleString()} ₽
+- **Общий ROI**: ${overallROI}%
+- **Всего лидов**: ${totalLeads}
+
+### 👤 Аккаунты:
+- **Всего аккаунтов**: ${accounts.length}
+- **На прогреве**: ${warmingAccounts.length}
+- **Активных**: ${activeAccounts.length}
+- **По платформам**: ${Object.entries(accountsByPlatform).map(([p, c]) => `${p}: ${c}`).join(', ')}
+
+### 🏆 Топ-5 кампаний по выручке:
+${topCampaigns.map((c, i) => `${i + 1}. **${c.name}** (${c.type}, ${c.niche || 'без ниши'})
+   - Статус: ${c.status}
+   - Выручка: ${c.revenue?.toLocaleString()} ₽
+   - Расходы: ${c.spent?.toLocaleString()} ₽
+   - ROI: ${c.roi}%
+   - Лиды: ${c.leads}`).join('\n')}
+
+### 📋 Список всех кампаний:
+${campaigns.map(c => `- **${c.name}** [${c.status}] | ${c.type} | ${c.niche || 'без ниши'} | Бюджет: ${c.budget?.toLocaleString() || 0}₽ | Потрачено: ${c.spent?.toLocaleString() || 0}₽ | Выручка: ${c.revenue?.toLocaleString() || 0}₽`).join('\n')}
+
+### 📱 Инфлюенсеры (${influencers.length}):
+${influencers.slice(0, 10).map(i => `- ${i.name} (${i.platform}) | ${i.subscribers?.toLocaleString() || 0} подписчиков | ${i.leadsCount || 0} лидов | ${i.revenue?.toLocaleString() || 0}₽`).join('\n')}
+
+### 🎯 Офферы (${offers.length}):
+${offers.slice(0, 10).map(o => `- ${o.name} (${o.type}) | Выплата: ${o.payout}₽ | Конверсий: ${o.conversions || 0}`).join('\n')}
+
+### ⚠️ Рекомендации системы:
+${totalCampaigns === 0 ? '- ❌ Нет созданных кампаний! Создайте первую кампанию' : ''}
+${activeCampaigns === 0 && totalCampaigns > 0 ? '- ⚠️ Нет активных кампаний! Запустите кампании' : ''}
+${accounts.length < 5 ? `- 📈 Мало аккаунтов (${accounts.length}). Рекомендуется минимум 10-20 для масштабирования` : ''}
+${warmingAccounts.length > 0 ? `- 🔥 ${warmingAccounts.length} аккаунтов на прогреве. Проверьте их статус` : ''}
+${parseFloat(overallROI) < 0 ? '- ❌ Отрицательный ROI! Необходима оптимизация кампаний' : ''}
+${parseFloat(overallROI) > 50 ? `- ✅ Отличный ROI (${overallROI}%)! Можно масштабировать` : ''}
+
+---
+
+**ВАЖНО**: Это реальные данные из вашей системы МУКН. Используйте их для ответов на вопросы пользователя!
+`;
+
+    return contextData;
+  } catch (error) {
+    console.error('[AI Chat] Failed to load context:', error);
+    return `
+## ⚠️ Ошибка загрузки данных
+Не удалось загрузить актуальные данные из базы. Возможно, база данных пуста или недоступна.
+Попросите пользователя создать кампании или проверить подключение к базе данных.
+`;
+  }
+}
 
 // Кэш для хранения ответов (простая оптимизация)
 const responseCache = new Map<string, { response: string; timestamp: number }>();
@@ -58,30 +197,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Добавляем контекст к последнему сообщению пользователя
-    let contextMessage = '';
-    if (body.context) {
-      const { campaignsCount, accountsCount, activeView } = body.context;
-      contextMessage = `\n\n[Контекст: Кампаний: ${campaignsCount || 0}, Аккаунтов: ${accountsCount || 0}, Раздел: ${activeView || 'главная'}]`;
+    // Получаем последнее сообщение пользователя
+    const lastUserMessage = [...body.messages].reverse().find(m => m.role === 'user');
+    const userContent = lastUserMessage?.content || '';
+
+    // Определяем нужен ли контекст
+    const shouldLoadContext = body.loadContext || needsContext(userContent);
+
+    // Загружаем контекст аналитики если нужно
+    let analyticsContext = '';
+    if (shouldLoadContext) {
+      console.log('[AI Chat] Loading analytics context for:', userContent.slice(0, 50));
+      analyticsContext = await loadAnalyticsContext();
     }
 
-    const systemPrompt = body.systemPrompt || DEFAULT_SYSTEM_PROMPT;
+    // Базовый контекст из параметров
+    let basicContext = '';
+    if (body.context) {
+      const { campaignsCount, accountsCount, activeView } = body.context;
+      basicContext = `\n[Базовый контекст: Кампаний: ${campaignsCount || 0}, Аккаунтов: ${accountsCount || 0}, Раздел: ${activeView || 'главная'}]`;
+    }
+
+    // Формируем системный промпт
+    const systemPrompt = body.systemPrompt || getDefaultSystemPrompt();
+
+    // Добавляем контекст аналитики к системному промпту
+    const enhancedSystemPrompt = analyticsContext
+      ? `${systemPrompt}\n\n${analyticsContext}`
+      : systemPrompt;
 
     const messages: ChatMessage[] = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: enhancedSystemPrompt },
       ...body.messages.map((msg, i) => {
-        if (i === body.messages.length - 1 && msg.role === 'user' && contextMessage) {
-          return { ...msg, content: msg.content + contextMessage };
+        if (i === body.messages.length - 1 && msg.role === 'user' && basicContext) {
+          return { ...msg, content: msg.content + basicContext };
         }
         return msg;
       })
     ];
 
     // Проверяем кэш для коротких запросов
-    const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
-    const cacheKey = lastUserMessage?.content?.slice(0, 100) || '';
+    const cacheKey = userContent.slice(0, 100);
     const cached = responseCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL && !shouldLoadContext) {
       console.log('[AI Chat] Using cached response');
       return NextResponse.json({
         success: true,
@@ -110,10 +268,10 @@ export async function POST(request: NextRequest) {
       tokensUsed = completion.usage?.total_tokens || 0;
       provider = 'deepseek-sdk';
 
-      console.log(`[AI Chat] SDK success, tokens: ${tokensUsed}, time: ${responseTime}ms`);
+      console.log(`[AI Chat] SDK success, tokens: ${tokensUsed}, time: ${responseTime}ms, context: ${shouldLoadContext}`);
 
-      // Кэшируем успешный ответ
-      if (cacheKey && result) {
+      // Кэшируем успешный ответ (только без контекста)
+      if (cacheKey && result && !shouldLoadContext) {
         responseCache.set(cacheKey, { response: result, timestamp: Date.now() });
       }
 
@@ -126,14 +284,14 @@ export async function POST(request: NextRequest) {
         const DEMO_USER_ID = 'demo-user';
         const manager = await getAIManager(DEMO_USER_ID);
 
-        const prompt = lastUserMessage?.content || '';
+        const prompt = userContent;
         const chatHistory = messages.filter(m => m.role !== 'system');
 
         const startTime = Date.now();
         const generationResult = await manager.generate(prompt, {
           temperature: body.temperature ?? 0.7,
           maxTokens: body.maxTokens ?? 1500,
-          systemPrompt: body.systemPrompt || 'Ты — полезный AI-ассистент. Отвечай на русском языке.',
+          systemPrompt: enhancedSystemPrompt,
           messages: chatHistory,
         }, DEMO_USER_ID);
 
@@ -147,8 +305,8 @@ export async function POST(request: NextRequest) {
       } catch (managerError) {
         console.error('[AI Chat] Manager also failed:', managerError);
 
-        // Возвращаем заглушку вместо ошибки
-        result = generateFallbackResponse(lastUserMessage?.content || '', body.context);
+        // Возвращаем заглушку с контекстом
+        result = generateFallbackResponse(userContent, body.context, analyticsContext);
         tokensUsed = 0;
         provider = 'fallback';
       }
@@ -161,6 +319,7 @@ export async function POST(request: NextRequest) {
         tokens: tokensUsed,
         provider,
         responseTime,
+        contextLoaded: shouldLoadContext,
       },
     });
 
@@ -181,9 +340,67 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Fallback генератор ответов
-function generateFallbackResponse(input: string, context?: ChatRequest['context']): string {
+// Дефолтный системный промпт
+function getDefaultSystemPrompt(): string {
+  return `Ты — **МУКН Assistant**, AI-эксперт по платформе "МУКН | Трафик Enterprise".
+
+## 🎯 Твоя роль:
+Ты помогаешь пользователю с любыми вопросами о работе системы, анализируешь данные кампаний, даёшь рекомендации по монетизации и трафику.
+
+## 📊 Работа с данными:
+Когда пользователь спрашивает об аналитике, статистике, доходах, кампаниях или аккаунтах - ТЫ ИМЕЕШЬ ДОСТУП К РЕАЛЬНЫМ ДАННЫМ из системы!
+
+Используй эти данные для:
+- Анализа эффективности кампаний
+- Расчёта ROI и других метрик
+- Рекомендаций по оптимизации
+- Сравнения показателей
+
+## 💡 Правила ответов:
+1. **Используй реальные данные** - они предоставлены в контексте
+2. **Форматируй числа** - используй разделители тысяч (1 000 000)
+3. **Давай конкретику** - точные цифры, проценты, суммы
+4. **Предлагай действия** - что именно сделать для улучшения
+5. **Объясняй причины** - почему такие рекомендации
+
+## 📝 Формат ответов:
+- Используй заголовки (##, ###) для структуры
+- Форматируй списки через • или цифры
+- Выделяй важное **жирным**
+- Добавляй эмодзи для наглядности
+- Для таблиц используй markdown
+
+Отвечай на русском языке. Ты видишь РЕАЛЬНЫЕ данные системы!`;
+}
+
+// Fallback генератор ответов с учётом контекста
+function generateFallbackResponse(input: string, context?: ChatRequest['context'], analyticsContext?: string): string {
   const lowerInput = input.toLowerCase();
+
+  // Если есть контекст аналитики
+  if (analyticsContext) {
+    if (lowerInput.includes('аналитик') || lowerInput.includes('статистик') || lowerInput.includes('показател')) {
+      return `📊 **Общая аналитика по вашим кампаниям:**
+
+${analyticsContext}
+
+💡 **Что можно сделать дальше:**
+- Запросить детальный анализ конкретной кампании
+- Получить рекомендации по оптимизации
+- Сравнить показатели с прошлым периодом`;
+    }
+
+    if (lowerInput.includes('доход') || lowerInput.includes('прибыль') || lowerInput.includes('выручк')) {
+      return `💰 **Анализ доходности:**
+
+${analyticsContext}
+
+📈 **Рекомендации по увеличению дохода:**
+1. Масштабируйте успешные кампании с высоким ROI
+2. Остановите кампании с отрицательным ROI
+3. Добавьте новые аккаунты для увеличения охвата`;
+    }
+  }
 
   if (lowerInput.includes('комментар') && (lowerInput.includes('казино') || lowerInput.includes('crypto'))) {
     const style = lowerInput.includes('казино') ? 'казино' : 'крипто';
