@@ -1108,29 +1108,33 @@ export function AIAssistantPanel() {
       };
 
       utterance.onerror = (e) => {
-        console.error('Speech error:', e.error || e);
-        setIsSpeaking(false);
-
-        // Если ошибка не отмены — пробуем продолжить
+        // interrupted и canceled — нормальные события при остановке, не ошибка
         if (e.error === 'canceled' || e.error === 'interrupted') {
           return;
         }
 
+        console.warn('Speech synthesis warning:', e.error);
+        setIsSpeaking(false);
+
         // Пробуем без указания голоса
         if (utterance.voice) {
-          const retryUtterance = new SpeechSynthesisUtterance(chunks[currentIndex]);
-          retryUtterance.lang = 'ru-RU';
-          retryUtterance.rate = 1;
+          try {
+            const retryUtterance = new SpeechSynthesisUtterance(chunks[currentIndex]);
+            retryUtterance.lang = 'ru-RU';
+            retryUtterance.rate = 1;
 
-          retryUtterance.onend = () => {
-            currentIndex++;
-            setTimeout(() => speakChunk(), 100);
-          };
-          retryUtterance.onerror = () => {
+            retryUtterance.onend = () => {
+              currentIndex++;
+              setTimeout(() => speakChunk(), 100);
+            };
+            retryUtterance.onerror = () => {
+              setIsSpeaking(false);
+            };
+
+            synth.speak(retryUtterance);
+          } catch {
             setIsSpeaking(false);
-          };
-
-          synth.speak(retryUtterance);
+          }
           return;
         }
 
