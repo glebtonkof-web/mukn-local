@@ -1780,21 +1780,33 @@ export function UnifiedAutoEarnWizard() {
         {/* Прогресс */}
         <div className="mt-6">
           <div className="flex items-center justify-between mb-2">
-            {WIZARD_STEPS.map((step, index) => (
-              <div key={step.id} className="flex items-center">
-                <div
-                  className={cn(
-                    'flex items-center gap-2 px-3 py-2 rounded-lg transition-all',
-                    currentStep === step.id
-                      ? 'bg-[#6C63FF] text-white'
-                      : currentStep > step.id
-                      ? 'bg-[#00D26A]/20 text-[#00D26A]'
-                      : 'bg-[#1E1F26] text-[#8A8A8A]'
-                  )}
-                >
-                  {step.icon}
-                  <span className="hidden md:inline text-sm">{step.title}</span>
-                </div>
+            {WIZARD_STEPS.map((step, index) => {
+              // Можно кликать на уже пройденные шаги или на текущий
+              const canNavigate = step.id <= currentStep || step.id === currentStep + 1;
+              return (
+                <div key={step.id} className="flex items-center">
+                  <button
+                    type="button"
+                    disabled={!canNavigate}
+                    onClick={() => {
+                      if (canNavigate) {
+                        setCurrentStep(step.id);
+                      }
+                    }}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-2 rounded-lg transition-all',
+                      currentStep === step.id
+                        ? 'bg-[#6C63FF] text-white'
+                        : currentStep > step.id
+                        ? 'bg-[#00D26A]/20 text-[#00D26A] cursor-pointer hover:bg-[#00D26A]/30'
+                        : 'bg-[#1E1F26] text-[#8A8A8A]',
+                      canNavigate && 'cursor-pointer hover:opacity-80',
+                      !canNavigate && 'cursor-not-allowed opacity-60'
+                    )}
+                  >
+                    {step.icon}
+                    <span className="hidden md:inline text-sm">{step.title}</span>
+                  </button>
                 {index < WIZARD_STEPS.length - 1 && (
                   <ChevronRight
                     className={cn(
@@ -1804,7 +1816,8 @@ export function UnifiedAutoEarnWizard() {
                   />
                 )}
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
       </CardHeader>
