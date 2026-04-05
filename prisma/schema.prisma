@@ -3974,3 +3974,61 @@ model ParsingTask {
   @@index([type])
   @@index([createdAt])
 }
+
+// Alert System for 24/7 monitoring
+model Alert {
+  id            String    @id
+  severity      String    // info, warning, error, critical
+  title         String
+  message       String
+  source        String    // system, telegram, ai, database, etc.
+  metadata      String?   // JSON string with additional data
+  acknowledged  Boolean   @default(false)
+  acknowledgedAt DateTime?
+  acknowledgedBy String?
+  createdAt     DateTime  @default(now())
+
+  @@index([severity])
+  @@index([source])
+  @@index([acknowledged])
+  @@index([createdAt])
+}
+
+// Service heartbeat for monitoring
+model ServiceHeartbeat {
+  id              String   @id
+  serviceName     String   @unique
+  status          String   @default("running") // running, stopped, error
+  lastHeartbeat   DateTime @default(now())
+  uptime          Int      @default(0) // seconds
+  restartCount    Int      @default(0)
+  lastError       String?
+  metadata        String?  // JSON string with service-specific data
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+
+  @@index([serviceName])
+  @@index([status])
+}
+
+// Scheduled task for cron-like operations
+model ScheduledTask {
+  id           String    @id
+  name         String
+  taskType     String    // backup, cleanup, sync, report, etc.
+  schedule     String    // cron expression or interval
+  lastRunAt    DateTime?
+  nextRunAt    DateTime?
+  status       String    @default("active") // active, paused, running, error
+  lastResult   String?
+  lastError    String?
+  runCount     Int       @default(0)
+  errorCount   Int       @default(0)
+  enabled      Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now())
+
+  @@index([taskType])
+  @@index([status])
+  @@index([nextRunAt])
+}

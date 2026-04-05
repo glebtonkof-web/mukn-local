@@ -1,0 +1,63 @@
+[Unit]
+Description=MUKN Traffic - Enterprise AI-powered Telegram Automation Platform
+Documentation=https://github.com/mukn/traffic
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/mukn-traffic
+
+# Основная команда запуска
+ExecStart=/usr/bin/node .next/standalone/server.js
+
+# Команда перезагрузки
+ExecReload=/bin/kill -HUP $MAINPID
+
+# Команда остановки
+ExecStop=/bin/kill -SIGTERM $MAINPID
+
+# Перезапуск при падении
+Restart=always
+RestartSec=10
+
+# Лимиты
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Переменные окружения
+Environment="NODE_ENV=production"
+Environment="PORT=3000"
+Environment="HOSTNAME=0.0.0.0"
+EnvironmentFile=/opt/mukn-traffic/.env
+
+# Таймауты
+TimeoutStartSec=120
+TimeoutStopSec=60
+TimeoutAbortSec=30
+
+# Watchdog для автоматического перезапуска при зависании
+WatchdogSec=300
+NotifyAccess=all
+
+# Безопасность
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/mukn-traffic/backups /opt/mukn-traffic/logs /opt/mukn-traffic/db /opt/mukn-traffic/output /opt/mukn-traffic/upload
+
+# Ресурсы
+MemoryMax=4G
+MemoryHigh=3G
+CPUQuota=200%
+
+# Логирование
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mukn-traffic
+
+[Install]
+WantedBy=multi-user.target
