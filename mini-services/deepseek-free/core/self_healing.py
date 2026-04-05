@@ -1,578 +1,530 @@
 """
-Self-Healing Module for DeepSeek Free Service
-Automatic recovery from errors, bans, and rate limits
+Self-Healing Module for DeepSeek Free
+Автоматическое восстановление при ошибках и блокировках
+
+МУКН | Трафик - Enterprise AI-powered Telegram Automation Platform
 """
 
 import asyncio
 import random
 import time
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import Optional, Dict, Any, List, Callable
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, Dict, Any, List, Callable, Awaitable
 from loguru import logger
 
 from .deepseek_account import DeepSeekAccount, AccountStatus
 
 
-class HealthStatus(str, Enum):
-    """Health check status"""
-    HEALTHY = "healthy"
-    DEGRADED = "degraded"
-    UNHEALTHY = "unhealthy"
-    CRITICAL = "critical"
-
-
 class RecoveryAction(str, Enum):
-    """Recovery actions"""
+    """Действия восстановления"""
+    RESTART_BROWSER = "restart_browser"
+    ROTATE_PROXY = "rotate_proxy"
+    ROTATE_USER_AGENT = "rotate_user_agent"
+    RELOGIN = "relogin"
+    COOLDOWN = "cooldown"
+    REPLACE_ACCOUNT = "replace_account"
     NONE = "none"
-    REFRESH_SESSION = "refresh_session"
-    CHANGE_PROXY = "change_proxy"
-    CHANGE_USER_AGENT = "change_user_agent"
-    FULL_RESET = "full_reset"
-    QUARANTINE = "quarantine"
-    REMOVE_ACCOUNT = "remove_account"
 
 
 @dataclass
 class HealthCheckResult:
-    """Health check result"""
+    """Результат проверки здоровья"""
     account_id: str
-    status: HealthStatus
-    can_request: bool
-    consecutive_errors: int
-    last_error: Optional[str]
-    last_success: Optional[datetime]
-    response_time: Optional[float]
-    recommended_action: RecoveryAction
-    details: Dict[str, Any] = field(default_factory=dict)
+    is_healthy: bool
+    status: AccountStatus
+    issues: List[str] = field(default_factory=list)
+    last_error: Optional[str] = None
+    response_time: Optional[float] = None
+    recommended_action: RecoveryAction = RecoveryAction.NONE
 
 
 @dataclass
-class RecoveryResult:
-    """Recovery action result"""
+class RecoveryLog:
+    """Лог восстановления"""
     account_id: str
     action: RecoveryAction
     success: bool
-    message: str
-    new_status: Optional[AccountStatus] = None
-    performed_at: datetime = field(default_factory=datetime.now)
+    timestamp: datetime
+    details: str
 
 
-class HealthChecker:
+class ProxyRotator:
     """
-    Health checker for accounts.
-    
-    Performs regular health checks and determines
-    if recovery actions are needed.
+    Ротатор прокси.
+    Управляет пулом прокси и автоматически меняет их при банах.
     """
     
-    def __init__(
-        self,
-        check_interval: int = 300,  # 5 minutes
-        unhealthy_threshold: int = 5,
-        degraded_threshold: int = 3,
-        recovery_cooldown: int = 300,  # 5 minutes
-    ):
-        self.check_interval = check_interval
-        self.unhealthy_threshold = unhealthy_threshold
-        self.degraded_threshold = degraded_threshold
-        self.recovery_cooldown = recovery_cooldown
+    def __init__(self, proxies: List[Dict[str, Any]] = None, proxy_file: str = None):
+        self.proxies: List[Dict[str, Any]] = proxies or []
+        self.proxy_file = proxy_file
+        self.current_index = 0
+        self.banned: set = set()
         
-        self._last_check: Dict[str, datetime] = {}
-        self._last_recovery: Dict[str, datetime] = {}
-        self._health_history: Dict[str, List[HealthCheckResult]] = {}
+        # Загрузка из файла
+        if proxy_file:
+            self._load_from_file(proxy_file)
     
-    async def check_account(
-        self,
-        account: DeepSeekAccount,
-    ) -> HealthCheckResult:
-        """Perform health check on account"""
-        account_id = account.account_id
-        
-        # Determine health status
-        status = HealthStatus.HEALTHY
-        recommended_action = RecoveryAction.NONE
-        
-        # Check error count
-        errors = account.consecutive_errors
-        can_request = account._can_make_request()
-        
-        if errors >= self.unhealthy_threshold:
-            status = HealthStatus.UNHEALTHY
-            recommended_action = RecoveryAction.FULL_RESET
-        elif errors >= self.degraded_threshold:
-            status = HealthStatus.DEGRADED
-            recommended_action = RecoveryAction.REFRESH_SESSION
-        elif account.status == AccountStatus.RATE_LIMITED:
-            status = HealthStatus.DEGRADED
-            recommended_action = RecoveryAction.NONE  # Wait it out
-        elif account.status == AccountStatus.BANNED:
-            status = HealthStatus.CRITICAL
-            recommended_action = RecoveryAction.QUARANTINE
-        elif account.status == AccountStatus.ERROR:
-            status = HealthStatus.UNHEALTHY
-            recommended_action = RecoveryAction.FULL_RESET
-        
-        # Calculate response time
-        response_time = None
-        if account.request_times:
-            last_request = max(account.request_times)
-            response_time = (datetime.now() - last_request).total_seconds()
-        
-        result = HealthCheckResult(
-            account_id=account_id,
-            status=status,
-            can_request=can_request,
-            consecutive_errors=errors,
-            last_error=account.last_error,
-            last_success=max(account.request_times) if account.request_times else None,
-            response_time=response_time,
-            recommended_action=recommended_action,
-            details={
-                'total_requests': account.total_requests,
-                'successful_requests': account.successful_requests,
-                'success_rate': account.successful_requests / max(1, account.total_requests),
-                'account_status': account.status.value,
-            }
-        )
-        
-        # Store in history
-        if account_id not in self._health_history:
-            self._health_history[account_id] = []
-        
-        self._health_history[account_id].append(result)
-        
-        # Keep only last 10 results
-        if len(self._health_history[account_id]) > 10:
-            self._health_history[account_id] = self._health_history[account_id][-10:]
-        
-        self._last_check[account_id] = datetime.now()
-        
-        return result
+    def _load_from_file(self, file_path: str) -> None:
+        """Загрузка прокси из файла"""
+        try:
+            with open(file_path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    
+                    # Формат: ip:port:user:pass или ip:port
+                    parts = line.split(':')
+                    if len(parts) >= 2:
+                        proxy = {
+                            'host': parts[0],
+                            'port': int(parts[1]),
+                            'type': 'http'
+                        }
+                        if len(parts) >= 4:
+                            proxy['username'] = parts[2]
+                            proxy['password'] = parts[3]
+                        
+                        self.proxies.append(proxy)
+            
+            logger.info(f"Loaded {len(self.proxies)} proxies from {file_path}")
+        except Exception as e:
+            logger.error(f"Failed to load proxies: {e}")
     
-    async def check_all(
-        self,
-        accounts: Dict[str, DeepSeekAccount],
-    ) -> Dict[str, HealthCheckResult]:
-        """Check all accounts"""
-        results = {}
+    def get_next(self) -> Optional[Dict[str, Any]]:
+        """Получить следующий прокси"""
+        available = [p for i, p in enumerate(self.proxies) if i not in self.banned]
         
-        for account_id, account in accounts.items():
-            results[account_id] = await self.check_account(account)
+        if not available:
+            logger.warning("No available proxies, resetting banned list")
+            self.banned.clear()
+            available = self.proxies
         
-        return results
+        if not available:
+            return None
+        
+        self.current_index = (self.current_index + 1) % len(available)
+        return available[self.current_index]
     
-    def needs_recovery(
-        self,
-        account_id: str,
-        result: HealthCheckResult,
-    ) -> bool:
-        """Check if account needs recovery"""
-        if result.recommended_action == RecoveryAction.NONE:
-            return False
+    def mark_banned(self, proxy: Dict[str, Any]) -> None:
+        """Отметить прокси как забаненный"""
+        proxy_str = f"{proxy['host']}:{proxy['port']}"
         
-        # Check cooldown
-        if account_id in self._last_recovery:
-            last = self._last_recovery[account_id]
-            if datetime.now() - last < timedelta(seconds=self.recovery_cooldown):
-                return False
-        
-        return True
+        # Находим индекс
+        for i, p in enumerate(self.proxies):
+            if f"{p['host']}:{p['port']}" == proxy_str:
+                self.banned.add(i)
+                logger.warning(f"Proxy {proxy_str} marked as banned")
+                break
     
-    def get_health_summary(
-        self,
-        results: Dict[str, HealthCheckResult],
-    ) -> Dict[str, Any]:
-        """Get health summary"""
-        status_counts = {s.value: 0 for s in HealthStatus}
-        
-        for result in results.values():
-            status_counts[result.status.value] += 1
-        
-        healthy_count = status_counts[HealthStatus.HEALTHY.value]
-        total = len(results)
-        
+    def get_stats(self) -> Dict[str, Any]:
+        """Статистика прокси"""
         return {
-            'total_accounts': total,
-            'healthy': healthy_count,
-            'degraded': status_counts[HealthStatus.DEGRADED.value],
-            'unhealthy': status_counts[HealthStatus.UNHEALTHY.value],
-            'critical': status_counts[HealthStatus.CRITICAL.value],
-            'health_rate': healthy_count / max(1, total),
-            'status_counts': status_counts,
+            'total': len(self.proxies),
+            'available': len(self.proxies) - len(self.banned),
+            'banned': len(self.banned),
         }
-    
-    def mark_recovery(self, account_id: str):
-        """Mark that recovery was performed"""
-        self._last_recovery[account_id] = datetime.now()
 
 
-class SelfHealingManager:
+class UserAgentRotator:
     """
-    Self-healing manager for automatic recovery.
+    Ротатор User-Agent.
+    Управляет пулом UA и автоматически меняет их.
+    """
     
-    Features:
-    - Automatic health monitoring
-    - Recovery action execution
-    - Proxy rotation
-    - User-Agent rotation
-    - Session refresh
-    - Quarantine management
+    DEFAULT_USER_AGENTS = [
+        # Chrome на Windows
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        # Chrome на Mac
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        # Firefox на Windows
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0",
+        # Firefox на Mac
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0",
+        # Edge
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+        # Safari на Mac
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+    ]
+    
+    def __init__(self, user_agents: List[str] = None, user_agent_file: str = None):
+        self.user_agents = user_agents or self.DEFAULT_USER_AGENTS.copy()
+        self.user_agent_file = user_agent_file
+        self.assigned: Dict[str, str] = {}  # account_id -> user_agent
+        
+        if user_agent_file:
+            self._load_from_file(user_agent_file)
+    
+    def _load_from_file(self, file_path: str) -> None:
+        """Загрузка User-Agent из файла"""
+        try:
+            with open(file_path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#'):
+                        self.user_agents.append(line)
+            
+            logger.info(f"Loaded user agents, total: {len(self.user_agents)}")
+        except Exception as e:
+            logger.error(f"Failed to load user agents: {e}")
+    
+    def get_for_account(self, account_id: str) -> str:
+        """Получить User-Agent для аккаунта"""
+        if account_id in self.assigned:
+            return self.assigned[account_id]
+        
+        return self.rotate(account_id)
+    
+    def rotate(self, account_id: str) -> str:
+        """Ротация User-Agent для аккаунта"""
+        new_ua = random.choice(self.user_agents)
+        self.assigned[account_id] = new_ua
+        logger.debug(f"Rotated UA for {account_id}")
+        return new_ua
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Статистика"""
+        return {
+            'pool_size': len(self.user_agents),
+            'assigned': len(self.assigned),
+        }
+
+
+class SelfHealingEngine:
+    """
+    Движок самовосстановления.
+    Мониторит здоровье аккаунтов и выполняет восстановление.
     """
     
     def __init__(
         self,
-        health_checker: Optional[HealthChecker] = None,
-        proxy_pool: Optional[List[Dict[str, Any]]] = None,
-        user_agents: Optional[List[str]] = None,
-        auto_heal_enabled: bool = True,
+        proxy_rotator: ProxyRotator = None,
+        ua_rotator: UserAgentRotator = None,
+        health_check_interval: int = 30,
         max_recovery_attempts: int = 3,
+        cooldown_duration: int = 300,  # 5 минут
     ):
-        self.health_checker = health_checker or HealthChecker()
-        self.proxy_pool = proxy_pool or []
-        self.user_agents = user_agents or self._default_user_agents()
-        self.auto_heal_enabled = auto_heal_enabled
+        self.proxy_rotator = proxy_rotator or ProxyRotator()
+        self.ua_rotator = ua_rotator or UserAgentRotator()
+        self.health_check_interval = health_check_interval
         self.max_recovery_attempts = max_recovery_attempts
+        self.cooldown_duration = cooldown_duration
         
-        # State
-        self._quarantine: Dict[str, DeepSeekAccount] = {}
-        self._recovery_attempts: Dict[str, int] = {}
-        self._proxy_assignments: Dict[str, Dict[str, Any]] = {}
+        # Состояние
+        self.recovery_logs: List[RecoveryLog] = []
+        self.cooldown_accounts: Dict[str, datetime] = {}
         self._running = False
-        self._task: Optional[asyncio.Task] = None
+        self._accounts: Dict[str, DeepSeekAccount] = {}
         
         # Callbacks
-        self._on_account_removed: Optional[Callable] = None
-        self._on_account_quarantined: Optional[Callable] = None
+        self._on_account_recovered: Optional[Callable] = None
+        self._on_account_failed: Optional[Callable] = None
     
-    @staticmethod
-    def _default_user_agents() -> List[str]:
-        """Default user agents pool"""
-        return [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0",
-        ]
+    def set_accounts(self, accounts: Dict[str, DeepSeekAccount]) -> None:
+        """Установка ссылок на аккаунты"""
+        self._accounts = accounts
     
     def set_callbacks(
         self,
-        on_removed: Optional[Callable] = None,
-        on_quarantined: Optional[Callable] = None,
-    ):
-        """Set event callbacks"""
-        self._on_account_removed = on_removed
-        self._on_account_quarantined = on_quarantined
+        on_recovered: Callable = None,
+        on_failed: Callable = None
+    ) -> None:
+        """Установка callback-функций"""
+        self._on_account_recovered = on_recovered
+        self._on_account_failed = on_failed
     
-    async def perform_recovery(
+    async def start(self) -> None:
+        """Запуск мониторинга"""
+        self._running = True
+        logger.info("Self-healing engine started")
+        
+        while self._running:
+            try:
+                await self._health_check_cycle()
+            except Exception as e:
+                logger.error(f"Health check cycle error: {e}")
+            
+            await asyncio.sleep(self.health_check_interval)
+    
+    async def stop(self) -> None:
+        """Остановка мониторинга"""
+        self._running = False
+        logger.info("Self-healing engine stopped")
+    
+    async def _health_check_cycle(self) -> None:
+        """Цикл проверки здоровья"""
+        for account_id, account in list(self._accounts.items()):
+            # Пропуск аккаунтов в cooldown
+            if account_id in self.cooldown_accounts:
+                if datetime.now() < self.cooldown_accounts[account_id]:
+                    continue
+                else:
+                    del self.cooldown_accounts[account_id]
+            
+            # Проверка здоровья
+            result = await self._check_account_health(account)
+            
+            if not result.is_healthy:
+                logger.warning(f"Account {account_id} unhealthy: {result.issues}")
+                
+                # Попытка восстановления
+                if result.recommended_action != RecoveryAction.NONE:
+                    await self._attempt_recovery(account, result)
+    
+    async def _check_account_health(self, account: DeepSeekAccount) -> HealthCheckResult:
+        """Проверка здоровья аккаунта"""
+        issues = []
+        recommended_action = RecoveryAction.NONE
+        
+        # Проверка статуса
+        if account.status == AccountStatus.BANNED:
+            issues.append("Account banned")
+            recommended_action = RecoveryAction.REPLACE_ACCOUNT
+        
+        elif account.status == AccountStatus.ERROR:
+            issues.append(f"Error state: {account.last_error}")
+            
+            if 'captcha' in str(account.last_error).lower():
+                recommended_action = RecoveryAction.ROTATE_PROXY
+            elif 'session' in str(account.last_error).lower():
+                recommended_action = RecoveryAction.RESTART_BROWSER
+            else:
+                recommended_action = RecoveryAction.RELOGIN
+        
+        elif account.status == AccountStatus.RATE_LIMITED:
+            issues.append("Rate limited")
+            recommended_action = RecoveryAction.COOLDOWN
+        
+        elif account.consecutive_errors >= 3:
+            issues.append(f"Consecutive errors: {account.consecutive_errors}")
+            recommended_action = RecoveryAction.RESTART_BROWSER
+        
+        # Проверка сессии браузера
+        if account.session and not account.session.is_ready:
+            issues.append("Browser session not ready")
+            recommended_action = RecoveryAction.RESTART_BROWSER
+        
+        return HealthCheckResult(
+            account_id=account.account_id,
+            is_healthy=len(issues) == 0,
+            status=account.status,
+            issues=issues,
+            last_error=account.last_error,
+            recommended_action=recommended_action
+        )
+    
+    async def _attempt_recovery(
         self,
         account: DeepSeekAccount,
-        action: RecoveryAction,
-    ) -> RecoveryResult:
-        """Execute recovery action"""
-        account_id = account.account_id
+        health_result: HealthCheckResult
+    ) -> bool:
+        """Попытка восстановления аккаунта"""
+        action = health_result.recommended_action
+        logger.info(f"Attempting recovery for {account.account_id}: {action.value}")
         
-        logger.info(f"Performing recovery '{action.value}' for account {account_id}")
+        success = False
+        details = ""
         
         try:
-            if action == RecoveryAction.REFRESH_SESSION:
-                return await self._refresh_session(account)
+            if action == RecoveryAction.RESTART_BROWSER:
+                success = await self._restart_browser(account)
+                details = "Browser restarted"
             
-            elif action == RecoveryAction.CHANGE_PROXY:
-                return await self._change_proxy(account)
+            elif action == RecoveryAction.ROTATE_PROXY:
+                success = await self._rotate_proxy(account)
+                details = "Proxy rotated"
             
-            elif action == RecoveryAction.CHANGE_USER_AGENT:
-                return await self._change_user_agent(account)
+            elif action == RecoveryAction.ROTATE_USER_AGENT:
+                success = await self._rotate_user_agent(account)
+                details = "User-Agent rotated"
             
-            elif action == RecoveryAction.FULL_RESET:
-                return await self._full_reset(account)
+            elif action == RecoveryAction.RELOGIN:
+                success = await self._relogin(account)
+                details = "Re-login performed"
             
-            elif action == RecoveryAction.QUARANTINE:
-                return await self._quarantine_account(account)
+            elif action == RecoveryAction.COOLDOWN:
+                self._set_cooldown(account.account_id)
+                success = True
+                details = f"Cooldown set for {self.cooldown_duration}s"
             
-            elif action == RecoveryAction.REMOVE_ACCOUNT:
-                return await self._remove_account(account)
-            
-            else:
-                return RecoveryResult(
-                    account_id=account_id,
-                    action=action,
-                    success=False,
-                    message="Unknown action",
-                )
-                
+            elif action == RecoveryAction.REPLACE_ACCOUNT:
+                details = "Account needs replacement"
+                if self._on_account_failed:
+                    await self._on_account_failed(account.account_id)
+        
         except Exception as e:
-            logger.error(f"Recovery failed for {account_id}: {e}")
-            return RecoveryResult(
-                account_id=account_id,
-                action=action,
-                success=False,
-                message=str(e),
-            )
-    
-    async def _refresh_session(
-        self,
-        account: DeepSeekAccount,
-    ) -> RecoveryResult:
-        """Refresh browser session"""
-        success = await account.reset_session()
+            logger.error(f"Recovery failed for {account.account_id}: {e}")
+            details = f"Recovery error: {e}"
         
-        self.health_checker.mark_recovery(account.account_id)
-        
-        return RecoveryResult(
+        # Логирование
+        self.recovery_logs.append(RecoveryLog(
             account_id=account.account_id,
-            action=RecoveryAction.REFRESH_SESSION,
+            action=action,
             success=success,
-            message="Session refreshed" if success else "Session refresh failed",
-            new_status=account.status,
-        )
+            timestamp=datetime.now(),
+            details=details
+        ))
+        
+        # Callback при успехе
+        if success and self._on_account_recovered:
+            await self._on_account_recovered(account.account_id)
+        
+        return success
     
-    async def _change_proxy(
-        self,
-        account: DeepSeekAccount,
-    ) -> RecoveryResult:
-        """Change proxy for account"""
-        if not self.proxy_pool:
-            return RecoveryResult(
-                account_id=account.account_id,
-                action=RecoveryAction.CHANGE_PROXY,
-                success=False,
-                message="No proxy pool available",
-            )
-        
-        # Get new proxy (different from current)
-        current_proxy = account.proxy
-        new_proxy = None
-        
-        for proxy in self.proxy_pool:
-            if proxy != current_proxy:
-                new_proxy = proxy
-                break
-        
-        if not new_proxy:
-            new_proxy = random.choice(self.proxy_pool)
-        
-        # Update account proxy
-        account.proxy = new_proxy
-        self._proxy_assignments[account.account_id] = new_proxy
-        
-        # Reset session with new proxy
-        success = await account.reset_session()
-        
-        self.health_checker.mark_recovery(account.account_id)
-        
-        return RecoveryResult(
-            account_id=account.account_id,
-            action=RecoveryAction.CHANGE_PROXY,
-            success=success,
-            message=f"Proxy changed to {new_proxy.get('host', 'unknown')}",
-            new_status=account.status,
-        )
-    
-    async def _change_user_agent(
-        self,
-        account: DeepSeekAccount,
-    ) -> RecoveryResult:
-        """Change user agent"""
-        current_ua = account.user_agent
-        new_ua = random.choice([ua for ua in self.user_agents if ua != current_ua])
-        
-        account.user_agent = new_ua
-        
-        # Reset session with new UA
-        success = await account.reset_session()
-        
-        self.health_checker.mark_recovery(account.account_id)
-        
-        return RecoveryResult(
-            account_id=account.account_id,
-            action=RecoveryAction.CHANGE_USER_AGENT,
-            success=success,
-            message="User-Agent changed",
-            new_status=account.status,
-        )
-    
-    async def _full_reset(
-        self,
-        account: DeepSeekAccount,
-    ) -> RecoveryResult:
-        """Full account reset (proxy + UA + session)"""
-        # Change proxy if available
-        if self.proxy_pool:
-            new_proxy = random.choice(self.proxy_pool)
-            account.proxy = new_proxy
-            self._proxy_assignments[account.account_id] = new_proxy
-        
-        # Change user agent
-        account.user_agent = random.choice(self.user_agents)
-        
-        # Reset session
-        success = await account.reset_session()
-        
-        self.health_checker.mark_recovery(account.account_id)
-        
-        return RecoveryResult(
-            account_id=account.account_id,
-            action=RecoveryAction.FULL_RESET,
-            success=success,
-            message="Full reset completed",
-            new_status=account.status,
-        )
-    
-    async def _quarantine_account(
-        self,
-        account: DeepSeekAccount,
-    ) -> RecoveryResult:
-        """Move account to quarantine"""
-        self._quarantine[account.account_id] = account
-        
-        # Close browser session
-        await account.close()
-        
-        account.status = AccountStatus.BANNED
-        
-        # Callback
-        if self._on_account_quarantined:
-            try:
-                await self._on_account_quarantined(account.account_id)
-            except Exception as e:
-                logger.error(f"Quarantine callback error: {e}")
-        
-        return RecoveryResult(
-            account_id=account.account_id,
-            action=RecoveryAction.QUARANTINE,
-            success=True,
-            message="Account quarantined",
-            new_status=AccountStatus.BANNED,
-        )
-    
-    async def _remove_account(
-        self,
-        account: DeepSeekAccount,
-    ) -> RecoveryResult:
-        """Remove account completely"""
-        await account.close()
-        
-        # Callback
-        if self._on_account_removed:
-            try:
-                await self._on_account_removed(account.account_id)
-            except Exception as e:
-                logger.error(f"Remove callback error: {e}")
-        
-        return RecoveryResult(
-            account_id=account.account_id,
-            action=RecoveryAction.REMOVE_ACCOUNT,
-            success=True,
-            message="Account removed",
-        )
-    
-    async def start_monitoring(
-        self,
-        accounts: Dict[str, DeepSeekAccount],
-    ):
-        """Start automatic health monitoring"""
-        if self._running:
-            logger.warning("Monitoring already running")
-            return
-        
-        self._running = True
-        
-        async def monitor_loop():
-            while self._running:
-                try:
-                    # Health check all accounts
-                    results = await self.health_checker.check_all(accounts)
-                    
-                    # Process results
-                    for account_id, result in results.items():
-                        if not self.auto_heal_enabled:
-                            continue
-                        
-                        if not self.health_checker.needs_recovery(account_id, result):
-                            continue
-                        
-                        account = accounts.get(account_id)
-                        if not account:
-                            continue
-                        
-                        # Check recovery attempts
-                        attempts = self._recovery_attempts.get(account_id, 0)
-                        if attempts >= self.max_recovery_attempts:
-                            logger.warning(f"Max recovery attempts reached for {account_id}")
-                            await self.perform_recovery(account, RecoveryAction.QUARANTINE)
-                            continue
-                        
-                        # Perform recovery
-                        recovery_result = await self.perform_recovery(
-                            account,
-                            result.recommended_action
-                        )
-                        
-                        if recovery_result.success:
-                            self._recovery_attempts[account_id] = 0
-                        else:
-                            self._recovery_attempts[account_id] = attempts + 1
-                    
-                    # Wait before next check
-                    await asyncio.sleep(self.health_checker.check_interval)
-                    
-                except Exception as e:
-                    logger.error(f"Monitoring loop error: {e}")
-                    await asyncio.sleep(60)
-        
-        self._task = asyncio.create_task(monitor_loop())
-        logger.info("Health monitoring started")
-    
-    async def stop_monitoring(self):
-        """Stop health monitoring"""
-        self._running = False
-        
-        if self._task:
-            self._task.cancel()
-            try:
-                await self._task
-            except asyncio.CancelledError:
-                pass
-            self._task = None
-        
-        logger.info("Health monitoring stopped")
-    
-    def is_monitoring(self) -> bool:
-        """Check if monitoring is active"""
-        return self._running
-    
-    def get_quarantine(self) -> Dict[str, DeepSeekAccount]:
-        """Get quarantined accounts"""
-        return self._quarantine.copy()
-    
-    async def restore_from_quarantine(
-        self,
-        account_id: str,
-    ) -> bool:
-        """Attempt to restore account from quarantine"""
-        if account_id not in self._quarantine:
+    async def _restart_browser(self, account: DeepSeekAccount) -> bool:
+        """Перезапуск браузера"""
+        try:
+            await account.close()
+            await asyncio.sleep(2)
+            
+            # Новый User-Agent
+            account.user_agent = self.ua_rotator.rotate(account.account_id)
+            
+            success = await account.initialize()
+            
+            if success:
+                account.status = AccountStatus.ACTIVE
+                account.consecutive_errors = 0
+                logger.info(f"Browser restarted for {account.account_id}")
+            
+            return success
+        except Exception as e:
+            logger.error(f"Browser restart failed: {e}")
             return False
+    
+    async def _rotate_proxy(self, account: DeepSeekAccount) -> bool:
+        """Ротация прокси"""
+        # Отметить текущий как забаненный
+        if account.proxy:
+            self.proxy_rotator.mark_banned(account.proxy)
         
-        account = self._quarantine[account_id]
+        # Получить новый
+        new_proxy = self.proxy_rotator.get_next()
+        account.proxy = new_proxy
         
-        # Try full reset
-        result = await self._full_reset(account)
-        
-        if result.success:
-            del self._quarantine[account_id]
-            self._recovery_attempts[account_id] = 0
-            return True
-        
-        return False
+        # Перезапуск браузера с новым прокси
+        return await self._restart_browser(account)
+    
+    async def _rotate_user_agent(self, account: DeepSeekAccount) -> bool:
+        """Ротация User-Agent"""
+        account.user_agent = self.ua_rotator.rotate(account.account_id)
+        return await self._restart_browser(account)
+    
+    async def _relogin(self, account: DeepSeekAccount) -> bool:
+        """Повторный вход"""
+        try:
+            await account.close()
+            await asyncio.sleep(2)
+            
+            success = await account.initialize()
+            
+            if success:
+                account.status = AccountStatus.ACTIVE
+                account.consecutive_errors = 0
+            
+            return success
+        except Exception as e:
+            logger.error(f"Re-login failed: {e}")
+            return False
+    
+    def _set_cooldown(self, account_id: str) -> None:
+        """Установка cooldown для аккаунта"""
+        self.cooldown_accounts[account_id] = datetime.now() + timedelta(seconds=self.cooldown_duration)
+        logger.info(f"Cooldown set for {account_id} until {self.cooldown_accounts[account_id]}")
     
     def get_recovery_stats(self) -> Dict[str, Any]:
-        """Get recovery statistics"""
+        """Статистика восстановлений"""
+        total = len(self.recovery_logs)
+        successful = sum(1 for log in self.recovery_logs if log.success)
+        
+        action_counts = {}
+        for log in self.recovery_logs:
+            action = log.action.value
+            action_counts[action] = action_counts.get(action, 0) + 1
+        
         return {
-            'quarantine_count': len(self._quarantine),
-            'recovery_attempts': dict(self._recovery_attempts),
-            'proxy_assignments': len(self._proxy_assignments),
-            'monitoring_active': self._running,
+            'total_recovery_attempts': total,
+            'successful_recoveries': successful,
+            'success_rate': successful / total if total > 0 else 0,
+            'action_breakdown': action_counts,
+            'accounts_in_cooldown': len(self.cooldown_accounts),
+            'proxy_stats': self.proxy_rotator.get_stats(),
+            'user_agent_stats': self.ua_rotator.get_stats(),
         }
+
+
+class HealthMonitor:
+    """
+    Монитор здоровья для API.
+    Периодически проверяет состояние всех компонентов.
+    """
+    
+    def __init__(self, pool, cache, healing_engine: SelfHealingEngine = None):
+        self.pool = pool
+        self.cache = cache
+        self.healing_engine = healing_engine
+        self._last_check: Optional[datetime] = None
+        self._check_history: List[Dict] = []
+    
+    async def check_all(self) -> Dict[str, Any]:
+        """Полная проверка здоровья"""
+        now = datetime.now()
+        self._last_check = now
+        
+        result = {
+            'timestamp': now.isoformat(),
+            'status': 'healthy',
+            'components': {}
+        }
+        
+        issues = []
+        
+        # Проверка пула аккаунтов
+        pool_stats = self.pool.get_stats()
+        pool_health = pool_stats['active_accounts'] > 0
+        result['components']['pool'] = {
+            'healthy': pool_health,
+            'stats': pool_stats
+        }
+        if not pool_health:
+            issues.append('No active accounts')
+        
+        # Проверка кэша
+        cache_stats = self.cache.get_stats()
+        cache_health = cache_stats.get('l1', {}).get('size', 0) >= 0
+        result['components']['cache'] = {
+            'healthy': cache_health,
+            'stats': cache_stats
+        }
+        
+        # Проверка healing engine
+        if self.healing_engine:
+            healing_stats = self.healing_engine.get_recovery_stats()
+            result['components']['self_healing'] = {
+                'healthy': True,
+                'stats': healing_stats
+            }
+        
+        # Общий статус
+        if issues:
+            result['status'] = 'degraded' if len(issues) < 3 else 'unhealthy'
+            result['issues'] = issues
+        
+        # Сохранение в историю
+        self._check_history.append(result)
+        if len(self._check_history) > 100:
+            self._check_history = self._check_history[-100:]
+        
+        return result
+    
+    def get_history(self, limit: int = 10) -> List[Dict]:
+        """Получить историю проверок"""
+        return self._check_history[-limit:]

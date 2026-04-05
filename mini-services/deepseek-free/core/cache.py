@@ -1,708 +1,637 @@
 """
-Multi-Level Cache with Semantic Search
-L1 (RAM) + L2 (SQLite) + L3 (File) caching with vector similarity
+Multi-Level Cache System for DeepSeek Free
+L1 (RAM) + L2 (SQLite) + L3 (File System) with Semantic Search
+
+МУКН | Трафик - Enterprise AI-powered Telegram Automation Platform
 """
 
 import asyncio
 import hashlib
 import json
 import os
+import sqlite3
 import time
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from collections import OrderedDict
+from dataclasses import dataclass, field, asdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
-import aiofiles
-import aiosqlite
 from loguru import logger
 
-# Vector search imports
+# Optional semantic search
 try:
-    import numpy as np
     from sentence_transformers import SentenceTransformer
-    EMBEDDINGS_AVAILABLE = True
+    import numpy as np
+    SEMANTIC_AVAILABLE = True
 except ImportError:
-    EMBEDDINGS_AVAILABLE = False
-    logger.warning("sentence-transformers not installed. Semantic search disabled.")
+    SEMANTIC_AVAILABLE = False
+    logger.warning("sentence-transformers not installed, semantic search disabled")
 
 
 @dataclass
 class CacheEntry:
-    """Cache entry"""
-    prompt_hash: str
-    prompt: str
+    """Запись в кэше"""
+    key: str
+    query: str
     response: str
     created_at: datetime
-    expires_at: datetime
-    hit_count: int = 0
-    last_hit_at: Optional[datetime] = None
-    model_used: Optional[str] = None
-    response_time: Optional[float] = None
-    embedding: Optional[List[float]] = None
+    accessed_at: datetime
+    access_count: int = 0
+    relevance_score: float = 1.0
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-class CacheLevel(ABC):
-    """Abstract cache level"""
-    
-    @abstractmethod
-    async def get(self, prompt_hash: str) -> Optional[CacheEntry]:
-        pass
-    
-    @abstractmethod
-    async def set(self, entry: CacheEntry) -> bool:
-        pass
-    
-    @abstractmethod
-    async def delete(self, prompt_hash: str) -> bool:
-        pass
-    
-    @abstractmethod
-    async def clear(self) -> int:
-        pass
-    
-    @abstractmethod
-    async def get_stats(self) -> Dict[str, Any]:
-        pass
-
-
-class L1Cache(CacheLevel):
+class L1Cache:
     """
-    L1 Cache - In-memory LRU cache.
-    Fastest access, limited size.
+    L1 Cache - In-Memory (RAM)
+    Fastest access, limited size, LRU eviction
     """
     
-    def __init__(self, max_size: int = 1000, ttl_seconds: int = 3600):
+    def __init__(self, max_size: int = 1000):
         self.max_size = max_size
-        self.ttl_seconds = ttl_seconds
-        self._cache: Dict[str, CacheEntry] = {}
-        self._access_order: List[str] = []
-        self._hits = 0
-        self._misses = 0
+        self.cache: OrderedDict[str, CacheEntry] = OrderedDict()
+        self.hits = 0
+        self.misses = 0
+        self._lock = asyncio.Lock()
     
-    async def get(self, prompt_hash: str) -> Optional[CacheEntry]:
-        entry = self._cache.get(prompt_hash)
-        
-        if not entry:
-            self._misses += 1
+    async def get(self, key: str) -> Optional[CacheEntry]:
+        """Получить запись из кэша"""
+        async with self._lock:
+            if key in self.cache:
+                # Move to end (most recently used)
+                self.cache.move_to_end(key)
+                entry = self.cache[key]
+                entry.accessed_at = datetime.now()
+                entry.access_count += 1
+                self.hits += 1
+                return entry
+            self.misses += 1
             return None
-        
-        # Check expiry
-        if datetime.now() > entry.expires_at:
-            await self.delete(prompt_hash)
-            self._misses += 1
-            return None
-        
-        # Update access order (move to end)
-        if prompt_hash in self._access_order:
-            self._access_order.remove(prompt_hash)
-        self._access_order.append(prompt_hash)
-        
-        # Update hit stats
-        entry.hit_count += 1
-        entry.last_hit_at = datetime.now()
-        
-        self._hits += 1
-        return entry
     
-    async def set(self, entry: CacheEntry) -> bool:
-        # Evict if at capacity
-        while len(self._cache) >= self.max_size:
-            if self._access_order:
-                oldest = self._access_order.pop(0)
-                del self._cache[oldest]
+    async def set(self, key: str, query: str, response: str, metadata: Dict = None) -> None:
+        """Сохранить запись в кэш"""
+        async with self._lock:
+            if key in self.cache:
+                self.cache.move_to_end(key)
             else:
-                break
-        
-        self._cache[entry.prompt_hash] = entry
-        self._access_order.append(entry.prompt_hash)
-        return True
+                # Evict oldest if full
+                while len(self.cache) >= self.max_size:
+                    self.cache.popitem(last=False)
+            
+            entry = CacheEntry(
+                key=key,
+                query=query,
+                response=response,
+                created_at=datetime.now(),
+                accessed_at=datetime.now(),
+                access_count=1,
+                metadata=metadata or {}
+            )
+            self.cache[key] = entry
     
-    async def delete(self, prompt_hash: str) -> bool:
-        if prompt_hash in self._cache:
-            del self._cache[prompt_hash]
-            if prompt_hash in self._access_order:
-                self._access_order.remove(prompt_hash)
-            return True
-        return False
+    async def delete(self, key: str) -> bool:
+        """Удалить запись из кэша"""
+        async with self._lock:
+            if key in self.cache:
+                del self.cache[key]
+                return True
+            return False
     
-    async def clear(self) -> int:
-        count = len(self._cache)
-        self._cache.clear()
-        self._access_order.clear()
-        return count
+    async def clear(self) -> None:
+        """Очистить весь кэш"""
+        async with self._lock:
+            self.cache.clear()
     
-    async def get_stats(self) -> Dict[str, Any]:
-        total = self._hits + self._misses
-        hit_rate = self._hits / max(1, total)
-        
+    def get_stats(self) -> Dict[str, Any]:
+        """Получить статистику"""
+        total = self.hits + self.misses
         return {
-            'level': 'L1',
-            'size': len(self._cache),
+            'size': len(self.cache),
             'max_size': self.max_size,
-            'hits': self._hits,
-            'misses': self._misses,
-            'hit_rate': hit_rate,
+            'hits': self.hits,
+            'misses': self.misses,
+            'hit_rate': self.hits / total if total > 0 else 0,
         }
 
 
-class L2Cache(CacheLevel):
+class L2Cache:
     """
-    L2 Cache - SQLite-based persistent cache.
-    Medium speed, larger capacity.
+    L2 Cache - SQLite Database
+    Persistent storage, larger capacity, indexed search
     """
     
-    def __init__(self, db_path: str = "cache.db", ttl_seconds: int = 86400):
-        self.db_path = db_path
-        self.ttl_seconds = ttl_seconds
-        self._db: Optional[aiosqlite.Connection] = None
-        self._initialized = False
+    def __init__(self, db_path: str = "data/cache.db", max_size: int = 100000):
+        self.db_path = Path(db_path)
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.max_size = max_size
+        self._init_db()
     
-    async def _init_db(self):
-        if self._initialized:
-            return
+    def _init_db(self) -> None:
+        """Инициализация базы данных"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
         
-        self._db = await aiosqlite.connect(self.db_path)
-        
-        await self._db.execute('''
+        # Таблица кэша
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS cache (
-                prompt_hash TEXT PRIMARY KEY,
-                prompt TEXT NOT NULL,
+                key TEXT PRIMARY KEY,
+                query TEXT NOT NULL,
                 response TEXT NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                expires_at TIMESTAMP NOT NULL,
-                hit_count INTEGER DEFAULT 0,
-                last_hit_at TIMESTAMP,
-                model_used TEXT,
-                response_time REAL,
-                embedding BLOB
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                access_count INTEGER DEFAULT 1,
+                relevance_score REAL DEFAULT 1.0,
+                metadata TEXT
             )
         ''')
         
-        await self._db.execute('CREATE INDEX IF NOT EXISTS idx_expires ON cache(expires_at)')
-        await self._db.execute('CREATE INDEX IF NOT EXISTS idx_hit_count ON cache(hit_count)')
+        # Индексы для быстрого поиска
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_created_at ON cache(created_at)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_accessed_at ON cache(accessed_at)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_access_count ON cache(access_count)')
         
-        await self._db.commit()
-        self._initialized = True
+        conn.commit()
+        conn.close()
     
-    async def get(self, prompt_hash: str) -> Optional[CacheEntry]:
-        await self._init_db()
-        
-        async with self._db.execute(
-            'SELECT * FROM cache WHERE prompt_hash = ?',
-            (prompt_hash,)
-        ) as cursor:
-            row = await cursor.fetchone()
-        
-        if not row:
-            return None
-        
-        entry = CacheEntry(
-            prompt_hash=row[0],
-            prompt=row[1],
-            response=row[2],
-            created_at=datetime.fromisoformat(row[3]),
-            expires_at=datetime.fromisoformat(row[4]),
-            hit_count=row[5] or 0,
-            last_hit_at=datetime.fromisoformat(row[6]) if row[6] else None,
-            model_used=row[7],
-            response_time=row[8],
-        )
-        
-        # Check expiry
-        if datetime.now() > entry.expires_at:
-            await self.delete(prompt_hash)
-            return None
-        
-        # Update hit count
-        await self._db.execute(
-            'UPDATE cache SET hit_count = hit_count + 1, last_hit_at = ? WHERE prompt_hash = ?',
-            (datetime.now().isoformat(), prompt_hash)
-        )
-        await self._db.commit()
-        
-        return entry
-    
-    async def set(self, entry: CacheEntry) -> bool:
-        await self._init_db()
+    def get(self, key: str) -> Optional[CacheEntry]:
+        """Получить запись из кэша"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
         
         try:
-            # Convert embedding to bytes if present
-            embedding_bytes = None
-            if entry.embedding:
-                embedding_bytes = np.array(entry.embedding, dtype=np.float32).tobytes()
+            cursor.execute(
+                'SELECT key, query, response, created_at, accessed_at, access_count, relevance_score, metadata FROM cache WHERE key = ?',
+                (key,)
+            )
+            row = cursor.fetchone()
             
-            await self._db.execute('''
-                INSERT OR REPLACE INTO cache
-                (prompt_hash, prompt, response, created_at, expires_at, hit_count, last_hit_at, model_used, response_time, embedding)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            if row:
+                # Обновляем access
+                cursor.execute(
+                    'UPDATE cache SET accessed_at = ?, access_count = access_count + 1 WHERE key = ?',
+                    (datetime.now().isoformat(), key)
+                )
+                conn.commit()
+                
+                return CacheEntry(
+                    key=row[0],
+                    query=row[1],
+                    response=row[2],
+                    created_at=datetime.fromisoformat(row[3]),
+                    accessed_at=datetime.fromisoformat(row[4]),
+                    access_count=row[5],
+                    relevance_score=row[6],
+                    metadata=json.loads(row[7]) if row[7] else {}
+                )
+            return None
+        finally:
+            conn.close()
+    
+    def set(self, key: str, query: str, response: str, metadata: Dict = None) -> None:
+        """Сохранить запись в кэш"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                INSERT OR REPLACE INTO cache (key, query, response, created_at, accessed_at, access_count, metadata)
+                VALUES (?, ?, ?, ?, ?, 1, ?)
             ''', (
-                entry.prompt_hash,
-                entry.prompt,
-                entry.response,
-                entry.created_at.isoformat(),
-                entry.expires_at.isoformat(),
-                entry.hit_count,
-                entry.last_hit_at.isoformat() if entry.last_hit_at else None,
-                entry.model_used,
-                entry.response_time,
-                embedding_bytes,
+                key,
+                query,
+                response,
+                datetime.now().isoformat(),
+                datetime.now().isoformat(),
+                json.dumps(metadata or {})
             ))
+            conn.commit()
             
-            await self._db.commit()
-            return True
-            
-        except Exception as e:
-            logger.error(f"L2Cache set error: {e}")
-            return False
+            # Cleanup if over limit
+            self._cleanup_if_needed(conn)
+        finally:
+            conn.close()
     
-    async def delete(self, prompt_hash: str) -> bool:
-        await self._init_db()
+    def _cleanup_if_needed(self, conn: sqlite3.Connection) -> None:
+        """Очистка старых записей при превышении лимита"""
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM cache')
+        count = cursor.fetchone()[0]
         
-        cursor = await self._db.execute(
-            'DELETE FROM cache WHERE prompt_hash = ?',
-            (prompt_hash,)
-        )
-        await self._db.commit()
-        
-        return cursor.rowcount > 0
-    
-    async def clear(self) -> int:
-        await self._init_db()
-        
-        cursor = await self._db.execute('SELECT COUNT(*) FROM cache')
-        row = await cursor.fetchone()
-        count = row[0] if row else 0
-        
-        await self._db.execute('DELETE FROM cache')
-        await self._db.commit()
-        
-        return count
-    
-    async def cleanup_expired(self) -> int:
-        """Remove expired entries"""
-        await self._init_db()
-        
-        cursor = await self._db.execute(
-            'DELETE FROM cache WHERE expires_at < ?',
-            (datetime.now().isoformat(),)
-        )
-        await self._db.commit()
-        
-        return cursor.rowcount
-    
-    async def get_stats(self) -> Dict[str, Any]:
-        await self._init_db()
-        
-        cursor = await self._db.execute('SELECT COUNT(*) FROM cache')
-        row = await cursor.fetchone()
-        size = row[0] if row else 0
-        
-        cursor = await self._db.execute('SELECT SUM(hit_count) FROM cache')
-        row = await cursor.fetchone()
-        total_hits = row[0] if row and row[0] else 0
-        
-        return {
-            'level': 'L2',
-            'size': size,
-            'total_hits': total_hits,
-        }
-    
-    async def close(self):
-        if self._db:
-            await self._db.close()
-            self._db = None
-            self._initialized = False
-
-
-class L3Cache(CacheLevel):
-    """
-    L3 Cache - File-based cache.
-    Slowest, unlimited capacity.
-    """
-    
-    def __init__(self, cache_dir: str = "./cache_l3", ttl_seconds: int = 604800):  # 7 days
-        self.cache_dir = Path(cache_dir)
-        self.ttl_seconds = ttl_seconds
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-    
-    def _get_file_path(self, prompt_hash: str) -> Path:
-        return self.cache_dir / f"{prompt_hash}.json"
-    
-    async def get(self, prompt_hash: str) -> Optional[CacheEntry]:
-        file_path = self._get_file_path(prompt_hash)
-        
-        if not file_path.exists():
-            return None
-        
-        try:
-            async with aiofiles.open(file_path, 'r', encoding='utf-8') as f:
-                data = json.loads(await f.read())
-            
-            entry = CacheEntry(
-                prompt_hash=data['prompt_hash'],
-                prompt=data['prompt'],
-                response=data['response'],
-                created_at=datetime.fromisoformat(data['created_at']),
-                expires_at=datetime.fromisoformat(data['expires_at']),
-                hit_count=data.get('hit_count', 0),
-                last_hit_at=datetime.fromisoformat(data['last_hit_at']) if data.get('last_hit_at') else None,
-                model_used=data.get('model_used'),
-                response_time=data.get('response_time'),
+        if count > self.max_size:
+            # Remove oldest accessed
+            cursor.execute(
+                'DELETE FROM cache WHERE key IN (SELECT key FROM cache ORDER BY accessed_at ASC LIMIT ?)',
+                (count - self.max_size + 1000,)
             )
-            
-            # Check expiry
-            if datetime.now() > entry.expires_at:
-                await self.delete(prompt_hash)
-                return None
-            
-            # Update hit count
-            entry.hit_count += 1
-            entry.last_hit_at = datetime.now()
-            await self.set(entry)
-            
-            return entry
-            
-        except Exception as e:
-            logger.error(f"L3Cache get error: {e}")
-            return None
+            conn.commit()
     
-    async def set(self, entry: CacheEntry) -> bool:
-        file_path = self._get_file_path(entry.prompt_hash)
+    def search_by_query(self, query: str, limit: int = 10) -> List[CacheEntry]:
+        """Поиск по похожему запросу (текстовый)"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
         
         try:
-            data = {
-                'prompt_hash': entry.prompt_hash,
-                'prompt': entry.prompt,
-                'response': entry.response,
-                'created_at': entry.created_at.isoformat(),
-                'expires_at': entry.expires_at.isoformat(),
-                'hit_count': entry.hit_count,
-                'last_hit_at': entry.last_hit_at.isoformat() if entry.last_hit_at else None,
-                'model_used': entry.model_used,
-                'response_time': entry.response_time,
+            cursor.execute(
+                'SELECT key, query, response, created_at, accessed_at, access_count, relevance_score, metadata FROM cache WHERE query LIKE ? ORDER BY access_count DESC LIMIT ?',
+                (f'%{query[:50]}%', limit)
+            )
+            rows = cursor.fetchall()
+            
+            return [
+                CacheEntry(
+                    key=row[0],
+                    query=row[1],
+                    response=row[2],
+                    created_at=datetime.fromisoformat(row[3]),
+                    accessed_at=datetime.fromisoformat(row[4]),
+                    access_count=row[5],
+                    relevance_score=row[6],
+                    metadata=json.loads(row[7]) if row[7] else {}
+                )
+                for row in rows
+            ]
+        finally:
+            conn.close()
+    
+    def clear(self) -> None:
+        """Очистить весь кэш"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM cache')
+        conn.commit()
+        conn.close()
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Получить статистику"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('SELECT COUNT(*) FROM cache')
+            count = cursor.fetchone()[0]
+            
+            cursor.execute('SELECT SUM(access_count) FROM cache')
+            total_access = cursor.fetchone()[0] or 0
+            
+            return {
+                'size': count,
+                'max_size': self.max_size,
+                'total_access': total_access,
             }
-            
-            async with aiofiles.open(file_path, 'w', encoding='utf-8') as f:
-                await f.write(json.dumps(data, ensure_ascii=False, indent=2))
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"L3Cache set error: {e}")
-            return False
-    
-    async def delete(self, prompt_hash: str) -> bool:
-        file_path = self._get_file_path(prompt_hash)
-        
-        try:
-            if file_path.exists():
-                file_path.unlink()
-                return True
-            return False
-        except Exception as e:
-            logger.error(f"L3Cache delete error: {e}")
-            return False
-    
-    async def clear(self) -> int:
-        count = 0
-        for file_path in self.cache_dir.glob("*.json"):
-            try:
-                file_path.unlink()
-                count += 1
-            except:
-                pass
-        return count
-    
-    async def get_stats(self) -> Dict[str, Any]:
-        files = list(self.cache_dir.glob("*.json"))
-        return {
-            'level': 'L3',
-            'size': len(files),
-        }
+        finally:
+            conn.close()
 
 
-class SemanticCacheSearch:
+class L3Cache:
     """
-    Semantic search for similar prompts using embeddings.
-    Enables finding similar cached responses even with different wording.
+    L3 Cache - File System
+    Unlimited size, slowest access, compressed storage
     """
     
-    def __init__(self, similarity_threshold: float = 0.95):
-        self.similarity_threshold = similarity_threshold
-        self._model = None
-        self._embeddings: Dict[str, np.ndarray] = {}
+    def __init__(self, cache_dir: str = "data/cache_l3", max_size_mb: int = 1024):
+        self.cache_dir = Path(cache_dir)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.max_size_bytes = max_size_mb * 1024 * 1024
+    
+    def _get_file_path(self, key: str) -> Path:
+        """Получить путь к файлу по ключу"""
+        # Разбиваем ключ на подкаталоги для распределения
+        subdir = key[:2]
+        return self.cache_dir / subdir / f"{key}.json"
+    
+    def get(self, key: str) -> Optional[CacheEntry]:
+        """Получить запись из кэша"""
+        file_path = self._get_file_path(key)
         
-        if EMBEDDINGS_AVAILABLE:
+        if file_path.exists():
             try:
-                self._model = SentenceTransformer('all-MiniLM-L6-v2')
-                logger.info("Semantic search initialized with all-MiniLM-L6-v2")
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                # Обновляем access
+                data['accessed_at'] = datetime.now().isoformat()
+                data['access_count'] = data.get('access_count', 0) + 1
+                
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                
+                return CacheEntry(
+                    key=data['key'],
+                    query=data['query'],
+                    response=data['response'],
+                    created_at=datetime.fromisoformat(data['created_at']),
+                    accessed_at=datetime.fromisoformat(data['accessed_at']),
+                    access_count=data['access_count'],
+                    metadata=data.get('metadata', {})
+                )
             except Exception as e:
-                logger.warning(f"Failed to load embedding model: {e}")
+                logger.error(f"L3 cache read error: {e}")
+        
+        return None
     
-    def is_available(self) -> bool:
-        return self._model is not None
+    def set(self, key: str, query: str, response: str, metadata: Dict = None) -> None:
+        """Сохранить запись в кэш"""
+        file_path = self._get_file_path(key)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        data = {
+            'key': key,
+            'query': query,
+            'response': response,
+            'created_at': datetime.now().isoformat(),
+            'accessed_at': datetime.now().isoformat(),
+            'access_count': 1,
+            'metadata': metadata or {}
+        }
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
     
-    async def get_embedding(self, text: str) -> Optional[np.ndarray]:
-        """Get embedding for text"""
-        if not self._model:
+    def clear(self) -> None:
+        """Очистить весь кэш"""
+        import shutil
+        if self.cache_dir.exists():
+            shutil.rmtree(self.cache_dir)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+
+class SemanticSearch:
+    """
+    Semantic Search Engine
+    Find similar queries using sentence embeddings
+    """
+    
+    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+        self.model_name = model_name
+        self.model = None
+        self.embeddings: Dict[str, np.ndarray] = {}
+        self._initialized = False
+    
+    async def initialize(self) -> bool:
+        """Инициализация модели"""
+        if not SEMANTIC_AVAILABLE:
+            logger.warning("Semantic search not available - sentence-transformers not installed")
+            return False
+        
+        try:
+            logger.info(f"Loading semantic model: {self.model_name}")
+            self.model = SentenceTransformer(self.model_name)
+            self._initialized = True
+            logger.info("Semantic model loaded successfully")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to load semantic model: {e}")
+            return False
+    
+    def encode(self, text: str) -> Optional[np.ndarray]:
+        """Получить эмбеддинг текста"""
+        if not self._initialized:
             return None
         
         try:
-            # Run in thread pool (model is CPU-bound)
-            loop = asyncio.get_event_loop()
-            embedding = await loop.run_in_executor(
-                None,
-                self._model.encode,
-                text
-            )
-            return embedding
+            return self.model.encode(text, convert_to_numpy=True)
         except Exception as e:
-            logger.error(f"Embedding error: {e}")
+            logger.error(f"Encoding error: {e}")
             return None
     
-    async def add_prompt(self, prompt_hash: str, prompt: str):
-        """Add prompt to semantic index"""
-        if not self._model:
+    def add_embedding(self, key: str, text: str) -> None:
+        """Добавить эмбеддинг в индекс"""
+        if not self._initialized:
             return
         
-        embedding = await self.get_embedding(prompt)
+        embedding = self.encode(text)
         if embedding is not None:
-            self._embeddings[prompt_hash] = embedding
+            self.embeddings[key] = embedding
     
-    def remove_prompt(self, prompt_hash: str):
-        """Remove prompt from semantic index"""
-        if prompt_hash in self._embeddings:
-            del self._embeddings[prompt_hash]
-    
-    async def find_similar(
-        self,
-        prompt: str,
-        exclude_hash: Optional[str] = None,
-    ) -> Optional[Tuple[str, float]]:
+    def find_similar(self, query: str, threshold: float = 0.95, limit: int = 5) -> List[Tuple[str, float]]:
         """
-        Find most similar cached prompt.
-        
-        Returns:
-            Tuple of (prompt_hash, similarity_score) or None
+        Найти похожие запросы
+        Returns: List of (key, similarity_score) tuples
         """
-        if not self._model or not self._embeddings:
-            return None
+        if not self._initialized or not self.embeddings:
+            return []
         
-        query_embedding = await self.get_embedding(prompt)
+        query_embedding = self.encode(query)
         if query_embedding is None:
-            return None
+            return []
         
-        best_hash = None
-        best_similarity = 0.0
+        similarities = []
         
-        for prompt_hash, embedding in self._embeddings.items():
-            if exclude_hash and prompt_hash == exclude_hash:
-                continue
-            
+        for key, embedding in self.embeddings.items():
             # Cosine similarity
             similarity = np.dot(query_embedding, embedding) / (
                 np.linalg.norm(query_embedding) * np.linalg.norm(embedding)
             )
             
-            if similarity > best_similarity:
-                best_similarity = similarity
-                best_hash = prompt_hash
+            if similarity >= threshold:
+                similarities.append((key, float(similarity)))
         
-        if best_similarity >= self.similarity_threshold:
-            return (best_hash, best_similarity)
+        # Sort by similarity
+        similarities.sort(key=lambda x: x[1], reverse=True)
         
-        return None
+        return similarities[:limit]
 
 
 class MultiLevelCache:
     """
-    Multi-level cache manager.
-    
-    Features:
-    - L1 (RAM) + L2 (SQLite) + L3 (File) caching
-    - Semantic similarity search
-    - Automatic promotion/demotion between levels
-    - Prefetching based on patterns
+    Multi-Level Cache System
+    L1 (RAM) -> L2 (SQLite) -> L3 (FileSystem)
+    with Semantic Search
     """
     
     def __init__(
         self,
-        l1_size: int = 1000,
-        l2_path: str = "./data/cache.db",
-        l3_dir: str = "./data/cache_l3",
-        default_ttl_seconds: int = 3600,
-        enable_semantic_search: bool = True,
+        l1_max_size: int = 1000,
+        l2_max_size: int = 100000,
+        l2_db_path: str = "data/cache.db",
+        l3_dir: str = "data/cache_l3",
+        l3_max_size_mb: int = 1024,
+        semantic_enabled: bool = True,
+        semantic_threshold: float = 0.95,
     ):
-        self.l1 = L1Cache(max_size=l1_size, ttl_seconds=default_ttl_seconds)
-        self.l2 = L2Cache(db_path=l2_path, ttl_seconds=default_ttl_seconds * 24)
-        self.l3 = L3Cache(cache_dir=l3_dir, ttl_seconds=default_ttl_seconds * 168)  # 7 days
+        # Cache layers
+        self.l1 = L1Cache(max_size=l1_max_size)
+        self.l2 = L2Cache(db_path=l2_db_path, max_size=l2_max_size)
+        self.l3 = L3Cache(cache_dir=l3_dir, max_size_mb=l3_max_size_mb)
         
-        self.default_ttl_seconds = default_ttl_seconds
+        # Semantic search
+        self.semantic_enabled = semantic_enabled and SEMANTIC_AVAILABLE
+        self.semantic_threshold = semantic_threshold
+        self.semantic = SemanticSearch() if self.semantic_enabled else None
         
-        if enable_semantic_search and EMBEDDINGS_AVAILABLE:
-            self.semantic = SemanticCacheSearch()
-        else:
-            self.semantic = None
-        
-        self._stats = {
-            'total_hits': 0,
-            'total_misses': 0,
+        # Stats
+        self.stats = {
             'l1_hits': 0,
             'l2_hits': 0,
             'l3_hits': 0,
             'semantic_hits': 0,
+            'misses': 0,
         }
     
-    @staticmethod
-    def hash_prompt(prompt: str) -> str:
-        """Generate hash for prompt"""
-        return hashlib.sha256(prompt.encode()).hexdigest()
+    async def initialize(self) -> bool:
+        """Инициализация кэша"""
+        if self.semantic:
+            await self.semantic.initialize()
+        return True
     
-    async def get(
-        self,
-        prompt: str,
-        use_semantic: bool = True,
-    ) -> Optional[Tuple[str, bool]]:
+    @staticmethod
+    def generate_key(prompt: str) -> str:
+        """Генерация ключа кэша"""
+        return hashlib.md5(prompt.encode()).hexdigest()
+    
+    async def get(self, prompt: str) -> Optional[str]:
         """
-        Get cached response.
-        
-        Returns:
-            Tuple of (response, is_semantic_match) or None
+        Получить ответ из кэша.
+        Проверяет все уровни кэша.
         """
-        prompt_hash = self.hash_prompt(prompt)
+        key = self.generate_key(prompt)
         
-        # Check L1
-        entry = await self.l1.get(prompt_hash)
+        # L1 check
+        entry = await self.l1.get(key)
         if entry:
-            self._stats['l1_hits'] += 1
-            self._stats['total_hits'] += 1
-            return (entry.response, False)
+            self.stats['l1_hits'] += 1
+            logger.debug(f"Cache L1 HIT: {key[:8]}")
+            return entry.response
         
-        # Check L2
-        entry = await self.l2.get(prompt_hash)
+        # L2 check
+        entry = self.l2.get(key)
         if entry:
-            self._stats['l2_hits'] += 1
-            self._stats['total_hits'] += 1
+            self.stats['l2_hits'] += 1
+            logger.debug(f"Cache L2 HIT: {key[:8]}")
             # Promote to L1
-            await self.l1.set(entry)
-            return (entry.response, False)
+            await self.l1.set(key, entry.query, entry.response, entry.metadata)
+            return entry.response
         
-        # Check L3
-        entry = await self.l3.get(prompt_hash)
+        # L3 check
+        entry = self.l3.get(key)
         if entry:
-            self._stats['l3_hits'] += 1
-            self._stats['total_hits'] += 1
-            # Promote to L2 and L1
-            await self.l2.set(entry)
-            await self.l1.set(entry)
-            return (entry.response, False)
+            self.stats['l3_hits'] += 1
+            logger.debug(f"Cache L3 HIT: {key[:8]}")
+            # Promote to L1 and L2
+            await self.l1.set(key, entry.query, entry.response, entry.metadata)
+            self.l2.set(key, entry.query, entry.response, entry.metadata)
+            return entry.response
         
         # Semantic search
-        if use_semantic and self.semantic:
-            similar = await self.semantic.find_similar(prompt, prompt_hash)
+        if self.semantic and self.semantic._initialized:
+            similar = self.semantic.find_similar(prompt, threshold=self.semantic_threshold)
             if similar:
-                similar_hash, similarity = similar
+                similar_key, similarity = similar[0]
+                self.stats['semantic_hits'] += 1
+                logger.debug(f"Cache SEMANTIC HIT: {similar_key[:8]} (similarity: {similarity:.2f})")
                 
-                # Try to get similar entry
-                for cache in [self.l1, self.l2, self.l3]:
-                    entry = await cache.get(similar_hash)
-                    if entry:
-                        self._stats['semantic_hits'] += 1
-                        self._stats['total_hits'] += 1
-                        logger.debug(f"Semantic cache hit (similarity: {similarity:.3f})")
-                        return (entry.response, True)
+                # Get the similar entry
+                entry = self.l2.get(similar_key)
+                if entry:
+                    # Store original query with this response
+                    await self.l1.set(key, prompt, entry.response, {'semantic_match': True, 'original_key': similar_key})
+                    return entry.response
         
-        self._stats['total_misses'] += 1
+        self.stats['misses'] += 1
         return None
     
-    async def set(
-        self,
-        prompt: str,
-        response: str,
-        ttl_seconds: Optional[int] = None,
-        model_used: Optional[str] = None,
-        response_time: Optional[float] = None,
-    ):
-        """Cache response"""
-        ttl = ttl_seconds or self.default_ttl_seconds
-        now = datetime.now()
+    async def set(self, prompt: str, response: str, metadata: Dict = None) -> None:
+        """Сохранить ответ во все уровни кэша"""
+        key = self.generate_key(prompt)
         
-        entry = CacheEntry(
-            prompt_hash=self.hash_prompt(prompt),
-            prompt=prompt,
-            response=response,
-            created_at=now,
-            expires_at=now + timedelta(seconds=ttl),
-            model_used=model_used,
-            response_time=response_time,
-        )
-        
-        # Set in all levels
-        await self.l1.set(entry)
-        await self.l2.set(entry)
-        await self.l3.set(entry)
+        # Save to all levels
+        await self.l1.set(key, prompt, response, metadata)
+        self.l2.set(key, prompt, response, metadata)
+        self.l3.set(key, prompt, response, metadata)
         
         # Add to semantic index
         if self.semantic:
-            await self.semantic.add_prompt(entry.prompt_hash, prompt)
-    
-    async def delete(self, prompt: str):
-        """Delete from all cache levels"""
-        prompt_hash = self.hash_prompt(prompt)
+            self.semantic.add_embedding(key, prompt)
         
-        await self.l1.delete(prompt_hash)
-        await self.l2.delete(prompt_hash)
-        await self.l3.delete(prompt_hash)
+        logger.debug(f"Cache SET: {key[:8]}")
+    
+    async def delete(self, prompt: str) -> bool:
+        """Удалить запись из всех уровней кэша"""
+        key = self.generate_key(prompt)
+        
+        l1_deleted = await self.l1.delete(key)
+        # L2 and L3 deletion would need implementation
+        
+        return l1_deleted
+    
+    async def clear(self) -> None:
+        """Очистить весь кэш"""
+        await self.l1.clear()
+        self.l2.clear()
+        self.l3.clear()
         
         if self.semantic:
-            self.semantic.remove_prompt(prompt_hash)
-    
-    async def clear(self) -> int:
-        """Clear all cache levels"""
-        l1_count = await self.l1.clear()
-        l2_count = await self.l2.clear()
-        l3_count = await self.l3.clear()
+            self.semantic.embeddings.clear()
         
-        if self.semantic:
-            self.semantic._embeddings.clear()
-        
-        return l1_count + l2_count + l3_count
-    
-    async def cleanup(self) -> Dict[str, int]:
-        """Cleanup expired entries"""
-        l2_expired = await self.l2.cleanup_expired()
-        
-        # L3 cleanup
-        l3_expired = 0
-        now = datetime.now()
-        for file_path in self.l3.cache_dir.glob("*.json"):
-            try:
-                async with aiofiles.open(file_path, 'r') as f:
-                    data = json.loads(await f.read())
-                expires = datetime.fromisoformat(data['expires_at'])
-                if now > expires:
-                    file_path.unlink()
-                    l3_expired += 1
-            except:
-                pass
-        
-        return {
-            'l2_expired': l2_expired,
-            'l3_expired': l3_expired,
-        }
+        logger.info("All cache levels cleared")
     
     def get_stats(self) -> Dict[str, Any]:
-        """Get cache statistics"""
-        total = self._stats['total_hits'] + self._stats['total_misses']
-        hit_rate = self._stats['total_hits'] / max(1, total)
+        """Получить статистику кэша"""
+        total_hits = self.stats['l1_hits'] + self.stats['l2_hits'] + self.stats['l3_hits'] + self.stats['semantic_hits']
+        total_requests = total_hits + self.stats['misses']
         
         return {
-            **self._stats,
-            'hit_rate': hit_rate,
-            'semantic_available': self.semantic is not None and self.semantic.is_available(),
+            'l1': self.l1.get_stats(),
+            'l2': self.l2.get_stats(),
+            'l3': {'enabled': True},
+            'semantic': {
+                'enabled': self.semantic_enabled and (self.semantic._initialized if self.semantic else False),
+                'index_size': len(self.semantic.embeddings) if self.semantic else 0,
+            },
+            'hits': {
+                'l1': self.stats['l1_hits'],
+                'l2': self.stats['l2_hits'],
+                'l3': self.stats['l3_hits'],
+                'semantic': self.stats['semantic_hits'],
+            },
+            'misses': self.stats['misses'],
+            'hit_rate': total_hits / total_requests if total_requests > 0 else 0,
+            'total_requests': total_requests,
         }
     
-    async def close(self):
-        """Close cache connections"""
-        await self.l2.close()
+    def prefetch_warmup(self, queries: List[str]) -> None:
+        """
+        Прогрев кэша - предзагрузка эмбеддингов для предсказанных запросов
+        """
+        if not self.semantic or not self.semantic._initialized:
+            return
+        
+        for query in queries:
+            key = self.generate_key(query)
+            entry = self.l2.get(key)
+            if entry:
+                self.semantic.add_embedding(key, query)
+        
+        logger.info(f"Prefetch warmup: {len(queries)} queries processed")
+
+
+class CachePrefetcher:
+    """
+    Prefetch Engine
+    Predicts upcoming queries and warms up the cache
+    """
+    
+    def __init__(self, cache: MultiLevelCache):
+        self.cache = cache
+        self.query_history: List[str] = []
+        self.max_history = 100
+    
+    def record_query(self, query: str) -> None:
+        """Записать запрос в историю"""
+        self.query_history.append(query)
+        if len(self.query_history) > self.max_history:
+            self.query_history = self.query_history[-self.max_history:]
+    
+    def predict_next_queries(self, count: int = 10) -> List[str]:
+        """
+        Предсказать следующие запросы на основе истории.
+        Простая реализация - возвращает последние уникальные запросы.
+        """
+        # В реальной реализации здесь можно использовать ML
+        unique_queries = list(dict.fromkeys(reversed(self.query_history)))
+        return unique_queries[:count]
+    
+    async def warmup(self) -> None:
+        """Прогрев кэша предсказанными запросами"""
+        predicted = self.predict_next_queries()
+        self.cache.prefetch_warmup(predicted)

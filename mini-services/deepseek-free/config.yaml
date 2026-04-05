@@ -1,61 +1,261 @@
-# DeepSeek Free Industrial Service Configuration
-# ================================================
+# DeepSeek Free Module Configuration
+# МУКН | Трафик - Enterprise AI-powered Telegram Automation Platform
 
-# Server settings
-port: 8765
-log_level: INFO
-log_file: ./logs/deepseek-free.log
+# ============================================
+# ОСНОВНЫЕ НАСТРОЙКИ
+# ============================================
+app:
+  name: "DeepSeek Free Module"
+  version: "2.0.0"
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  http_port: 8765
+  http_host: "0.0.0.0"
 
-# Account Pool Settings
-pool:
-  strategy: least_used  # round_robin, least_used, weighted, random
-  max_concurrent: 20
-  replication_factor: 1  # Number of accounts to use per request
-  min_accounts: 1
-  auto_heal: true
-
-# Cache Settings
-cache:
-  l1_size: 1000
-  l2_path: ./data/cache.db
-  l3_dir: ./data/cache_l3
-  semantic_search: true
-  default_ttl: 3600  # 1 hour
-
-# Queue Settings
-queue:
-  max_concurrent: 20
-  min_delay: 5
-  max_delay: 15
-  retry_delay: 30
-  max_retries: 3
-  dedup_window: 300  # 5 minutes
-
-# Auto-Registration Settings
-registration:
-  provider: temp_mail_org  # temp_mail_org, guerrilla_mail
-  password_length: 16
-  max_per_hour: 5
+# ============================================
+# НАСТРОЙКИ БРАУЗЕРА
+# ============================================
+browser:
   headless: true
+  timeout: 120000  # 2 минуты на операцию
+  viewport:
+    width: 1920
+    height: 1080
+  locale: "ru-RU"
+  timezone: "Europe/Moscow"
+  geolocation:
+    latitude: 55.7558
+    longitude: 37.6173
 
-# Self-Healing Settings
-healing:
-  check_interval: 300  # 5 minutes
-  unhealthy_threshold: 5
-  degraded_threshold: 3
-  recovery_cooldown: 300
-  max_recovery_attempts: 3
+# ============================================
+# PLAYWRIGHT STEALTH НАСТРОЙКИ
+# ============================================
+stealth:
+  # Отключение признаков автоматизации
+  hide_webdriver: true
+  emulate_media: true
+  # Дополнительные скрипты маскировки
+  inject_scripts: true
 
-# Proxy Pool (optional)
-proxies: []
-  # - host: "proxy1.example.com"
-  #   port: 8080
-  #   type: "http"
-  #   username: "user"
-  #   password: "pass"
+# ============================================
+# НАСТРОЙКИ АККАУНТА
+# ============================================
+account:
+  # URL DeepSeek
+  chat_url: "https://chat.deepseek.com"
+  login_url: "https://chat.deepseek.com/login"
+  
+  # Rate limiting
+  max_requests_per_hour: 25  # Запас для безопасности
+  max_requests_per_day: 200
+  min_delay_between_requests: 5.0  # секунд
+  max_delay_between_requests: 15.0
+  
+  # Поведенческие задержки
+  behavioral:
+    typing_speed_min: 50  # ms per char
+    typing_speed_max: 150
+    pause_probability: 0.10  # 10% шанс паузы при печати
+    typo_probability: 0.05   # 5% шанс опечатки
+    scroll_probability: 0.30  # 30% шанс скролла
+    mouse_movement: true
 
-# Pre-configured accounts (optional)
-accounts: []
-  # - email: "account1@example.com"
-  #   password: "password123"
-  #   proxy: null
+# ============================================
+# ПУЛ АККАУНТОВ
+# ============================================
+pool:
+  # Максимальное количество аккаунтов
+  max_accounts: 50
+  
+  # Стратегия ротации
+  rotation_strategy: "least_requests"  # least_requests, round_robin, random
+  
+  # Параллельные браузеры
+  max_parallel_browsers: 20
+  
+  # Репликация запросов (для надёжности)
+  replication_factor: 3  # Отправлять через N аккаунтов параллельно
+  
+  # Авто-регистрация
+  auto_register:
+    enabled: true
+    min_accounts: 5  # Минимум аккаунтов в пуле
+    max_accounts: 50
+    temp_mail_service: "temp-mail.org"  # temp-mail.org, guerrilla, 10minutemail
+
+# ============================================
+# ПРОКСИ
+# ============================================
+proxy:
+  enabled: false
+  # Список прокси (ip:port:user:pass)
+  list_file: "proxies.txt"
+  # Ротация при бане
+  rotate_on_ban: true
+  # Протоколы
+  supported_protocols:
+    - "http"
+    - "https"
+    - "socks5"
+
+# ============================================
+# USER-AGENTS
+# ============================================
+user_agents:
+  # Файл со списком User-Agent
+  list_file: "user_agents.txt"
+  # Ротация при каждом запуске браузера
+  rotate_on_start: true
+  # Количество UA в пуле
+  pool_size: 100
+
+# ============================================
+# МНОГОУРОВНЕВЫЙ КЭШ
+# ============================================
+cache:
+  enabled: true
+  
+  # L1 кэш (RAM)
+  l1:
+    enabled: true
+    max_size: 1000  # записей
+    eviction_policy: "lru"  # lru, lfu, mru
+  
+  # L2 кэш (SQLite)
+  l2:
+    enabled: true
+    db_path: "data/cache.db"
+    max_size: 100000  # записей
+    cleanup_interval: 3600  # секунд
+  
+  # L3 кэш (Файловая система)
+  l3:
+    enabled: true
+    dir: "data/cache_l3"
+    max_size_mb: 1024  # 1 GB
+  
+  # Семантический поиск
+  semantic:
+    enabled: true
+    model: "sentence-transformers/all-MiniLM-L6-v2"
+    similarity_threshold: 0.95  # 95% схожесть для HIT
+    vector_db: "faiss"  # faiss, chroma
+  
+  # Prefetch (прогрев кэша)
+  prefetch:
+    enabled: true
+    predict_count: 10  # предсказывать N запросов
+    background: true
+
+# ============================================
+# ОЧЕРЕДЬ ЗАПРОСОВ
+# ============================================
+queue:
+  enabled: true
+  max_size: 10000
+  # Приоритеты
+  priorities:
+    - name: "critical"
+      weight: 100
+    - name: "high"
+      weight: 50
+    - name: "normal"
+      weight: 10
+    - name: "low"
+      weight: 1
+  # Таймауты
+  timeout: 120  # секунд
+  retry_count: 3
+  retry_delay: 5  # секунд
+
+# ============================================
+# SELF-HEALING
+# ============================================
+self_healing:
+  enabled: true
+  
+  # Health check
+  health_check_interval: 30  # секунд
+  
+  # Авто-восстановление
+  auto_restart_browser: true
+  auto_rotate_proxy: true
+  auto_rotate_user_agent: true
+  
+  # Обнаружение капчи
+  captcha_detection:
+    enabled: true
+    selectors:
+      - ".g-recaptcha"
+      - "iframe[src*='captcha']"
+      - ".h-captcha"
+  
+  # Обнаружение бана
+  ban_detection:
+    enabled: true
+    indicators:
+      - "access denied"
+      - "blocked"
+      - "too many requests"
+      - "rate limit"
+
+# ============================================
+# АНСАМБЛЬ AI (качество генерации)
+# ============================================
+ensemble:
+  enabled: true
+  # Количество параллельных аккаунтов для одного запроса
+  parallel_count: 3
+  # Стратегия выбора лучшего ответа
+  selection_strategy: "longest"  # longest, voting, first_success
+  # Итеративное улучшение
+  iterative_improvement:
+    enabled: true
+    iterations: 2
+    prompt: "Улучши этот текст, сделай его более естественным и вовлекающим:"
+
+# ============================================
+# ВРЕМЕННАЯ ПОЧТА (для авто-регистрации)
+# ============================================
+temp_mail:
+  default_service: "temp-mail.org"
+  services:
+    - name: "temp-mail.org"
+      api_url: "https://api.temp-mail.org"
+      timeout: 300  # секунд ожидания письма
+    - name: "guerrilla"
+      api_url: "https://api.guerrillamail.com"
+      timeout: 300
+    - name: "10minutemail"
+      api_url: "https://10minutemail.com"
+      timeout: 600
+
+# ============================================
+# БАЗА ДАННЫХ АККАУНТОВ
+# ============================================
+database:
+  path: "data/accounts.db"
+  # Шифрование
+  encryption:
+    enabled: true
+    algorithm: "AES-256-GCM"
+    key_file: "data/key.bin"
+
+# ============================================
+# ЛОГИРОВАНИЕ
+# ============================================
+logging:
+  dir: "logs"
+  file: "deepseek-free.log"
+  max_size_mb: 100
+  retention_days: 7
+  format: "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}"
+
+# ============================================
+# МЕТРИКИ И МОНИТОРИНГ
+# ============================================
+metrics:
+  enabled: true
+  port: 9090
+  endpoint: "/metrics"
+  # Сохранение статистики
+  stats_file: "data/stats.json"

@@ -1,630 +1,646 @@
 """
-Auto-Registration Module for DeepSeek Accounts
-Creates new accounts using temporary email services
+DeepSeek Auto-Registration Module
+Автоматическая регистрация аккаунтов через временную почту
+
+МУКН | Трафик - Enterprise AI-powered Telegram Automation Platform
 """
 
 import asyncio
 import random
+import re
 import string
 import time
-from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import Optional, Dict, Any, List, Tuple
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from enum import Enum
-from typing import Optional, Dict, Any, List
-import aiohttp
 from loguru import logger
+import aiohttp
 
-
-class TempMailProvider(str, Enum):
-    """Available temp mail providers"""
-    TEMP_MAIL_ORG = "temp-mail.org"
-    GUERRILLA_MAIL = "guerrillamail.com"
-    _10MINUTEMAIL = "10minutemail.com"
-    TEMPMAIL_LIFE = "tempmail.life"
-    FAKE_MAIL = "fakemail.com"
-
-
-@dataclass
-class TempMailAccount:
-    """Temporary email account"""
-    email: str
-    provider: TempMailProvider
-    token: Optional[str] = None
-    inbox: List[Dict[str, Any]] = None
-    created_at: datetime = None
-    expires_at: datetime = None
-    
-    def __post_init__(self):
-        if self.inbox is None:
-            self.inbox = []
-        if self.created_at is None:
-            self.created_at = datetime.now()
+# Playwright imports
+try:
+    from playwright.async_api import Page, Browser, BrowserContext
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
 
 
 @dataclass
-class RegistrationResult:
-    """Registration result"""
-    success: bool
-    email: Optional[str] = None
-    password: Optional[str] = None
-    error: Optional[str] = None
-    deepseek_account_id: Optional[str] = None
+class TempMailMessage:
+    """Сообщение временной почты"""
+    id: str
+    sender: str
+    subject: str
+    body: str
+    received_at: datetime
 
 
-class TempMailService(ABC):
-    """Abstract temp mail service"""
+class TempMailService:
+    """
+    Базовый класс для сервисов временной почты.
+    """
     
-    @abstractmethod
-    async def create_email(self) -> TempMailAccount:
-        """Create new temporary email"""
-        pass
+    def __init__(self, timeout: int = 300):
+        self.timeout = timeout
+        self.email: Optional[str] = None
+        self.session: Optional[aiohttp.ClientSession] = None
     
-    @abstractmethod
-    async def get_inbox(self, email: TempMailAccount) -> List[Dict[str, Any]]:
-        """Get inbox for email"""
-        pass
+    async def create_email(self) -> str:
+        """Создать временный email"""
+        raise NotImplementedError
     
-    @abstractmethod
-    async def wait_for_email(
+    async def get_messages(self) -> List[TempMailMessage]:
+        """Получить все сообщения"""
+        raise NotImplementedError
+    
+    async def wait_for_message(
         self,
-        email: TempMailAccount,
-        from_filter: Optional[str] = None,
-        subject_filter: Optional[str] = None,
-        timeout: int = 300,
-    ) -> Optional[Dict[str, Any]]:
-        """Wait for specific email"""
-        pass
+        from_filter: str = None,
+        subject_filter: str = None,
+        timeout: int = None
+    ) -> Optional[TempMailMessage]:
+        """Ожидание сообщения с фильтрами"""
+        timeout = timeout or self.timeout
+        start_time = time.time()
+        
+        while time.time() - start_time < timeout:
+            messages = await self.get_messages()
+            
+            for msg in messages:
+                if from_filter and from_filter.lower() not in msg.sender.lower():
+                    continue
+                if subject_filter and subject_filter.lower() not in msg.subject.lower():
+                    continue
+                return msg
+            
+            await asyncio.sleep(5)
+        
+        return None
     
-    @abstractmethod
-    async def extend_email(self, email: TempMailAccount) -> bool:
-        """Extend email lifetime"""
-        pass
+    async def close(self) -> None:
+        """Закрыть сессию"""
+        if self.session:
+            await self.session.close()
 
 
 class TempMailOrgService(TempMailService):
-    """temp-mail.org API implementation"""
+    """
+    Сервис temp-mail.org
+    API Documentation: https://temp-mail.org/en/api/
+    """
     
-    API_BASE = "https://api.temp-mail.org"
+    API_URL = "https://api.temp-mail.org"
     
-    def __init__(self, session: Optional[aiohttp.ClientSession] = None):
-        self.session = session
-        self._own_session = session is None
-    
-    async def _get_session(self) -> aiohttp.ClientSession:
-        if self.session is None:
+    async def create_email(self) -> str:
+        """Создать временный email"""
+        if not self.session:
             self.session = aiohttp.ClientSession()
-        return self.session
+        
+        # Получаем список доменов
+        async with self.session.get(f"{self.API_URL}/request/domains/") as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                domains = [d.get('name') for d in data if d.get('name')]
+            else:
+                # Fallback домены
+                domains = ['tempmail.org', 'temp-mail.org']
+        
+        # Генерируем случайное имя
+        username = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
+        domain = random.choice(domains) if domains else 'tempmail.org'
+        
+        self.email = f"{username}@{domain}"
+        return self.email
     
-    async def create_email(self) -> TempMailAccount:
-        session = await self._get_session()
+    async def get_messages(self) -> List[TempMailMessage]:
+        """Получить все сообщения"""
+        if not self.email or not self.session:
+            return []
         
         try:
-            async with session.get(f"{self.API_BASE}/request/mail/new") as resp:
+            async with self.session.get(
+                f"{self.API_URL}/request/mail/id/{self.email}/"
+            ) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    email = data.get('mail')
+                    messages = []
                     
-                    if email:
-                        return TempMailAccount(
-                            email=email,
-                            provider=TempMailProvider.TEMP_MAIL_ORG,
-                            token=data.get('token'),
-                            expires_at=datetime.now() + timedelta(hours=1),
+                    for item in data:
+                        msg = TempMailMessage(
+                            id=str(item.get('mail_id', '')),
+                            sender=item.get('mail_from', ''),
+                            subject=item.get('mail_subject', ''),
+                            body=item.get('mail_text', ''),
+                            received_at=datetime.now()
                         )
+                        messages.append(msg)
+                    
+                    return messages
         except Exception as e:
-            logger.error(f"TempMail.org create error: {e}")
-        
-        # Fallback: generate random email
-        email = self._generate_random_email()
-        return TempMailAccount(
-            email=email,
-            provider=TempMailProvider.TEMP_MAIL_ORG,
-            expires_at=datetime.now() + timedelta(minutes=30),
-        )
-    
-    async def get_inbox(self, email: TempMailAccount) -> List[Dict[str, Any]]:
-        session = await self._get_session()
-        
-        try:
-            # Hash email for API
-            import hashlib
-            email_hash = hashlib.md5(email.email.encode()).hexdigest()
-            
-            async with session.get(f"{self.API_BASE}/request/mail/id/{email_hash}") as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    return data if isinstance(data, list) else []
-        except Exception as e:
-            logger.error(f"TempMail.org inbox error: {e}")
+            logger.error(f"TempMail API error: {e}")
         
         return []
-    
-    async def wait_for_email(
-        self,
-        email: TempMailAccount,
-        from_filter: Optional[str] = None,
-        subject_filter: Optional[str] = None,
-        timeout: int = 300,
-    ) -> Optional[Dict[str, Any]]:
-        """Wait for email with filters"""
-        start_time = time.time()
-        
-        while time.time() - start_time < timeout:
-            inbox = await self.get_inbox(email)
-            
-            for mail in inbox:
-                # Apply filters
-                if from_filter and from_filter not in mail.get('from', ''):
-                    continue
-                
-                if subject_filter and subject_filter not in mail.get('subject', ''):
-                    continue
-                
-                # Check if we've seen this mail
-                mail_id = mail.get('mail_id') or mail.get('id')
-                if mail_id and mail_id not in [m.get('id') for m in email.inbox]:
-                    email.inbox.append(mail)
-                    return mail
-            
-            await asyncio.sleep(5)
-        
-        return None
-    
-    async def extend_email(self, email: TempMailAccount) -> bool:
-        """Extend email lifetime"""
-        if email.token:
-            session = await self._get_session()
-            try:
-                async with session.post(
-                    f"{self.API_BASE}/request/mail/extend",
-                    json={'token': email.token}
-                ) as resp:
-                    return resp.status == 200
-            except:
-                pass
-        return False
-    
-    def _generate_random_email(self) -> str:
-        """Generate random email address"""
-        domains = ['tempmail.org', 'temp-mail.org', 'tm-mail.com']
-        username = ''.join(random.choices(string.ascii_lowercase + string.digits, k=12))
-        return f"{username}@{random.choice(domains)}"
-    
-    async def close(self):
-        if self._own_session and self.session:
-            await self.session.close()
 
 
 class GuerrillaMailService(TempMailService):
-    """Guerrilla Mail API implementation"""
+    """
+    Сервис guerrillamail.com
+    API Documentation: https://www.guerrillamail.com/GuerrillaMailAPI.html
+    """
     
-    API_BASE = "https://api.guerrillamail.com/ajax.php"
+    API_URL = "https://api.guerrillamail.com/ajax.php"
     
-    def __init__(self, session: Optional[aiohttp.ClientSession] = None):
-        self.session = session
-        self._own_session = session is None
-    
-    async def _get_session(self) -> aiohttp.ClientSession:
-        if self.session is None:
+    async def create_email(self) -> str:
+        """Создать временный email"""
+        if not self.session:
             self.session = aiohttp.ClientSession()
-        return self.session
-    
-    async def create_email(self) -> TempMailAccount:
-        session = await self._get_session()
         
-        try:
-            async with session.get(
-                f"{self.API_BASE}?f=get_email_address",
-                headers={'User-Agent': 'Mozilla/5.0'}
-            ) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    return TempMailAccount(
-                        email=data.get('email_addr'),
-                        provider=TempMailProvider.GUERRILLA_MAIL,
-                        token=data.get('sid_token'),
-                        expires_at=datetime.now() + timedelta(hours=1),
-                    )
-        except Exception as e:
-            logger.error(f"Guerrilla Mail create error: {e}")
+        params = {'f': 'get_email_address'}
+        
+        async with self.session.get(self.API_URL, params=params) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                self.email = data.get('email_addr', '')
+                return self.email
         
         # Fallback
-        email = self._generate_random_email()
-        return TempMailAccount(
-            email=email,
-            provider=TempMailProvider.GUERRILLA_MAIL,
-            expires_at=datetime.now() + timedelta(minutes=30),
-        )
+        username = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
+        self.email = f"{username}@guerrillamail.com"
+        return self.email
     
-    async def get_inbox(self, email: TempMailAccount) -> List[Dict[str, Any]]:
-        session = await self._get_session()
+    async def get_messages(self) -> List[TempMailMessage]:
+        """Получить все сообщения"""
+        if not self.email or not self.session:
+            return []
+        
+        params = {'f': 'get_email_list', 'offset': 0}
         
         try:
-            params = {
-                'f': 'get_email_list',
-                'offset': 0,
-            }
-            if email.token:
-                params['sid_token'] = email.token
-            
-            async with session.get(
-                self.API_BASE,
-                params=params
-            ) as resp:
+            async with self.session.get(self.API_URL, params=params) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    return data.get('list', [])
+                    messages = []
+                    
+                    for item in data.get('list', []):
+                        msg = TempMailMessage(
+                            id=str(item.get('mail_id', '')),
+                            sender=item.get('mail_from', ''),
+                            subject=item.get('mail_subject', ''),
+                            body=item.get('mail_excerpt', ''),
+                            received_at=datetime.now()
+                        )
+                        messages.append(msg)
+                    
+                    return messages
         except Exception as e:
-            logger.error(f"Guerrilla Mail inbox error: {e}")
+            logger.error(f"GuerrillaMail API error: {e}")
         
         return []
     
-    async def wait_for_email(
-        self,
-        email: TempMailAccount,
-        from_filter: Optional[str] = None,
-        subject_filter: Optional[str] = None,
-        timeout: int = 300,
-    ) -> Optional[Dict[str, Any]]:
-        start_time = time.time()
-        
-        while time.time() - start_time < timeout:
-            inbox = await self.get_inbox(email)
-            
-            for mail in inbox:
-                if from_filter and from_filter not in mail.get('mail_from', ''):
-                    continue
-                
-                if subject_filter and subject_filter not in mail.get('mail_subject', ''):
-                    continue
-                
-                mail_id = str(mail.get('mail_id', ''))
-                if mail_id and mail_id not in [m.get('id') for m in email.inbox]:
-                    email.inbox.append({'id': mail_id, **mail})
-                    return mail
-            
-            await asyncio.sleep(5)
-        
-        return None
-    
-    async def extend_email(self, email: TempMailAccount) -> bool:
-        """Extend email lifetime"""
-        session = await self._get_session()
+    async def get_message_body(self, message_id: str) -> str:
+        """Получить полное тело сообщения"""
+        params = {'f': 'fetch_email', 'email_id': message_id}
         
         try:
-            async with session.get(
-                self.API_BASE,
-                params={'f': 'extend', 'sid_token': email.token}
-            ) as resp:
-                return resp.status == 200
-        except:
-            return False
-    
-    def _generate_random_email(self) -> str:
-        domains = ['guerrillamail.com', 'guerrillamail.org', 'sharklasers.com']
-        username = ''.join(random.choices(string.ascii_lowercase + string.digits, k=12))
-        return f"{username}@{random.choice(domains)}"
-    
-    async def close(self):
-        if self._own_session and self.session:
-            await self.session.close()
+            async with self.session.get(self.API_URL, params=params) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return data.get('mail_body', '')
+        except Exception as e:
+            logger.error(f"GuerrillaMail fetch error: {e}")
+        
+        return ''
 
 
-class AutoRegistrar:
+class OneMinuteMailService(TempMailService):
     """
-    Automatic account registration for DeepSeek.
+    Сервис 1secmail.com (аналог 10minutemail)
+    API Documentation: https://www.1secmail.com/api/
+    """
+    
+    API_URL = "https://www.1secmail.com/api/v1/"
+    DOMAINS = ['1secmail.com', '1secmail.org', '1secmail.net']
+    
+    async def create_email(self) -> str:
+        """Создать временный email"""
+        if not self.session:
+            self.session = aiohttp.ClientSession()
+        
+        # Генерируем логин
+        login = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
+        domain = random.choice(self.DOMAINS)
+        
+        self.email = f"{login}@{domain}"
+        return self.email
+    
+    async def get_messages(self) -> List[TempMailMessage]:
+        """Получить все сообщения"""
+        if not self.email or not self.session:
+            return []
+        
+        login, domain = self.email.split('@')
+        
+        try:
+            async with self.session.get(
+                f"{self.API_URL}",
+                params={'action': 'getMessages', 'login': login, 'domain': domain}
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    messages = []
+                    
+                    for item in data:
+                        msg = TempMailMessage(
+                            id=str(item.get('id', '')),
+                            sender=item.get('from', ''),
+                            subject=item.get('subject', ''),
+                            body=item.get('body', '') or await self._get_body(login, domain, item.get('id')),
+                            received_at=datetime.now()
+                        )
+                        messages.append(msg)
+                    
+                    return messages
+        except Exception as e:
+            logger.error(f"1secmail API error: {e}")
+        
+        return []
+    
+    async def _get_body(self, login: str, domain: str, message_id: str) -> str:
+        """Получить тело сообщения"""
+        try:
+            async with self.session.get(
+                f"{self.API_URL}",
+                params={
+                    'action': 'readMessage',
+                    'login': login,
+                    'domain': domain,
+                    'id': message_id
+                }
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return data.get('body', '') or data.get('textBody', '')
+        except:
+            pass
+        
+        return ''
+
+
+class DeepSeekAutoRegister:
+    """
+    Автоматическая регистрация аккаунтов DeepSeek.
     
     Features:
-    - Multiple temp mail providers
-    - Automatic email verification
-    - Password generation
-    - Rate limiting
-    - Retry logic
+    - Создание временной почты
+    - Регистрация на DeepSeek
+    - Подтверждение email
+    - Сохранение credentials
     """
     
     DEEPSEEK_SIGNUP_URL = "https://chat.deepseek.com/signup"
-    DEEPSEEK_VERIFY_URL = "https://chat.deepseek.com/verify"
-    
-    # DeepSeek selectors
-    SELECTORS = {
-        'signup_email': 'input[type="email"], input[name="email"]',
-        'signup_password': 'input[type="password"], input[name="password"]',
-        'signup_button': 'button[type="submit"], button:has-text("Sign up")',
-        'verify_code': 'input[type="text"], input[name="code"]',
-        'verify_button': 'button[type="submit"]',
-    }
+    DEEPSEEK_LOGIN_URL = "https://chat.deepseek.com/login"
     
     def __init__(
         self,
-        mail_provider: TempMailProvider = TempMailProvider.TEMP_MAIL_ORG,
-        password_length: int = 16,
-        max_registrations_per_hour: int = 5,
+        temp_mail_service: str = "1secmail",
         headless: bool = True,
+        proxy: Dict = None
     ):
-        self.mail_provider = mail_provider
-        self.password_length = password_length
-        self.max_registrations_per_hour = max_registrations_per_hour
         self.headless = headless
+        self.proxy = proxy
+        self.mail_service: Optional[TempMailService] = None
         
-        # Temp mail service
-        self._mail_service: Optional[TempMailService] = None
-        
-        # Rate limiting
-        self._recent_registrations: List[datetime] = []
+        # Выбор сервиса временной почты
+        if temp_mail_service == "temp-mail.org":
+            self.mail_service = TempMailOrgService()
+        elif temp_mail_service == "guerrilla":
+            self.mail_service = GuerrillaMailService()
+        else:
+            self.mail_service = OneMinuteMailService()
     
-    async def _get_mail_service(self) -> TempMailService:
-        if self._mail_service is None:
-            if self.mail_provider == TempMailProvider.TEMP_MAIL_ORG:
-                self._mail_service = TempMailOrgService()
-            elif self.mail_provider == TempMailProvider.GUERRILLA_MAIL:
-                self._mail_service = GuerrillaMailService()
-            else:
-                self._mail_service = TempMailOrgService()
-        
-        return self._mail_service
-    
-    def _can_register(self) -> bool:
-        """Check if we can register (rate limit)"""
-        now = datetime.now()
-        hour_ago = now - timedelta(hours=1)
-        
-        recent = [t for t in self._recent_registrations if t > hour_ago]
-        return len(recent) < self.max_registrations_per_hour
-    
-    def _generate_password(self) -> str:
-        """Generate secure random password"""
+    async def generate_password(self, length: int = 16) -> str:
+        """Генерация случайного пароля"""
         chars = string.ascii_letters + string.digits + "!@#$%^&*"
-        password = ''.join(random.choices(chars, k=self.password_length))
-        
-        # Ensure password has required characters
+        password = ''.join(random.choices(chars, k=length))
+        # Убедимся, что есть разные типы символов
         if not any(c.isupper() for c in password):
             password = random.choice(string.ascii_uppercase) + password[1:]
         if not any(c.islower() for c in password):
             password = password[:-1] + random.choice(string.ascii_lowercase)
         if not any(c.isdigit() for c in password):
             password = password[:-1] + random.choice(string.digits)
-        
         return password
+    
+    async def create_temp_email(self) -> str:
+        """Создание временной почты"""
+        return await self.mail_service.create_email()
     
     async def register_account(
         self,
-        custom_email: Optional[str] = None,
-        custom_password: Optional[str] = None,
-        proxy: Optional[Dict[str, Any]] = None,
-        timeout: int = 300,
-    ) -> RegistrationResult:
+        browser = None,
+        max_attempts: int = 3
+    ) -> Optional[Dict[str, Any]]:
         """
-        Register new DeepSeek account.
+        Регистрация нового аккаунта DeepSeek.
         
-        Args:
-            custom_email: Use specific email instead of temp mail
-            custom_password: Use specific password
-            proxy: Proxy configuration
-            timeout: Max time to wait for verification
-            
         Returns:
-            RegistrationResult with account details
+            Dict с email, password, status или None при ошибке
         """
-        # Check rate limit
-        if not self._can_register():
-            return RegistrationResult(
-                success=False,
-                error="Rate limit exceeded. Try again later.",
-            )
+        from playwright.async_api import async_playwright
         
-        # Get or create temp email
-        mail_service = await self._get_mail_service()
-        
-        if custom_email:
-            temp_email = TempMailAccount(
-                email=custom_email,
-                provider=self.mail_provider,
-                expires_at=datetime.now() + timedelta(hours=1),
-            )
-        else:
-            temp_email = await mail_service.create_email()
-        
-        password = custom_password or self._generate_password()
-        
-        logger.info(f"Starting registration for {temp_email.email}")
-        
-        try:
-            # Playwright registration (if available)
+        for attempt in range(max_attempts):
+            logger.info(f"Registration attempt {attempt + 1}/{max_attempts}")
+            
             try:
-                from playwright.async_api import async_playwright
-                from playwright_stealth import stealth_async
+                # Создаём временную почту
+                temp_email = await self.create_temp_email()
+                password = await self.generate_password()
                 
-                async with async_playwright() as p:
-                    browser = await p.chromium.launch(
-                        headless=self.headless,
-                        args=['--disable-blink-features=AutomationControlled']
-                    )
-                    
-                    context = await browser.new_context(
-                        viewport={'width': 1920, 'height': 1080},
-                        user_agent=random.choice([
-                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                        ]),
-                    )
-                    
-                    if proxy:
-                        await context.set_proxy(proxy)
-                    
-                    page = await context.new_page()
-                    await stealth_async(page)
-                    
-                    # Navigate to signup
-                    await page.goto(self.DEEPSEEK_SIGNUP_URL, wait_until='networkidle')
-                    await asyncio.sleep(random.uniform(2, 4))
-                    
-                    # Fill email
-                    email_input = await page.wait_for_selector(
-                        self.SELECTORS['signup_email'],
-                        timeout=10000
-                    )
-                    await email_input.fill(temp_email.email)
-                    await asyncio.sleep(random.uniform(0.5, 1.5))
-                    
-                    # Fill password
-                    password_input = await page.wait_for_selector(
-                        self.SELECTORS['signup_password'],
-                        timeout=5000
-                    )
-                    await password_input.fill(password)
-                    await asyncio.sleep(random.uniform(0.5, 1.5))
-                    
-                    # Click signup
-                    signup_btn = await page.wait_for_selector(
-                        self.SELECTORS['signup_button'],
-                        timeout=5000
-                    )
-                    await signup_btn.click()
-                    
-                    # Wait for verification email
-                    logger.info(f"Waiting for verification email...")
-                    
-                    verification_email = await mail_service.wait_for_email(
-                        temp_email,
-                        from_filter='deepseek',
-                        subject_filter='verify',
-                        timeout=timeout,
-                    )
-                    
-                    if not verification_email:
-                        await browser.close()
-                        return RegistrationResult(
-                            success=False,
-                            email=temp_email.email,
-                            error="Verification email not received",
-                        )
-                    
-                    # Extract verification code
-                    code = self._extract_verification_code(verification_email)
-                    
-                    if not code:
-                        await browser.close()
-                        return RegistrationResult(
-                            success=False,
-                            email=temp_email.email,
-                            error="Could not extract verification code",
-                        )
-                    
-                    # Enter verification code
-                    verify_input = await page.wait_for_selector(
-                        self.SELECTORS['verify_code'],
-                        timeout=10000
-                    )
-                    await verify_input.fill(code)
-                    
-                    verify_btn = await page.wait_for_selector(
-                        self.SELECTORS['verify_button'],
-                        timeout=5000
-                    )
-                    await verify_btn.click()
-                    
-                    await asyncio.sleep(3)
-                    
-                    # Check if registration successful
-                    current_url = page.url
-                    await browser.close()
-                    
-                    if 'chat' in current_url or 'success' in current_url:
-                        self._recent_registrations.append(datetime.now())
-                        
-                        logger.info(f"Successfully registered {temp_email.email}")
-                        
-                        return RegistrationResult(
-                            success=True,
-                            email=temp_email.email,
-                            password=password,
-                        )
-                    else:
-                        return RegistrationResult(
-                            success=False,
-                            email=temp_email.email,
-                            error="Registration failed - verification incomplete",
-                        )
-                    
-            except ImportError:
-                # Mock mode without Playwright
-                logger.warning("Playwright not available, using mock registration")
+                logger.info(f"Created temp email: {temp_email}")
                 
-                await asyncio.sleep(random.uniform(2, 5))
+                # Инициализация браузера
+                playwright = await async_playwright().start()
                 
-                self._recent_registrations.append(datetime.now())
+                launch_args = [
+                    '--disable-blink-features=AutomationControlled',
+                    '--no-sandbox',
+                    '--disable-dev-shm-usage',
+                ]
                 
-                return RegistrationResult(
-                    success=True,
-                    email=temp_email.email,
-                    password=password,
-                    deepseek_account_id=f"mock_{int(time.time())}",
+                proxy_config = None
+                if self.proxy:
+                    proxy_config = {
+                        'server': f"{self.proxy.get('type', 'http')}://{self.proxy['host']}:{self.proxy['port']}"
+                    }
+                    if self.proxy.get('username'):
+                        proxy_config['username'] = self.proxy['username']
+                    if self.proxy.get('password'):
+                        proxy_config['password'] = self.proxy['password']
+                
+                browser = await playwright.chromium.launch(
+                    headless=self.headless,
+                    args=launch_args,
+                    proxy=proxy_config
                 )
                 
-        except Exception as e:
-            logger.error(f"Registration error: {e}")
-            return RegistrationResult(
-                success=False,
-                email=temp_email.email,
-                error=str(e),
-            )
+                context = await browser.new_context(
+                    viewport={'width': 1920, 'height': 1080},
+                    locale='ru-RU',
+                    timezone_id='Europe/Moscow',
+                )
+                
+                page = await context.new_page()
+                
+                try:
+                    # Навигация на страницу регистрации
+                    await page.goto(self.DEEPSEEK_SIGNUP_URL, wait_until='networkidle', timeout=30000)
+                    await asyncio.sleep(random.uniform(2, 4))
+                    
+                    # Поиск полей регистрации
+                    email_input = None
+                    for selector in [
+                        'input[type="email"]',
+                        'input[name="email"]',
+                        'input[placeholder*="email"]',
+                    ]:
+                        try:
+                            email_input = await page.wait_for_selector(selector, timeout=5000)
+                            if email_input:
+                                break
+                        except:
+                            continue
+                    
+                    if not email_input:
+                        logger.warning("Email input not found, trying login page")
+                        await page.goto(self.DEEPSEEK_LOGIN_URL, wait_until='networkidle')
+                        await asyncio.sleep(2)
+                        
+                        # Ищем ссылку на регистрацию
+                        signup_link = await page.query_selector('a:has-text("Sign up"), a:has-text("Регистрация")')
+                        if signup_link:
+                            await signup_link.click()
+                            await asyncio.sleep(2)
+                        
+                        # Пробуем снова найти поле email
+                        for selector in ['input[type="email"]', 'input[name="email"]']:
+                            try:
+                                email_input = await page.wait_for_selector(selector, timeout=3000)
+                                if email_input:
+                                    break
+                            except:
+                                continue
+                    
+                    if not email_input:
+                        logger.error("Could not find email input")
+                        continue
+                    
+                    # Заполнение формы
+                    await email_input.fill(temp_email)
+                    await asyncio.sleep(random.uniform(0.5, 1.5))
+                    
+                    # Поиск поля пароля
+                    password_input = None
+                    for selector in [
+                        'input[type="password"]',
+                        'input[name="password"]',
+                    ]:
+                        try:
+                            password_input = await page.wait_for_selector(selector, timeout=3000)
+                            if password_input:
+                                break
+                        except:
+                            continue
+                    
+                    if password_input:
+                        await password_input.fill(password)
+                        await asyncio.sleep(random.uniform(0.5, 1.5))
+                    
+                    # Поиск кнопки регистрации
+                    signup_btn = None
+                    for selector in [
+                        'button[type="submit"]',
+                        'button:has-text("Sign up")',
+                        'button:has-text("Зарегистрироваться")',
+                        'button:has-text("Continue")',
+                    ]:
+                        try:
+                            signup_btn = await page.query_selector(selector)
+                            if signup_btn:
+                                break
+                        except:
+                            continue
+                    
+                    if signup_btn:
+                        await signup_btn.click()
+                    else:
+                        await page.keyboard.press('Enter')
+                    
+                    logger.info("Submitted registration form")
+                    
+                    # Ожидание подтверждения email
+                    await asyncio.sleep(5)
+                    
+                    # Проверяем, нужно ли подтверждение email
+                    verification_required = await page.query_selector('text=verification, text=confirm, text=verify')
+                    
+                    if verification_required:
+                        logger.info("Email verification required, waiting for code...")
+                        
+                        # Ожидание письма с кодом
+                        message = await self.mail_service.wait_for_message(
+                            from_filter='deepseek',
+                            subject_filter='verification',
+                            timeout=300
+                        )
+                        
+                        if message:
+                            logger.info(f"Received email: {message.subject}")
+                            
+                            # Извлечение кода из письма
+                            code = self._extract_verification_code(message.body)
+                            
+                            if code:
+                                # Ввод кода
+                                code_input = None
+                                for selector in [
+                                    'input[type="text"]',
+                                    'input[name="code"]',
+                                    'input[placeholder*="code"]',
+                                ]:
+                                    try:
+                                        code_input = await page.wait_for_selector(selector, timeout=3000)
+                                        if code_input:
+                                            break
+                                    except:
+                                        continue
+                                
+                                if code_input:
+                                    await code_input.fill(code)
+                                    await asyncio.sleep(1)
+                                    
+                                    # Подтверждение
+                                    confirm_btn = await page.query_selector('button[type="submit"]')
+                                    if confirm_btn:
+                                        await confirm_btn.click()
+                    
+                    # Проверка успешной регистрации
+                    await asyncio.sleep(5)
+                    current_url = page.url
+                    
+                    if 'chat' in current_url or 'chat.deepseek.com' in current_url:
+                        logger.info(f"Registration successful: {temp_email}")
+                        
+                        return {
+                            'email': temp_email,
+                            'password': password,
+                            'status': 'active',
+                            'created_at': datetime.now().isoformat()
+                        }
+                    
+                    # Проверка на ошибки
+                    error_el = await page.query_selector('.error, .alert-error, [role="alert"]')
+                    if error_el:
+                        error_text = await error_el.text_content()
+                        logger.error(f"Registration error: {error_text}")
+                    
+                finally:
+                    await browser.close()
+                    await playwright.stop()
+                
+            except Exception as e:
+                logger.error(f"Registration attempt {attempt + 1} failed: {e}")
+                await asyncio.sleep(5)
+        
+        return None
     
-    def _extract_verification_code(self, email: Dict[str, Any]) -> Optional[str]:
-        """Extract verification code from email"""
-        import re
-        
-        # Try to find 6-digit code
-        content = email.get('mail_body') or email.get('body') or email.get('text', '')
-        
-        # Look for 6-digit code
-        match = re.search(r'\b(\d{6})\b', content)
-        if match:
-            return match.group(1)
-        
-        # Look for alphanumeric code
-        match = re.search(r'\b([A-Z0-9]{6,10})\b', content)
-        if match:
-            return match.group(1)
-        
-        # Look for code in common formats
+    def _extract_verification_code(self, text: str) -> Optional[str]:
+        """Извлечение кода подтверждения из текста"""
+        # Ищем 4-6 значный код
         patterns = [
-            r'verification code[:\s]+(\S+)',
-            r'code[:\s]+(\S+)',
-            r'код[:\s]+(\S+)',
+            r'код[:\s]+(\d{4,6})',
+            r'code[:\s]+(\d{4,6})',
+            r'(\d{6})',
+            r'(\d{4})',
         ]
         
         for pattern in patterns:
-            match = re.search(pattern, content, re.IGNORECASE)
+            match = re.search(pattern, text, re.IGNORECASE)
             if match:
                 return match.group(1)
         
         return None
+
+
+class AutoRegisterManager:
+    """
+    Менеджер авто-регистрации аккаунтов.
+    Управляет созданием новых аккаунтов при необходимости.
+    """
     
-    async def register_batch(
+    def __init__(
         self,
-        count: int,
-        proxy_list: Optional[List[Dict[str, Any]]] = None,
-    ) -> List[RegistrationResult]:
-        """Register multiple accounts"""
-        results = []
+        pool,
+        min_accounts: int = 5,
+        max_accounts: int = 50,
+        headless: bool = True
+    ):
+        self.pool = pool
+        self.min_accounts = min_accounts
+        self.max_accounts = max_accounts
+        self.headless = headless
+        self._running = False
+    
+    async def start_monitoring(self, check_interval: int = 300) -> None:
+        """Запуск мониторинга и авто-регистрации"""
+        self._running = True
+        
+        while self._running:
+            try:
+                # Проверка количества активных аккаунтов
+                active_count = len(self.pool.get_available_accounts())
+                
+                if active_count < self.min_accounts:
+                    needed = self.min_accounts - active_count
+                    logger.info(f"Auto-registering {needed} new accounts")
+                    
+                    await self.register_batch(needed)
+                
+            except Exception as e:
+                logger.error(f"Auto-register monitoring error: {e}")
+            
+            await asyncio.sleep(check_interval)
+    
+    async def stop_monitoring(self) -> None:
+        """Остановка мониторинга"""
+        self._running = False
+    
+    async def register_batch(self, count: int) -> int:
+        """Регистрация нескольких аккаунтов"""
+        registered = 0
         
         for i in range(count):
-            proxy = proxy_list[i % len(proxy_list)] if proxy_list else None
+            if len(self.pool.accounts) >= self.max_accounts:
+                logger.info("Max accounts limit reached")
+                break
             
-            result = await self.register_account(proxy=proxy)
-            results.append(result)
+            auto_reg = DeepSeekAutoRegister(headless=self.headless)
+            result = await auto_reg.register_account()
             
-            if result.success:
-                # Delay between successful registrations
-                await asyncio.sleep(random.uniform(60, 120))
-            else:
-                # Shorter delay on failure
-                await asyncio.sleep(random.uniform(10, 30))
+            if result:
+                # Добавление в пул
+                account_id = self.pool.add_account(
+                    email=result['email'],
+                    password=result['password']
+                )
+                
+                if account_id:
+                    registered += 1
+                    logger.info(f"Auto-registered account {registered}/{count}: {result['email']}")
+            
+            # Задержка между регистрациями
+            await asyncio.sleep(random.uniform(30, 60))
         
-        return results
+        return registered
     
-    async def close(self):
-        """Close mail service"""
-        if self._mail_service:
-            await self._mail_service.close()
+    async def close(self) -> None:
+        """Закрытие ресурсов"""
+        self._running = False

@@ -1,178 +1,163 @@
 """
-FastAPI HTTP Server for DeepSeek Free Service
-Provides REST API endpoints for the main application
+FastAPI HTTP Server for DeepSeek Free Module
+HTTP API на порту 8765 для интеграции с МУКН Трафик
+
+МУКН | Трафик - Enterprise AI-powered Telegram Automation Platform
 """
 
 import asyncio
+import json
 import time
-from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Optional, Dict, Any, List
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Body
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from loguru import logger
 
-from core import (
-    DeepSeekAccount,
-    DeepSeekPool,
-    LoadBalancer,
-    MultiLevelCache,
-    SmartQueue,
-    RequestPriority,
-    AutoRegistrar,
-    TempMailProvider,
-    SelfHealingManager,
-    HealthChecker,
-)
-from core.utils import load_config, setup_logging
+from .account_pool import AccountPool, LoadBalancer
+from .cache import MultiLevelCache, CachePrefetcher
+from .self_healing import SelfHealingEngine, ProxyRotator, UserAgentRotator, HealthMonitor
+from .auto_register import AutoRegisterManager
 
 
-# ==================== PYDANTIC MODELS ====================
-
+# Pydantic models
 class AskRequest(BaseModel):
-    """Request model for /ask endpoint"""
-    prompt: str = Field(..., min_length=1, max_length=32000)
-    user_id: str = Field(default="default")
-    context_type: Optional[str] = None
-    context_data: Optional[Dict[str, Any]] = None
-    priority: int = Field(default=5, ge=1, le=15)
-    skip_cache: bool = False
-    timeout: int = Field(default=120, ge=10, le=600)
+    """Запрос к AI"""
+    prompt: str = Field(..., description="Текст запроса")
+    timeout: int = Field(120, description="Таймаут в секундах")
+    replication: Optional[int] = Field(None, description="Количество реплик")
+    priority: int = Field(0, description="Приоритет запроса")
 
 
 class GenerateCommentRequest(BaseModel):
-    """Request model for /generate_comment endpoint"""
-    post_text: str
-    offer_type: str
-    style: str = Field(default="casual")
-    user_id: str = Field(default="default")
-
-
-class AnalyzeChannelRequest(BaseModel):
-    """Request model for /analyze_channel endpoint"""
-    channel_posts: List[str]
-    user_id: str = Field(default="default")
+    """Генерация комментария"""
+    post_content: str = Field(..., description="Содержимое поста")
+    offer_info: str = Field(..., description="Информация об оффере")
+    niche: str = Field("lifestyle", description="Ниша")
+    style: str = Field("casual", description="Стиль")
 
 
 class AnalyzeRiskRequest(BaseModel):
-    """Request model for /analyze_risk endpoint"""
-    offer_theme: str
-    promotion_method: str
-    user_id: str = Field(default="default")
+    """Анализ юридических рисков"""
+    scheme_description: str = Field(..., description="Описание схемы")
+
+
+class AnalyzeChannelRequest(BaseModel):
+    """Анализ канала"""
+    posts: List[str] = Field(..., description="Список постов")
 
 
 class AddAccountRequest(BaseModel):
-    """Request model for adding account"""
-    email: str
-    password: str
-    proxy: Optional[Dict[str, Any]] = None
-    auto_init: bool = True
+    """Добавление аккаунта"""
+    email: str = Field(..., description="Email")
+    password: str = Field(..., description="Пароль")
+    proxy: Optional[Dict[str, Any]] = Field(None, description="Прокси")
 
 
-class RegisterAccountRequest(BaseModel):
-    """Request model for auto-registration"""
-    count: int = Field(default=1, ge=1, le=10)
-    proxy_list: Optional[List[Dict[str, Any]]] = None
+class ApiResponse(BaseModel):
+    """Стандартный ответ API"""
+    success: bool
+    data: Optional[Any] = None
+    error: Optional[str] = None
+    response_time: float
 
 
-class CacheClearRequest(BaseModel):
-    """Request model for clearing cache"""
-    all: bool = False
-    prompt: Optional[str] = None
-
-
-# ==================== GLOBAL STATE ====================
-
-# Initialize state
-pool: Optional[DeepSeekPool] = None
+# Global state
+pool: Optional[AccountPool] = None
 cache: Optional[MultiLevelCache] = None
-queue: Optional[SmartQueue] = None
-registrar: Optional[AutoRegistrar] = None
-healing_manager: Optional[SelfHealingManager] = None
-config: Dict[str, Any] = {}
+load_balancer: Optional[LoadBalancer] = None
+healing_engine: Optional[SelfHealingEngine] = None
+auto_register: Optional[AutoRegisterManager] = None
+health_monitor: Optional[HealthMonitor] = None
+prefetcher: Optional[CachePrefetcher] = None
 
-
-# ==================== LIFESPAN ====================
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan manager"""
-    global pool, cache, queue, registrar, healing_manager, config
+    """Управление жизненным циклом приложения"""
+    global pool, cache, load_balancer, healing_engine, auto_register, health_monitor, prefetcher
     
-    # Load config
-    config = load_config()
+    logger.info("Starting DeepSeek Free Module...")
     
-    # Setup logging
-    log_level = config.get('log_level', 'INFO')
-    log_file = config.get('log_file', './logs/deepseek-free.log')
-    setup_logging(log_level, log_file)
-    
-    logger.info("Starting DeepSeek Free Service...")
-    
-    # Initialize components
-    cache_config = config.get('cache', {})
+    # Инициализация компонентов
     cache = MultiLevelCache(
-        l1_size=cache_config.get('l1_size', 1000),
-        l2_path=cache_config.get('l2_path', './data/cache.db'),
-        l3_dir=cache_config.get('l3_dir', './data/cache_l3'),
-        enable_semantic_search=cache_config.get('semantic_search', True),
+        semantic_enabled=True,
+        semantic_threshold=0.95
+    )
+    await cache.initialize()
+    
+    pool = AccountPool(
+        db_path="data/accounts.db",
+        max_parallel_browsers=20,
+        replication_factor=3,
+        rotation_strategy="least_requests"
+    )
+    pool.load_accounts()
+    
+    # Инициализация аккаунтов (первые 5)
+    await pool.initialize_accounts(max_parallel=5)
+    
+    # Proxy и UA ротаторы
+    proxy_rotator = ProxyRotator(proxy_file="proxies.txt")
+    ua_rotator = UserAgentRotator(user_agent_file="user_agents.txt")
+    
+    # Self-healing
+    healing_engine = SelfHealingEngine(
+        proxy_rotator=proxy_rotator,
+        ua_rotator=ua_rotator,
+        health_check_interval=30
+    )
+    healing_engine.set_accounts(pool.accounts)
+    
+    # Запуск self-healing в фоне
+    asyncio.create_task(healing_engine.start())
+    
+    # Load balancer
+    load_balancer = LoadBalancer(pool)
+    await load_balancer.start(worker_count=5)
+    
+    # Auto-register
+    auto_register = AutoRegisterManager(
+        pool=pool,
+        min_accounts=5,
+        max_accounts=50
     )
     
-    pool_config = config.get('pool', {})
-    pool = DeepSeekPool(
-        load_balancer=LoadBalancer(pool_config.get('strategy', 'least_used')),
-        max_concurrent_requests=pool_config.get('max_concurrent', 20),
-        replication_factor=pool_config.get('replication_factor', 1),
-    )
+    # Health monitor
+    health_monitor = HealthMonitor(pool, cache, healing_engine)
     
-    queue_config = config.get('queue', {})
-    queue = SmartQueue(
-        max_concurrent=queue_config.get('max_concurrent', 20),
-        min_delay=queue_config.get('min_delay', 5.0),
-        max_delay=queue_config.get('max_delay', 15.0),
-    )
+    # Prefetcher
+    prefetcher = CachePrefetcher(cache)
     
-    registrar = AutoRegistrar(
-        mail_provider=TempMailProvider(config.get('temp_mail_provider', 'temp-mail.org')),
-        headless=config.get('headless', True),
-    )
-    
-    healing_manager = SelfHealingManager(
-        health_checker=HealthChecker(),
-        auto_heal_enabled=config.get('auto_heal', True),
-    )
-    
-    # Load existing accounts from database
-    await load_accounts()
-    
-    # Start health monitoring
-    await healing_manager.start_monitoring(pool.accounts)
-    
-    logger.info("DeepSeek Free Service started")
+    logger.info("DeepSeek Free Module started successfully")
     
     yield
     
     # Cleanup
-    logger.info("Shutting down DeepSeek Free Service...")
+    logger.info("Shutting down DeepSeek Free Module...")
     
-    await healing_manager.stop_monitoring()
-    await pool.close_all()
-    await cache.close()
-    await registrar.close()
+    if load_balancer:
+        await load_balancer.stop()
     
-    logger.info("DeepSeek Free Service stopped")
+    if healing_engine:
+        await healing_engine.stop()
+    
+    if pool:
+        await pool.close_all()
+    
+    logger.info("DeepSeek Free Module stopped")
 
 
-# ==================== APP ====================
-
+# Create app
 app = FastAPI(
-    title="DeepSeek Free Service",
-    description="Industrial-grade free DeepSeek access via browser automation",
+    title="DeepSeek Free Module",
+    description="Self-healing, multi-threaded module for unlimited free DeepSeek access",
     version="2.0.0",
-    lifespan=lifespan,
+    lifespan=lifespan
 )
 
 # CORS
@@ -185,296 +170,294 @@ app.add_middleware(
 )
 
 
-# ==================== ENDPOINTS ====================
+# ==================== MAIN ENDPOINTS ====================
 
-@app.get("/")
-async def root():
-    """Root endpoint"""
-    return {
-        "service": "DeepSeek Free",
-        "version": "2.0.0",
-        "status": "running",
-        "timestamp": datetime.now().isoformat(),
-    }
-
-
-@app.get("/health")
-async def health():
-    """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "pool_accounts": len(pool.accounts) if pool else 0,
-        "cache_size": (await cache.l2.get_stats())['size'] if cache else 0,
-        "queue_size": len(queue._pending) if queue else 0,
-    }
-
-
-# ==================== MAIN API ====================
-
-@app.post("/ask")
+@app.post("/ask", response_model=ApiResponse)
 async def ask(request: AskRequest):
     """
-    Send prompt to DeepSeek and get response.
-    
-    Features:
-    - Automatic cache lookup
-    - Load balancing across accounts
-    - Request queuing when at capacity
+    Универсальный метод для любых задач.
+    Отправляет запрос через пул аккаунтов с репликацией.
     """
     start_time = time.time()
     
-    # Check cache first
-    if not request.skip_cache:
+    try:
+        # Сначала проверяем кэш
         cached = await cache.get(request.prompt)
         if cached:
-            response, is_semantic = cached
-            return {
-                "success": True,
-                "response": response,
-                "from_cache": True,
-                "semantic_match": is_semantic,
-                "response_time": time.time() - start_time,
-            }
-    
-    # Send request
-    result = await pool.ask(
-        prompt=request.prompt,
-        timeout=request.timeout,
-    )
-    
-    # Cache successful response
-    if result.get('success') and not request.skip_cache:
-        await cache.set(
+            return ApiResponse(
+                success=True,
+                data={
+                    'response': cached,
+                    'from_cache': True
+                },
+                response_time=time.time() - start_time
+            )
+        
+        # Отправляем через пул
+        result = await pool.ask(
             prompt=request.prompt,
-            response=result['response'],
-            response_time=result.get('response_time'),
+            replication=request.replication,
+            timeout=request.timeout
+        )
+        
+        # Сохраняем в кэш при успехе
+        if result.get('success') and result.get('response'):
+            await cache.set(request.prompt, result['response'])
+        
+        # Записываем для prefetcher
+        if prefetcher:
+            prefetcher.record_query(request.prompt)
+        
+        return ApiResponse(
+            success=result.get('success', False),
+            data=result,
+            error=result.get('error'),
+            response_time=time.time() - start_time
         )
     
-    return result
+    except Exception as e:
+        logger.error(f"/ask error: {e}")
+        return ApiResponse(
+            success=False,
+            error=str(e),
+            response_time=time.time() - start_time
+        )
 
 
-@app.post("/generate_comment")
+@app.post("/generate_comment", response_model=ApiResponse)
 async def generate_comment(request: GenerateCommentRequest):
     """
-    Generate spam comment for post.
-    
-    Specialized prompt for comment generation with style adaptation.
+    Генерация спам-комментария под пост.
+    Анализирует стиль и адаптирует комментарий.
     """
-    prompt = f"""Ты — активный пользователь Telegram. Напиши естественный комментарий под постом.
+    start_time = time.time()
+    
+    # Формирование промпта
+    prompt = f"""Создай комментарий для поста в Telegram канале.
 
-Пост: "{request.post_text}"
+Пост:
+{request.post_content}
 
-Тема: {request.offer_type}
+Оффер/продукт:
+{request.offer_info}
+
+Ниша: {request.niche}
 Стиль: {request.style}
 
 Требования:
-- Комментарий должен выглядеть как от реального человека
-- 1-2 предложения
-- Без явной рекламы
-- Естественный язык
+- Естественный, живой язык
+- Не более 50 слов
+- Вовлекающий, вызывает желание узнать больше
+- Умеренное использование эмодзи (2-3 шт)
+- Соответствует стилю ниши
 
-Напиши только комментарий, без пояснений."""
+Верни только текст комментария."""
+
+    try:
+        result = await pool.ask(prompt)
+        
+        return ApiResponse(
+            success=result.get('success', False),
+            data={
+                'comment': result.get('response'),
+                'niche': request.niche,
+                'style': request.style
+            },
+            error=result.get('error'),
+            response_time=time.time() - start_time
+        )
     
-    result = await pool.ask(prompt)
-    
-    return {
-        **result,
-        "comment": result.get('response', ''),
-    }
+    except Exception as e:
+        return ApiResponse(
+            success=False,
+            error=str(e),
+            response_time=time.time() - start_time
+        )
 
 
-@app.post("/analyze_channel")
-async def analyze_channel(request: AnalyzeChannelRequest):
-    """
-    Analyze Telegram channel.
-    
-    Determines theme, tone, audience, and moderation level.
-    """
-    posts_text = "\n---\n".join(request.channel_posts[:5])
-    
-    prompt = f"""Проанализируй Telegram-канал по последним постам:
-
-{posts_text}
-
-Определи:
-1. Тема канала (крипта/юмор/отношения/бизнес)
-2. Тон общения (дерзкий/дружеский/экспертный)
-3. Наличие модерации (да/нет/вероятно)
-4. Аудитория (возраст, интересы)
-
-Ответь строго в формате JSON."""
-    
-    result = await pool.ask(prompt)
-    
-    return {
-        **result,
-        "analysis": result.get('response', ''),
-    }
-
-
-@app.post("/analyze_risk")
+@app.post("/analyze_risk", response_model=ApiResponse)
 async def analyze_risk(request: AnalyzeRiskRequest):
     """
-    Analyze legal risks of promotion scheme.
-    
-    Returns risk level and potential legal issues.
+    Анализ юридических рисков схемы.
+    Возвращает JSON с оценкой рисков.
     """
-    prompt = f"""Оцени юридические риски следующей рекламной схемы в Telegram:
-
-Тема оффера: {request.offer_theme}
-Способ привлечения: {request.promotion_method}
-
-Ответь строго в формате JSON:
-{{
-  "risk_level": "зеленый/желтый/красный",
-  "possible_articles": ["ст. 159 УК РФ", "..."],
-  "warning_text": "Короткое предупреждение",
-  "recommendation": "Что добавить для снижения риска"
-}}"""
+    start_time = time.time()
     
-    result = await pool.ask(prompt)
+    prompt = f"""Проанализируй юридические риски следующей схемы заработка.
+Верни результат в формате JSON с полями:
+- risk_level: "low" | "medium" | "high" | "critical"
+- legal_issues: список юридических проблем
+- recommendations: рекомендации по снижению рисков
+- summary: краткое резюме
+
+Схема:
+{request.scheme_description}
+
+Верни только валидный JSON."""
+
+    try:
+        result = await pool.ask(prompt)
+        
+        response_data = {
+            'analysis': result.get('response'),
+            'raw': result.get('response')
+        }
+        
+        # Попытка распарсить JSON
+        try:
+            if result.get('response'):
+                # Извлечение JSON из ответа
+                response_text = result['response']
+                import re
+                json_match = re.search(r'\{[\s\S]*\}', response_text)
+                if json_match:
+                    response_data['parsed'] = json.loads(json_match.group())
+        except:
+            pass
+        
+        return ApiResponse(
+            success=result.get('success', False),
+            data=response_data,
+            error=result.get('error'),
+            response_time=time.time() - start_time
+        )
     
-    return {
-        **result,
-        "risk_analysis": result.get('response', ''),
-    }
+    except Exception as e:
+        return ApiResponse(
+            success=False,
+            error=str(e),
+            response_time=time.time() - start_time
+        )
 
 
-@app.post("/batch")
-async def batch_ask(
-    prompts: List[str] = Body(...),
-    max_concurrent: int = Query(default=10, ge=1, le=50),
-):
+@app.post("/analyze_channel", response_model=ApiResponse)
+async def analyze_channel(request: AnalyzeChannelRequest):
     """
-    Process multiple prompts in parallel.
-    
-    Efficient batch processing with concurrency control.
+    Анализ канала по постам.
+    Возвращает JSON с характеристиками канала.
     """
-    results = await pool.batch_ask(prompts, max_concurrent=max_concurrent)
+    start_time = time.time()
     
-    success_count = sum(1 for r in results if r.get('success'))
+    posts_text = "\n\n---\n\n".join(request.posts[:10])  # Максимум 10 постов
     
-    return {
-        "total": len(prompts),
-        "successful": success_count,
-        "failed": len(prompts) - success_count,
-        "results": results,
-    }
+    prompt = f"""Проанализируй Telegram канал по следующим постам.
+Верни результат в формате JSON с полями:
+- niche: ниша канала
+- audience_type: тип аудитории
+- engagement_level: "low" | "medium" | "high"
+- content_style: стиль контента
+- posting_frequency: оценка частоты постинга
+- monetization_potential: потенциал монетизации (1-10)
+- recommendations: рекомендации для работы с каналом
+- summary: краткое резюме
 
+Посты:
+{posts_text}
 
-# ==================== QUEUE API ====================
+Верни только валидный JSON."""
 
-@app.post("/queue/enqueue")
-async def queue_enqueue(request: AskRequest):
-    """Add request to queue for async processing"""
-    item = await queue.enqueue(
-        prompt=request.prompt,
-        priority=request.priority,
-        context_type=request.context_type,
-        context_data=request.context_data,
-    )
+    try:
+        result = await pool.ask(prompt)
+        
+        return ApiResponse(
+            success=result.get('success', False),
+            data={
+                'analysis': result.get('response'),
+                'posts_analyzed': len(request.posts)
+            },
+            error=result.get('error'),
+            response_time=time.time() - start_time
+        )
     
-    return {
-        "success": True,
-        "queue_id": item.id,
-        "position": len(queue._pending),
-    }
-
-
-@app.get("/queue/status/{queue_id}")
-async def queue_status(queue_id: str):
-    """Get queue item status"""
-    status = await queue.get_status(queue_id)
-    
-    if not status:
-        raise HTTPException(status_code=404, detail="Queue item not found")
-    
-    return status
-
-
-@app.get("/queue/stats")
-async def queue_stats():
-    """Get queue statistics"""
-    return queue.get_stats()..__dict__
+    except Exception as e:
+        return ApiResponse(
+            success=False,
+            error=str(e),
+            response_time=time.time() - start_time
+        )
 
 
 # ==================== ACCOUNT MANAGEMENT ====================
 
-@app.get("/accounts")
+@app.post("/accounts/add", response_model=ApiResponse)
+async def add_account(request: AddAccountRequest):
+    """Добавление аккаунта в пул"""
+    try:
+        account_id = pool.add_account(
+            email=request.email,
+            password=request.password,
+            proxy=request.proxy
+        )
+        
+        if account_id:
+            # Инициализация нового аккаунта
+            account = pool.accounts[account_id]
+            init_success = await account.initialize()
+            
+            return ApiResponse(
+                success=True,
+                data={
+                    'account_id': account_id,
+                    'initialized': init_success,
+                    'status': account.status.value
+                },
+                response_time=0
+            )
+        
+        return ApiResponse(
+            success=False,
+            error="Failed to add account",
+            response_time=0
+        )
+    
+    except Exception as e:
+        return ApiResponse(
+            success=False,
+            error=str(e),
+            response_time=0
+        )
+
+
+@app.get("/accounts/list")
 async def list_accounts():
-    """List all accounts"""
+    """Список всех аккаунтов"""
     accounts = []
     
-    for acc_id, acc in pool.accounts.items():
-        accounts.append(acc.get_stats())
+    for account in pool.accounts.values():
+        accounts.append(account.get_stats())
     
     return {
-        "total": len(accounts),
-        "accounts": accounts,
+        'total': len(accounts),
+        'accounts': accounts
     }
 
 
-@app.post("/accounts")
-async def add_account(request: AddAccountRequest):
-    """Add new account to pool"""
-    try:
-        account = await pool.add_account(
-            account_id=f"acc_{int(time.time())}_{len(pool.accounts)}",
-            email=request.email,
-            password=request.password,
-            proxy=request.proxy,
-            auto_init=request.auto_init,
-        )
-        
-        return {
-            "success": True,
-            "account_id": account.account_id,
-            "status": account.status.value,
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@app.get("/accounts/stats")
+async def accounts_stats():
+    """Статистика пула аккаунтов"""
+    return pool.get_stats()
 
 
 @app.delete("/accounts/{account_id}")
 async def remove_account(account_id: str):
-    """Remove account from pool"""
-    if account_id not in pool.accounts:
-        raise HTTPException(status_code=404, detail="Account not found")
-    
-    await pool.remove_account(account_id)
-    
-    return {"success": True, "message": f"Account {account_id} removed"}
-
-
-@app.post("/accounts/register")
-async def register_accounts(request: RegisterAccountRequest):
-    """Auto-register new accounts via temp mail"""
-    results = await registrar.register_batch(
-        count=request.count,
-        proxy_list=request.proxy_list,
-    )
-    
-    # Add successful registrations to pool
-    for result in results:
-        if result.success:
-            await pool.add_account(
-                account_id=f"auto_{int(time.time())}_{result.email[:8]}",
-                email=result.email,
-                password=result.password,
-            )
+    """Удаление аккаунта"""
+    success = pool.remove_account(account_id)
     
     return {
-        "total": len(results),
-        "successful": sum(1 for r in results if r.success),
-        "results": [
-            {
-                "email": r.email,
-                "success": r.success,
-                "error": r.error,
-            }
-            for r in results
-        ],
+        'success': success,
+        'account_id': account_id
+    }
+
+
+@app.post("/accounts/auto-register")
+async def auto_register_accounts(count: int = 5):
+    """Автоматическая регистрация новых аккаунтов"""
+    registered = await auto_register.register_batch(count)
+    
+    return {
+        'success': True,
+        'registered': registered,
+        'requested': count
     }
 
 
@@ -482,111 +465,128 @@ async def register_accounts(request: RegisterAccountRequest):
 
 @app.get("/cache/stats")
 async def cache_stats():
-    """Get cache statistics"""
+    """Статистика кэша"""
     return cache.get_stats()
 
 
-@app.delete("/cache")
-async def clear_cache(request: CacheClearRequest):
-    """Clear cache"""
-    if request.all:
-        count = await cache.clear()
-        return {"success": True, "message": f"Cleared {count} entries"}
-    
-    if request.prompt:
-        await cache.delete(request.prompt)
-        return {"success": True, "message": "Entry deleted"}
-    
-    raise HTTPException(status_code=400, detail="Specify 'all' or 'prompt'")
-
-
-@app.post("/cache/cleanup")
-async def cache_cleanup():
-    """Cleanup expired cache entries"""
-    result = await cache.cleanup()
-    return {"success": True, **result}
-
-
-# ==================== STATUS & MONITORING ====================
-
-@app.get("/status")
-async def get_status():
-    """Get full system status"""
-    pool_stats = pool.get_stats()
-    cache_stats = cache.get_stats()
-    queue_stats_s = queue.get_stats()
-    healing_stats = healing_manager.get_recovery_stats()
+@app.delete("/cache/clear")
+async def clear_cache():
+    """Очистка кэша"""
+    await cache.clear()
     
     return {
-        "pool": {
-            "total_accounts": pool_stats.total_accounts,
-            "active_accounts": pool_stats.active_accounts,
-            "rate_limited": pool_stats.rate_limited_accounts,
-            "banned": pool_stats.banned_accounts,
-            "errors": pool_stats.error_accounts,
-            "requests_today": pool_stats.total_requests_today,
-            "requests_hour": pool_stats.total_requests_hour,
-            "success_rate": pool_stats.success_rate,
-            "available_capacity": pool_stats.available_capacity,
-        },
-        "cache": cache_stats,
-        "queue": {
-            "pending": queue_stats_s.pending_items,
-            "processing": queue_stats_s.processing_items,
-            "completed": queue_stats_s.completed_items,
-            "failed": queue_stats_s.failed_items,
-            "avg_wait_time": queue_stats_s.avg_wait_time,
-            "throughput": queue_stats_s.throughput_per_minute,
-        },
-        "healing": healing_stats,
+        'success': True,
+        'message': 'Cache cleared'
     }
 
 
-@app.get("/metrics")
-async def get_metrics():
-    """Get metrics for monitoring"""
-    pool_stats = pool.get_stats()
+@app.post("/cache/prefetch")
+async def prefetch_cache(queries: List[str]):
+    """Прогрев кэша предсказанными запросами"""
+    cache.prefetch_warmup(queries)
     
     return {
-        "accounts_total": pool_stats.total_accounts,
-        "accounts_active": pool_stats.active_accounts,
-        "requests_today": pool_stats.total_requests_today,
-        "requests_hour": pool_stats.total_requests_hour,
-        "success_rate": pool_stats.success_rate,
-        "cache_hit_rate": cache.get_stats().get('hit_rate', 0),
-        "queue_size": len(queue._pending),
-        "available_capacity": pool_stats.available_capacity,
+        'success': True,
+        'queries_queued': len(queries)
     }
 
 
-# ==================== HELPERS ====================
+# ==================== HEALTH & MONITORING ====================
 
-async def load_accounts():
-    """Load accounts from database"""
-    # In production, load from Prisma/SQLite
-    # For now, load from config
-    accounts_config = config.get('accounts', [])
-    
-    for acc_config in accounts_config:
-        try:
-            await pool.add_account(
-                account_id=acc_config.get('id', f"loaded_{int(time.time())}"),
-                email=acc_config['email'],
-                password=acc_config['password'],
-                proxy=acc_config.get('proxy'),
-            )
-        except Exception as e:
-            logger.error(f"Failed to load account: {e}")
+@app.get("/health")
+async def health_check():
+    """Проверка здоровья системы"""
+    return await health_monitor.check_all()
 
 
-# ==================== MAIN ====================
+@app.get("/health/history")
+async def health_history(limit: int = 10):
+    """История проверок здоровья"""
+    return health_monitor.get_history(limit)
 
-if __name__ == "__main__":
+
+@app.get("/stats")
+async def full_stats():
+    """Полная статистика системы"""
+    return {
+        'timestamp': datetime.now().isoformat(),
+        'pool': pool.get_stats(),
+        'cache': cache.get_stats(),
+        'self_healing': healing_engine.get_recovery_stats() if healing_engine else None,
+        'load_balancer': {
+            'queue_size': load_balancer.get_queue_size() if load_balancer else 0
+        }
+    }
+
+
+# ==================== PROXY & USER-AGENT ====================
+
+@app.get("/proxy/stats")
+async def proxy_stats():
+    """Статистика прокси"""
+    if healing_engine:
+        return healing_engine.proxy_rotator.get_stats()
+    return {'error': 'Healing engine not initialized'}
+
+
+@app.post("/proxy/add")
+async def add_proxy(proxy: Dict[str, Any]):
+    """Добавление прокси"""
+    if healing_engine:
+        healing_engine.proxy_rotator.proxies.append(proxy)
+        return {'success': True}
+    return {'success': False, 'error': 'Healing engine not initialized'}
+
+
+@app.get("/user-agent/stats")
+async def user_agent_stats():
+    """Статистика User-Agent"""
+    if healing_engine:
+        return healing_engine.ua_rotator.get_stats()
+    return {'error': 'Healing engine not initialized'}
+
+
+# ==================== CONFIG ====================
+
+@app.get("/config")
+async def get_config():
+    """Текущая конфигурация"""
+    return {
+        'max_parallel_browsers': pool.max_parallel_browsers,
+        'replication_factor': pool.replication_factor,
+        'rotation_strategy': pool.rotation_strategy,
+        'semantic_search_enabled': cache.semantic_enabled,
+        'semantic_threshold': cache.semantic_threshold
+    }
+
+
+# Error handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            'success': False,
+            'error': str(exc),
+            'timestamp': datetime.now().isoformat()
+        }
+    )
+
+
+# Main entry point
+def run_server():
+    """Запуск HTTP сервера"""
     import uvicorn
     
     uvicorn.run(
-        "server:app",
+        "core.server:app",
         host="0.0.0.0",
         port=8765,
-        reload=True,
+        reload=False,
+        log_level="info"
     )
+
+
+if __name__ == "__main__":
+    run_server()

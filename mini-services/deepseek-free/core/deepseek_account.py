@@ -1,20 +1,23 @@
 """
-DeepSeek Account Manager with Playwright + Stealth
-Industrial-grade browser automation for free DeepSeek access
+DeepSeek Free Account Manager
+Менеджер одного аккаунта DeepSeek с Playwright + Stealth
+
+МУКН | Трафик - Enterprise AI-powered Telegram Automation Platform
 """
 
 import asyncio
 import random
 import time
-from enum import Enum
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
+from typing import Optional, Dict, Any, List
+from dataclasses import dataclass, field
+from enum import Enum
 from loguru import logger
+import hashlib
 
-# Playwright imports - REQUIRED (no mock mode)
+# Playwright imports
 try:
-    from playwright.async_api import async_playwright, Browser, Page, BrowserContext
+    from playwright.async_api import async_playwright, Browser, Page, BrowserContext, Playwright
     from playwright_stealth import stealth_async
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
@@ -27,21 +30,23 @@ except ImportError:
 
 
 class AccountStatus(str, Enum):
-    """Account status enum"""
+    """Статус аккаунта"""
     ACTIVE = "active"
     RATE_LIMITED = "rate_limited"
     BANNED = "banned"
     COOLDOWN = "cooldown"
     LOGIN_REQUIRED = "login_required"
     ERROR = "error"
+    INITIALIZING = "initializing"
 
 
 @dataclass
 class BrowserSession:
-    """Browser session data"""
-    browser: Any = None
-    context: Any = None
-    page: Any = None
+    """Сессия браузера"""
+    browser: Optional[Browser] = None
+    context: Optional[BrowserContext] = None
+    page: Optional[Page] = None
+    playwright: Optional[Playwright] = None
     last_activity: datetime = field(default_factory=datetime.now)
     request_count: int = 0
     is_ready: bool = False
@@ -49,7 +54,7 @@ class BrowserSession:
 
 @dataclass
 class HumanBehaviorConfig:
-    """Human behavior simulation config"""
+    """Конфигурация симуляции человеческого поведения"""
     typing_speed_min: int = 50  # ms per char
     typing_speed_max: int = 150
     reading_speed_wpm: int = 200  # words per minute
@@ -62,57 +67,65 @@ class HumanBehaviorConfig:
 
 @dataclass
 class RateLimitConfig:
-    """Rate limiting config"""
+    """Конфигурация rate limiting"""
     max_requests_per_hour: int = 25
     max_requests_per_day: int = 200
-    min_delay_between_requests: float = 5.0  # seconds
+    min_delay_between_requests: float = 5.0  # секунд
     max_delay_between_requests: float = 15.0
     backoff_multiplier: float = 1.5
     max_backoff: float = 60.0
+    cooldown_after_limit: float = 300.0  # 5 минут
 
 
 class DeepSeekAccount:
     """
-    Single DeepSeek account manager with browser automation.
+    Менеджер одного аккаунта DeepSeek с браузерной автоматизацией.
     
     Features:
-    - Playwright + Stealth for undetected browsing
-    - Human behavior simulation
-    - Rate limiting with backoff
-    - Session management
-    - Self-healing capabilities
+    - Playwright + Stealth для маскировки
+    - Симуляция человеческого поведения
+    - Rate limiting с backoff
+    - Self-healing
+    - Прокси и User-Agent ротация
     """
     
     DEEPSEEK_CHAT_URL = "https://chat.deepseek.com"
     DEEPSEEK_LOGIN_URL = "https://chat.deepseek.com/login"
     
-    # DeepSeek selectors (may need updates if site changes)
+    # Селекторы DeepSeek (могут требовать обновления)
     SELECTORS = {
-        'chat_input': 'textarea[placeholder*="message"], textarea[aria-label*="message"], div[contenteditable="true"]',
-        'send_button': 'button[type="submit"], button[aria-label*="send"]',
-        'response_container': '.markdown-body, .response-content, [data-testid="response"]',
-        'login_email': 'input[type="email"], input[name="email"]',
+        'chat_input': 'textarea[placeholder*="message"], textarea[aria-label*="message"], div[contenteditable="true"], textarea',
+        'send_button': 'button[type="submit"], button[aria-label*="send"], button:has-text("Send")',
+        'response_container': '.markdown-body, .response-content, [data-testid="response"], .prose, .message-content',
+        'login_email': 'input[type="email"], input[name="email"], input[placeholder*="email"]',
         'login_password': 'input[type="password"], input[name="password"]',
-        'login_button': 'button[type="submit"], button:has-text("Login"), button:has-text("Sign in")',
+        'login_button': 'button[type="submit"], button:has-text("Login"), button:has-text("Sign in"), button:has-text("Войти")',
         'error_message': '.error-message, .alert-error, [role="alert"]',
         'rate_limit_message': '.rate-limit, .quota-exceeded',
-        'captcha': '.captcha, .g-recaptcha, iframe[src*="captcha"]',
+        'captcha': '.g-recaptcha, .h-captcha, iframe[src*="captcha"]',
+        'new_chat_button': 'button:has-text("New chat"), button:has-text("Новый чат")',
+        'sidebar': '.sidebar, nav, aside',
+        'user_menu': '.user-menu, .avatar, [data-testid="user-menu"]',
     }
     
-    # User agents pool
+    # Пул User-Agent
     USER_AGENTS = [
-        # Chrome on Windows
+        # Chrome на Windows
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-        # Chrome on Mac
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        # Chrome на Mac
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-        # Firefox on Windows
+        # Firefox на Windows
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
-        # Firefox on Mac
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0",
+        # Firefox на Mac
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0",
         # Edge
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+        # Safari на Mac
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
     ]
     
     def __init__(
@@ -122,6 +135,7 @@ class DeepSeekAccount:
         password: str,
         proxy: Optional[Dict[str, Any]] = None,
         headless: bool = True,
+        user_agent: Optional[str] = None,
         behavior_config: Optional[HumanBehaviorConfig] = None,
         rate_limit_config: Optional[RateLimitConfig] = None,
     ):
@@ -131,12 +145,15 @@ class DeepSeekAccount:
         self.proxy = proxy
         self.headless = headless
         
-        # Configs
+        # User-Agent
+        self.user_agent = user_agent or random.choice(self.USER_AGENTS)
+        
+        # Конфигурации
         self.behavior_config = behavior_config or HumanBehaviorConfig()
         self.rate_limit_config = rate_limit_config or RateLimitConfig()
         
-        # State
-        self.status = AccountStatus.ACTIVE
+        # Состояние
+        self.status = AccountStatus.INITIALIZING
         self.session: Optional[BrowserSession] = None
         self.request_times: List[datetime] = []
         self.last_error: Optional[str] = None
@@ -144,13 +161,15 @@ class DeepSeekAccount:
         self.total_requests: int = 0
         self.successful_requests: int = 0
         self.created_at = datetime.now()
-        self.user_agent = random.choice(self.USER_AGENTS)
         
         # Playwright
-        self._playwright = None
+        self._playwright: Optional[Playwright] = None
+        
+        # Кэш ответов для этого аккаунта
+        self._response_cache: Dict[str, str] = {}
         
     async def initialize(self) -> bool:
-        """Initialize browser session"""
+        """Инициализация браузерной сессии"""
         if not PLAYWRIGHT_AVAILABLE:
             logger.error(f"[{self.account_id}] Playwright not available - cannot initialize")
             self.status = AccountStatus.ERROR
@@ -160,10 +179,10 @@ class DeepSeekAccount:
         try:
             logger.info(f"[{self.account_id}] Initializing browser session...")
             
-            # Start Playwright
+            # Запуск Playwright
             self._playwright = await async_playwright().start()
             
-            # Launch browser with stealth
+            # Аргументы запуска браузера
             launch_args = [
                 '--disable-blink-features=AutomationControlled',
                 '--disable-features=IsolateOrigins,site-per-process',
@@ -171,8 +190,14 @@ class DeepSeekAccount:
                 '--disable-dev-shm-usage',
                 '--disable-web-security',
                 '--disable-features=VizDisplayCompositor',
+                '--disable-infobars',
+                '--disable-extensions',
+                '--disable-gpu',
+                '--window-size=1920,1080',
             ]
             
+            # Конфигурация прокси
+            proxy_config = None
             if self.proxy:
                 proxy_config = {
                     'server': f"{self.proxy.get('type', 'http')}://{self.proxy['host']}:{self.proxy['port']}"
@@ -181,40 +206,45 @@ class DeepSeekAccount:
                     proxy_config['username'] = self.proxy['username']
                 if self.proxy.get('password'):
                     proxy_config['password'] = self.proxy['password']
-            else:
-                proxy_config = None
             
+            # Запуск браузера
             browser = await self._playwright.chromium.launch(
                 headless=self.headless,
                 args=launch_args,
                 proxy=proxy_config
             )
             
-            # Create context with realistic settings
+            # Создание контекста с реалистичными настройками
             context = await browser.new_context(
                 viewport={'width': 1920, 'height': 1080},
                 user_agent=self.user_agent,
                 locale='ru-RU',
                 timezone_id='Europe/Moscow',
-                geolocation={'latitude': 55.7558, 'longitude': 37.6173},  # Moscow
+                geolocation={'latitude': 55.7558, 'longitude': 37.6173},
                 permissions=['geolocation'],
+                color_scheme='light',
+                has_touch=False,
+                is_mobile=False,
+                java_script_enabled=True,
             )
             
-            # Apply stealth
+            # Применение stealth
             page = await context.new_page()
             await stealth_async(page)
             
-            # Add human-like behavior scripts
+            # Инъекция скриптов маскировки
             await self._inject_human_behavior(page)
             
+            # Создание сессии
             self.session = BrowserSession(
                 browser=browser,
                 context=context,
                 page=page,
+                playwright=self._playwright,
                 is_ready=True
             )
             
-            # Navigate and login
+            # Попытка входа
             login_success = await self._login()
             
             if login_success:
@@ -232,8 +262,8 @@ class DeepSeekAccount:
             self.status = AccountStatus.ERROR
             return False
     
-    async def _inject_human_behavior(self, page):
-        """Inject scripts for human-like behavior"""
+    async def _inject_human_behavior(self, page: Page) -> None:
+        """Инъекция скриптов для маскировки под человека"""
         await page.add_init_script("""
             // Override navigator.webdriver
             Object.defineProperty(navigator, 'webdriver', {
@@ -268,49 +298,94 @@ class DeepSeekAccount:
             Object.defineProperty(navigator, 'deviceMemory', {
                 get: () => 8
             });
+            
+            // Override permissions
+            const originalQuery = window.navigator.permissions.query;
+            window.navigator.permissions.query = (parameters) => (
+                parameters.name === 'notifications' ?
+                    Promise.resolve({ state: Notification.permission }) :
+                    originalQuery(parameters)
+            );
+            
+            // Override WebGL vendor
+            const getParameter = WebGLRenderingContext.prototype.getParameter;
+            WebGLRenderingContext.prototype.getParameter = function(parameter) {
+                if (parameter === 37445) {
+                    return 'Intel Inc.';
+                }
+                if (parameter === 37446) {
+                    return 'Intel Iris OpenGL Engine';
+                }
+                return getParameter.apply(this, [parameter]);
+            };
+            
+            // Hide automation indicators
+            Object.defineProperty(navigator, 'permissions', {
+                get: () => ({
+                    query: () => Promise.resolve({ state: 'granted' })
+                })
+            });
         """)
     
     async def _login(self) -> bool:
-        """Login to DeepSeek"""
+        """Вход в DeepSeek"""
         if not self.session or not self.session.page:
             return False
             
         try:
             page = self.session.page
             
-            # Navigate to login page
+            # Навигация на страницу входа
             logger.info(f"[{self.account_id}] Navigating to login page...")
-            await page.goto(self.DEEPSEEK_LOGIN_URL, wait_until='networkidle', timeout=30000)
+            await page.goto(self.DEEPSEEK_CHAT_URL, wait_until='networkidle', timeout=30000)
             
-            # Wait for page to load
+            # Случайная задержка
             await asyncio.sleep(random.uniform(2, 4))
             
-            # Check if already logged in
+            # Проверяем, нужен ли вход
             current_url = page.url
-            if 'chat' in current_url and 'login' not in current_url:
-                logger.info(f"[{self.account_id}] Already logged in")
-                return True
+            if 'login' not in current_url and 'chat.deepseek.com' in current_url:
+                # Проверяем, есть ли чат
+                try:
+                    chat_input = await page.wait_for_selector(self.SELECTORS['chat_input'], timeout=5000)
+                    if chat_input:
+                        logger.info(f"[{self.account_id}] Already logged in")
+                        return True
+                except:
+                    pass
             
-            # Find and fill email
+            # Переходим на страницу входа если нужно
+            if 'login' not in current_url:
+                await page.goto(self.DEEPSEEK_LOGIN_URL, wait_until='networkidle', timeout=30000)
+                await asyncio.sleep(random.uniform(2, 4))
+            
+            # Ищем и заполняем email
             email_selectors = [
                 'input[type="email"]',
                 'input[name="email"]',
                 'input[placeholder*="email"]',
                 '#email',
+                'input[inputmode="email"]',
             ]
             
+            email_found = False
             for selector in email_selectors:
                 try:
-                    email_input = await page.wait_for_selector(selector, timeout=5000)
+                    email_input = await page.wait_for_selector(selector, timeout=3000)
                     if email_input:
                         await self._human_type(email_input, self.email)
+                        email_found = True
                         break
                 except:
                     continue
             
+            if not email_found:
+                logger.warning(f"[{self.account_id}] Email input not found, trying alternative login")
+                return await self._try_alternative_login(page)
+            
             await asyncio.sleep(random.uniform(0.5, 1.5))
             
-            # Find and fill password
+            # Ищем и заполняем пароль
             password_selectors = [
                 'input[type="password"]',
                 'input[name="password"]',
@@ -319,7 +394,7 @@ class DeepSeekAccount:
             
             for selector in password_selectors:
                 try:
-                    password_input = await page.wait_for_selector(selector, timeout=5000)
+                    password_input = await page.wait_for_selector(selector, timeout=3000)
                     if password_input:
                         await self._human_type(password_input, self.password)
                         break
@@ -328,38 +403,44 @@ class DeepSeekAccount:
             
             await asyncio.sleep(random.uniform(0.5, 1.5))
             
-            # Click login button
+            # Нажимаем кнопку входа
             login_selectors = [
                 'button[type="submit"]',
                 'button:has-text("Login")',
                 'button:has-text("Sign in")',
                 'button:has-text("Войти")',
+                'button:has-text("Continue")',
             ]
             
             for selector in login_selectors:
                 try:
-                    login_btn = await page.wait_for_selector(selector, timeout=5000)
+                    login_btn = await page.wait_for_selector(selector, timeout=3000)
                     if login_btn:
                         await login_btn.click()
                         break
                 except:
                     continue
             
-            # Wait for login to complete
+            # Ждём завершения входа
             await asyncio.sleep(random.uniform(3, 6))
             
-            # Check for errors
+            # Проверяем ошибки
             error = await self._check_for_errors()
             if error:
                 logger.error(f"[{self.account_id}] Login error: {error}")
                 return False
             
-            # Verify login success
+            # Проверяем успешность входа
             current_url = page.url
             if 'chat' in current_url or 'chat.deepseek.com' in current_url:
-                logger.info(f"[{self.account_id}] Login successful")
-                return True
+                try:
+                    await page.wait_for_selector(self.SELECTORS['chat_input'], timeout=10000)
+                    logger.info(f"[{self.account_id}] Login successful")
+                    return True
+                except:
+                    pass
             
+            logger.warning(f"[{self.account_id}] Login status unclear, URL: {current_url}")
             return False
             
         except Exception as e:
@@ -367,24 +448,29 @@ class DeepSeekAccount:
             self.last_error = str(e)
             return False
     
-    async def _human_type(self, element, text: str):
-        """Type text with human-like delays and occasional typos"""
+    async def _try_alternative_login(self, page: Page) -> bool:
+        """Альтернативный метод входа (например, через Google/OAuth)"""
+        logger.info(f"[{self.account_id}] Trying alternative login methods...")
+        # Здесь можно добавить логику для входа через Google, GitHub и т.д.
+        return False
+    
+    async def _human_type(self, element, text: str) -> None:
+        """Печать текста с человеческими задержками и случайными опечатками"""
         for i, char in enumerate(text):
-            # Random delay between keystrokes
+            # Случайная задержка между нажатиями
             delay = random.uniform(
                 self.behavior_config.typing_speed_min / 1000,
                 self.behavior_config.typing_speed_max / 1000
             )
             
-            # Occasional pause
+            # Случайная пауза
             if random.random() < self.behavior_config.pause_probability:
                 delay += random.uniform(0.5, 2.0)
             
             await asyncio.sleep(delay)
             
-            # Occasional typo
+            # Случайная опечатка
             if random.random() < self.behavior_config.typo_probability and i > 0:
-                # Type wrong char, then backspace
                 wrong_char = random.choice('abcdefghijklmnopqrstuvwxyz')
                 await element.type(wrong_char)
                 await asyncio.sleep(random.uniform(0.1, 0.3))
@@ -394,21 +480,22 @@ class DeepSeekAccount:
             await element.type(char)
     
     async def _check_for_errors(self) -> Optional[str]:
-        """Check for error messages on page"""
+        """Проверка на наличие ошибок на странице"""
         if not self.session or not self.session.page:
             return "No session"
             
         page = self.session.page
         
-        # Check for captcha
+        # Проверка на капчу
         try:
             captcha = await page.query_selector(self.SELECTORS['captcha'])
             if captcha:
+                self.status = AccountStatus.ERROR
                 return "Captcha detected"
         except:
             pass
         
-        # Check for rate limit
+        # Проверка на rate limit
         try:
             rate_limit = await page.query_selector(self.SELECTORS['rate_limit_message'])
             if rate_limit:
@@ -417,7 +504,7 @@ class DeepSeekAccount:
         except:
             pass
         
-        # Check for error message
+        # Проверка сообщения об ошибке
         try:
             error_el = await page.query_selector(self.SELECTORS['error_message'])
             if error_el:
@@ -430,54 +517,69 @@ class DeepSeekAccount:
     
     async def ask(self, prompt: str, timeout: int = 120) -> Dict[str, Any]:
         """
-        Send a prompt to DeepSeek and get response.
+        Отправить запрос в DeepSeek и получить ответ.
         
         Returns:
-            Dict with 'success', 'response', 'error', 'from_cache', 'response_time'
+            Dict с полями: success, response, error, from_cache, response_time, account_id
         """
         start_time = time.time()
         
-        # Check rate limits
+        # Проверка кэша
+        cache_key = hashlib.md5(prompt.encode()).hexdigest()
+        if cache_key in self._response_cache:
+            logger.debug(f"[{self.account_id}] Cache hit")
+            return {
+                'success': True,
+                'response': self._response_cache[cache_key],
+                'from_cache': True,
+                'response_time': time.time() - start_time,
+                'account_id': self.account_id
+            }
+        
+        # Проверка rate limits
         if not self._can_make_request():
             wait_time = self._get_wait_time()
             return {
                 'success': False,
                 'error': f'Rate limited. Wait {wait_time:.0f} seconds',
-                'response_time': time.time() - start_time
+                'response_time': time.time() - start_time,
+                'account_id': self.account_id
             }
         
-        # Check if ready
+        # Проверка статуса
         if self.status != AccountStatus.ACTIVE:
             return {
                 'success': False,
                 'error': f'Account not ready: {self.status.value}',
-                'response_time': time.time() - start_time
+                'response_time': time.time() - start_time,
+                'account_id': self.account_id
             }
         
-        # Playwright is REQUIRED - no mock mode
+        # Проверка сессии
         if not PLAYWRIGHT_AVAILABLE:
-            raise RuntimeError("Playwright not installed. Install with: pip install playwright playwright-stealth && playwright install chromium")
+            raise RuntimeError("Playwright not installed")
         
         if not self.session:
             return {
                 'success': False,
                 'error': 'Browser session not initialized',
-                'response_time': time.time() - start_time
+                'response_time': time.time() - start_time,
+                'account_id': self.account_id
             }
         
         try:
             page = self.session.page
             
-            # Random pre-action delay
+            # Случайная задержка перед действием
             await asyncio.sleep(random.uniform(0.5, 2.0))
             
-            # Navigate to chat if needed
+            # Навигация на чат если нужно
             current_url = page.url
             if 'chat.deepseek.com' not in current_url:
                 await page.goto(self.DEEPSEEK_CHAT_URL, wait_until='networkidle', timeout=30000)
                 await asyncio.sleep(random.uniform(2, 4))
             
-            # Find chat input
+            # Поиск поля ввода
             chat_input = None
             for selector in [
                 'textarea[placeholder*="message"]',
@@ -496,47 +598,50 @@ class DeepSeekAccount:
                 return {
                     'success': False,
                     'error': 'Could not find chat input',
-                    'response_time': time.time() - start_time
+                    'response_time': time.time() - start_time,
+                    'account_id': self.account_id
                 }
             
-            # Clear and type prompt
+            # Клик и очистка
             await chat_input.click()
             await asyncio.sleep(0.3)
-            
-            # Select all and clear
             await page.keyboard.press('Control+A')
             await asyncio.sleep(0.1)
             await page.keyboard.press('Backspace')
             await asyncio.sleep(0.3)
             
-            # Type with human behavior
+            # Печать с человеческим поведением
             await self._human_type(chat_input, prompt)
             await asyncio.sleep(random.uniform(0.5, 1.5))
             
-            # Find and click send button
+            # Отправка
             send_selectors = [
                 'button[type="submit"]',
                 'button[aria-label*="send"]',
                 'button:has-text("Send")',
             ]
             
+            sent = False
             for selector in send_selectors:
                 try:
                     send_btn = await page.query_selector(selector)
                     if send_btn:
                         await send_btn.click()
+                        sent = True
                         break
                 except:
                     continue
-            else:
-                # Try pressing Enter
+            
+            if not sent:
                 await page.keyboard.press('Enter')
             
-            # Wait for response
+            # Ожидание ответа
             response = await self._wait_for_response(timeout)
             
             if response:
                 self._record_request(success=True)
+                self._response_cache[cache_key] = response
+                
                 return {
                     'success': True,
                     'response': response,
@@ -558,10 +663,11 @@ class DeepSeekAccount:
             self.last_error = str(e)
             logger.error(f"[{self.account_id}] Request failed: {e}")
             
-            # Check if we need to change status
-            if 'rate' in str(e).lower() or 'limit' in str(e).lower():
+            # Изменение статуса при определённых ошибках
+            error_str = str(e).lower()
+            if 'rate' in error_str or 'limit' in error_str:
                 self.status = AccountStatus.RATE_LIMITED
-            elif 'captcha' in str(e).lower():
+            elif 'captcha' in error_str:
                 self.status = AccountStatus.ERROR
             
             return {
@@ -572,20 +678,21 @@ class DeepSeekAccount:
             }
     
     async def _wait_for_response(self, timeout: int = 120) -> Optional[str]:
-        """Wait for AI response"""
+        """Ожидание ответа от AI"""
         if not self.session or not self.session.page:
             return None
             
         page = self.session.page
         start_time = time.time()
         
-        # Response indicators
+        # Селекторы для ответа
         response_selectors = [
             '.markdown-body',
             '.response-content',
             '[data-testid="response"]',
             '.prose',
             '.message-content:last-child',
+            '.assistant-message',
         ]
         
         last_length = 0
@@ -593,28 +700,28 @@ class DeepSeekAccount:
         
         while time.time() - start_time < timeout:
             try:
-                # Check for errors
+                # Проверка на ошибки
                 error = await self._check_for_errors()
                 if error:
                     logger.warning(f"[{self.account_id}] Error during response: {error}")
                     return None
                 
-                # Try to get response
+                # Попытка получить ответ
                 for selector in response_selectors:
                     try:
                         elements = await page.query_selector_all(selector)
                         if elements:
-                            # Get last element (most recent response)
+                            # Берём последний элемент (последний ответ)
                             last_element = elements[-1]
                             text = await last_element.text_content()
                             
                             if text and len(text.strip()) > 10:
-                                # Check if response is still generating
                                 current_length = len(text)
                                 
+                                # Проверка стабильности ответа
                                 if current_length == last_length:
                                     stable_count += 1
-                                    if stable_count >= 3:  # 3 consecutive checks with same length
+                                    if stable_count >= 3:
                                         return text.strip()
                                 else:
                                     stable_count = 0
@@ -631,24 +738,24 @@ class DeepSeekAccount:
         return None
     
     def _can_make_request(self) -> bool:
-        """Check if account can make a request"""
+        """Проверка возможности сделать запрос"""
         now = datetime.now()
         
-        # Check hourly limit
+        # Проверка часового лимита
         hour_ago = now - timedelta(hours=1)
         hourly_requests = len([t for t in self.request_times if t > hour_ago])
         
         if hourly_requests >= self.rate_limit_config.max_requests_per_hour:
             return False
         
-        # Check daily limit
+        # Проверка дневного лимита
         day_ago = now - timedelta(days=1)
         daily_requests = len([t for t in self.request_times if t > day_ago])
         
         if daily_requests >= self.rate_limit_config.max_requests_per_day:
             return False
         
-        # Check min delay
+        # Проверка минимальной задержки
         if self.request_times:
             last_request = max(self.request_times)
             elapsed = (now - last_request).total_seconds()
@@ -658,13 +765,13 @@ class DeepSeekAccount:
         return True
     
     def _get_wait_time(self) -> float:
-        """Get time to wait before next request"""
+        """Получить время ожидания до следующего запроса"""
         now = datetime.now()
         
         if not self.request_times:
             return 0
         
-        # Find oldest request in current hour window
+        # Находим самый старый запрос в текущем часовом окне
         hour_ago = now - timedelta(hours=1)
         requests_in_hour = [t for t in self.request_times if t > hour_ago]
         
@@ -673,7 +780,7 @@ class DeepSeekAccount:
             wait_time = (oldest + timedelta(hours=1) - now).total_seconds() + 5
             return max(0, wait_time)
         
-        # Check min delay
+        # Проверка минимальной задержки
         last_request = max(self.request_times)
         elapsed = (now - last_request).total_seconds()
         if elapsed < self.rate_limit_config.min_delay_between_requests:
@@ -681,8 +788,8 @@ class DeepSeekAccount:
         
         return 0
     
-    def _record_request(self, success: bool):
-        """Record request for rate limiting"""
+    def _record_request(self, success: bool) -> None:
+        """Запись запроса для rate limiting"""
         self.request_times.append(datetime.now())
         self.total_requests += 1
         
@@ -692,12 +799,12 @@ class DeepSeekAccount:
         else:
             self.consecutive_errors += 1
             
-            # Too many errors, change status
+            # Слишком много ошибок - изменение статуса
             if self.consecutive_errors >= 5:
                 self.status = AccountStatus.ERROR
     
-    async def close(self):
-        """Close browser session"""
+    async def close(self) -> None:
+        """Закрытие браузерной сессии"""
         if self.session:
             try:
                 if self.session.page:
@@ -720,23 +827,23 @@ class DeepSeekAccount:
                 self._playwright = None
     
     async def reset_session(self) -> bool:
-        """Reset browser session (for recovery)"""
+        """Сброс сессии (для восстановления)"""
         logger.info(f"[{self.account_id}] Resetting session...")
         
         await self.close()
         
-        # Rotate user agent
+        # Ротация User-Agent
         self.user_agent = random.choice(self.USER_AGENTS)
         
-        # Reset state
+        # Сброс состояния
         self.status = AccountStatus.ACTIVE
         self.consecutive_errors = 0
         
-        # Reinitialize
+        # Повторная инициализация
         return await self.initialize()
     
     def get_stats(self) -> Dict[str, Any]:
-        """Get account statistics"""
+        """Получение статистики аккаунта"""
         now = datetime.now()
         hour_ago = now - timedelta(hours=1)
         day_ago = now - timedelta(days=1)
@@ -755,4 +862,6 @@ class DeepSeekAccount:
             'created_at': self.created_at.isoformat(),
             'can_make_request': self._can_make_request(),
             'wait_time': self._get_wait_time(),
+            'requests_remaining_hour': self.rate_limit_config.max_requests_per_hour - len([t for t in self.request_times if t > hour_ago]),
+            'requests_remaining_day': self.rate_limit_config.max_requests_per_day - len([t for t in self.request_times if t > day_ago]),
         }
