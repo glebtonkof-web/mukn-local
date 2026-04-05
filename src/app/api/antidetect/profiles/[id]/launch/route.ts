@@ -1,6 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import {
+  createBrowserClient,
+  checkBrowserStatus,
+  BrowserType,
+} from '@/lib/antidetect-browsers';
+
+// GET browser settings from database
+async function getBrowserSettings(browserType: string): Promise<{
+  apiKey?: string;
+  apiUrl?: string;
+  port?: number;
+}> {
+  try {
+    const settings = await db.antidetectBrowserSettings.findUnique({
+      where: { browserType },
+    });
+    
+    if (settings) {
+      return {
+        apiKey: settings.apiKey || undefined,
+        apiUrl: settings.apiUrl || undefined,
+        port: settings.port || undefined,
+      };
+    }
+  } catch (error) {
+    logger.error('Failed to get browser settings', error as Error);
+  }
+  
+  return {};
+}
 
 // POST /api/antidetect/profiles/[id]/launch - Launch browser profile
 export async function POST(
@@ -55,9 +85,56 @@ export async function POST(
       );
     }
 
-    // Simulate launching the browser
-    // In a real implementation, this would call the browser API (Multilogin, Octo, MoreLogin)
-    const launchResult = await simulateBrowserLaunch(profile);
+    // Get browser-specific settings
+    const browserSettings = await getBrowserSettings(profile.browserType);
+
+    // Check browser connection
+    const browserStatus = await checkBrowserStatus(
+      profile.browserType as BrowserType,
+      browserSettings
+    );
+
+    if (!browserStatus.connected) {
+      // Browser not running - update profile status to error
+      await db.antidetectBrowser.update({
+        where: { id },
+        data: {
+          status: 'error',
+          updatedAt: new Date(),
+        },
+      });
+
+      return NextResponse.json(
+        { 
+          error: `${getBrowserLabel(profile.browserType)} не запущен или недоступен. ${
+            browserStatus.error || 'Убедитесь, что приложение браузера установлено и запущено.'
+          }` 
+        },
+        { status: 503 }
+      );
+    }
+
+    // Create browser client
+    const client = createBrowserClient(
+      profile.browserType as BrowserType,
+      browserSettings
+    );
+
+    // Launch the profile via real browser API
+    const launchResult = await client.launchProfile({
+      profileId: profile.profileId,
+      profileName: profile.profileName || undefined,
+      proxyHost: profile.proxyHost || undefined,
+      proxyPort: profile.proxyPort || undefined,
+      proxyUsername: profile.proxyUsername || undefined,
+      proxyPassword: profile.proxyPassword || undefined,
+      userAgent: profile.userAgent || undefined,
+      screenResolution: profile.screenResolution || undefined,
+      timezone: profile.timezone || undefined,
+      language: profile.language || undefined,
+      geolocation: profile.geolocation || undefined,
+      webglRenderer: profile.webglRenderer || undefined,
+    });
 
     if (!launchResult.success) {
       // Update profile status to error
@@ -100,7 +177,8 @@ export async function POST(
     logger.info('Browser profile launched', { 
       profileId: id, 
       browserType: profile.browserType,
-      account: profile.Account?.username || 'none'
+      account: profile.Account?.username || 'none',
+      debugPort: launchResult.debugPort,
     });
 
     return NextResponse.json({ 
@@ -108,6 +186,7 @@ export async function POST(
       profile: updatedProfile,
       browserUrl: launchResult.browserUrl,
       debugPort: launchResult.debugPort,
+      pid: launchResult.pid,
     });
   } catch (error) {
     logger.error('Failed to launch browser profile', error as Error);
@@ -118,72 +197,7 @@ export async function POST(
   }
 }
 
-// Simulate browser launch - in production, this would call real browser APIs
-async function simulateBrowserLaunch(profile: {
-  browserType: string;
-  profileId: string;
-  proxyHost: string | null;
-  proxyPort: number | null;
-  proxyUsername: string | null;
-  proxyPassword: string | null;
-  userAgent: string | null;
-  screenResolution: string | null;
-  timezone: string | null;
-  language: string | null;
-  geolocation: string | null;
-}) {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-
-  // In a real implementation, you would call the actual browser API:
-  // 
-  // Multilogin API:
-  // const response = await fetch('https://api.multilogin.com/profile/start', {
-  //   method: 'POST',
-  //   headers: { 'Authorization': `Bearer ${token}` },
-  //   body: JSON.stringify({ profileId: profile.profileId })
-  // });
-  //
-  // Octo Browser API:
-  // const response = await fetch(`https://octobrowser.net/api/v2/profiles/${profile.profileId}/start`, {
-  //   method: 'POST',
-  //   headers: { 'X-Octo-Api-Token': token }
-  // });
-  //
-  // MoreLogin API:
-  // const response = await fetch(`https://api.morelogin.com/profile/start`, {
-  //   method: 'POST',
-  //   headers: { 'Authorization': `Bearer ${token}` },
-  //   body: JSON.stringify({ profileId: profile.profileId })
-  // });
-
-  const debugPort = 9222 + Math.floor(Math.random() * 100);
-  
-  // Simulate random failure (5% chance)
-  if (Math.random() < 0.05) {
-    return {
-      success: false,
-      error: 'Превышено время ожидания подключения к прокси',
-    };
-  }
-
-  return {
-    success: true,
-    browserUrl: `http://localhost:${debugPort}`,
-    debugPort,
-    startedAt: new Date().toISOString(),
-    proxy: profile.proxyHost ? `${profile.proxyHost}:${profile.proxyPort}` : null,
-    fingerprint: {
-      userAgent: profile.userAgent,
-      screenResolution: profile.screenResolution,
-      timezone: profile.timezone,
-      language: profile.language,
-      geolocation: profile.geolocation,
-    },
-  };
-}
-
-// POST /api/antidetect/profiles/[id]/launch - Stop browser profile
+// DELETE /api/antidetect/profiles/[id]/launch - Stop browser profile
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -216,6 +230,21 @@ export async function DELETE(
       );
     }
 
+    // Get browser-specific settings
+    const browserSettings = await getBrowserSettings(profile.browserType);
+
+    // Create browser client and stop the profile
+    try {
+      const client = createBrowserClient(
+        profile.browserType as BrowserType,
+        browserSettings
+      );
+      
+      await client.stopProfile(profile.profileId);
+    } catch (error) {
+      logger.warn('Failed to stop profile via API, continuing with status update', error as Error);
+    }
+
     // Update profile status to available
     const updatedProfile = await db.antidetectBrowser.update({
       where: { id },
@@ -239,4 +268,15 @@ export async function DELETE(
       { status: 500 }
     );
   }
+}
+
+// Helper function to get browser label
+function getBrowserLabel(browserType: string): string {
+  const labels: Record<string, string> = {
+    'multilogin': 'Multilogin',
+    'octo-browser': 'Octo Browser',
+    'morelogin': 'MoreLogin',
+    'mostlogin': 'MostLogin',
+  };
+  return labels[browserType] || browserType;
 }

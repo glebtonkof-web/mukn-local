@@ -3938,3 +3938,18 @@ model InstagramTrafficAnalytics {
   @@index([sourceType])
   @@index([campaignId])
 }
+
+model AntidetectBrowserSettings {
+  id          String   @id
+  browserType String   @unique
+  apiKey      String?
+  apiSecret   String?
+  apiUrl      String?
+  port        Int?
+  isActive    Boolean  @default(false)
+  lastCheckAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+
+  @@index([browserType])
+}

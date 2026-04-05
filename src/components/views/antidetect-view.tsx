@@ -75,8 +75,10 @@ import {
   Server,
   Eye,
   EyeOff,
+  Settings,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { BrowserSettingsPanel } from '@/components/antidetect/browser-settings-panel';
 
 // Types
 interface Account {
@@ -128,7 +130,7 @@ interface ProfileStats {
   totalSessions: number;
 }
 
-type BrowserType = 'multilogin' | 'octo-browser' | 'morelogin';
+type BrowserType = 'multilogin' | 'octo-browser' | 'morelogin' | 'mostlogin';
 type ProfileStatus = 'available' | 'in_use' | 'paused' | 'error';
 type PlatformType = 'instagram' | 'tiktok' | 'youtube';
 type ProxyType = 'mobile' | 'residential' | 'datacenter';
@@ -137,6 +139,7 @@ const BROWSER_TYPES: { value: BrowserType; label: string; icon: string; color: s
   { value: 'multilogin', label: 'Multilogin', icon: '🌐', color: 'text-blue-500' },
   { value: 'octo-browser', label: 'Octo Browser', icon: '🐙', color: 'text-purple-500' },
   { value: 'morelogin', label: 'MoreLogin', icon: '🔐', color: 'text-green-500' },
+  { value: 'mostlogin', label: 'MostLogin', icon: '🔹', color: 'text-cyan-500' },
 ];
 
 const PLATFORMS: { value: PlatformType; label: string; icon: string }[] = [
@@ -230,8 +233,12 @@ export function AntidetectView() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<AntidetectProfile | null>(null);
   const [launchingProfileId, setLaunchingProfileId] = useState<string | null>(null);
+  
+  // Active tab
+  const [activeTab, setActiveTab] = useState<'profiles' | 'settings'>('profiles');
   
   // Form state
   const [formData, setFormData] = useState({
@@ -662,14 +669,33 @@ export function AntidetectView() {
             Антидетект-браузеры
           </h2>
           <p className="text-muted-foreground">
-            Управление профилями Multilogin, Octo Browser, MoreLogin
+            Управление профилями Multilogin, Octo Browser, MoreLogin, MostLogin
           </p>
         </div>
-        <Button onClick={openCreateDialog}>
-          <Plus className="h-4 w-4 mr-2" />
-          Создать профиль
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setActiveTab('settings')}>
+            <Settings className="h-4 w-4 mr-2" />
+            Настройки
+          </Button>
+          <Button onClick={openCreateDialog}>
+            <Plus className="h-4 w-4 mr-2" />
+            Создать профиль
+          </Button>
+        </div>
       </div>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'profiles' | 'settings')}>
+        <TabsList>
+          <TabsTrigger value="profiles">Профили</TabsTrigger>
+          <TabsTrigger value="settings">Настройки подключения</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="settings" className="mt-4">
+          <BrowserSettingsPanel />
+        </TabsContent>
+
+        <TabsContent value="profiles" className="mt-4 space-y-6">
 
       {/* Stats Cards */}
       {stats && (
@@ -1723,6 +1749,9 @@ export function AntidetectView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
