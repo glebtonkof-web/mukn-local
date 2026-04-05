@@ -154,7 +154,7 @@ export function UnifiedContentStudio() {
   const [videoProvider, setVideoProvider] = useState('auto');
   const [batchPrompts, setBatchPrompts] = useState('');
   const [promptCount, setPromptCount] = useState(10);
-  const [promptTheme, setPromptTheme] = useState('');
+  const [promptTheme, setPromptTheme] = useState('none');
   
   // Image generation state
   const [imagePrompt, setImagePrompt] = useState('');
@@ -162,6 +162,13 @@ export function UnifiedContentStudio() {
   const [imageAspectRatio, setImageAspectRatio] = useState('1:1');
   const [imageCount, setImageCount] = useState(1);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
+  
+  // Image-to-Video state (Pollo AI feature)
+  const [itvImagePath, setItvImagePath] = useState('');
+  const [itvPrompt, setItvPrompt] = useState('');
+  const [itvDuration, setItvDuration] = useState('5');
+  const [itvAspectRatio, setItvAspectRatio] = useState('16:9');
+  const [itvGenerateAudio, setItvGenerateAudio] = useState(true);
   
   // Audio generation state
   const [audioType, setAudioType] = useState<'tts' | 'music'>('tts');
@@ -224,14 +231,17 @@ export function UnifiedContentStudio() {
       console.error('Error fetching providers:', error);
       // Use mock data if API not available
       setProviders([
+        { name: 'pollo', display_name: 'Pollo AI', url: 'https://pollo.ai', state: 'available', daily_credits: 50, video_durations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 15], auto_register: true, total_accounts: 5, active_accounts: 5 },
         { name: 'kling', display_name: 'Kling AI', url: 'https://klingai.com', state: 'available', daily_credits: 100, video_durations: [5, 10], auto_register: true, total_accounts: 5, active_accounts: 5 },
         { name: 'wan', display_name: 'Wan.video', url: 'https://wan.video', state: 'available', daily_credits: 30, video_durations: [10], auto_register: true, total_accounts: 3, active_accounts: 3 },
         { name: 'digen', display_name: 'Digen.ai', url: 'https://digen.ai', state: 'available', daily_credits: 25, video_durations: [5], auto_register: true, total_accounts: 2, active_accounts: 2 },
+        { name: 'qwen', display_name: 'Qwen AI', url: 'https://qwen.ai', state: 'available', daily_credits: 20, video_durations: [5, 10], auto_register: true, total_accounts: 2, active_accounts: 2 },
         { name: 'runway', display_name: 'Runway Gen-3', url: 'https://runwayml.com', state: 'available', daily_credits: 125, video_durations: [10], auto_register: true, total_accounts: 1, active_accounts: 1 },
         { name: 'luma', display_name: 'Luma', url: 'https://lumalabs.ai', state: 'available', daily_credits: 30, video_durations: [5], auto_register: true, total_accounts: 2, active_accounts: 2 },
         { name: 'pika', display_name: 'Pika Labs', url: 'https://pika.art', state: 'available', daily_credits: 50, video_durations: [5, 10], auto_register: true, total_accounts: 3, active_accounts: 3 },
         { name: 'haiper', display_name: 'Haiper AI', url: 'https://haiper.ai', state: 'available', daily_credits: 20, video_durations: [5, 10], auto_register: true, total_accounts: 2, active_accounts: 2 },
         { name: 'vidu', display_name: 'Vidu Studio', url: 'https://vidu.studio', state: 'available', daily_credits: 15, video_durations: [5, 10], auto_register: true, total_accounts: 2, active_accounts: 2 },
+        { name: 'meta', display_name: 'Meta AI', url: 'https://meta.ai', state: 'available', daily_credits: 20, video_durations: [60], auto_register: false, total_accounts: 1, active_accounts: 1 },
       ]);
     }
   }, []);
@@ -361,7 +371,7 @@ export function UnifiedContentStudio() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           count: promptCount,
-          theme: promptTheme || undefined,
+          theme: promptTheme === 'none' ? undefined : promptTheme,
         }),
       });
       
@@ -435,6 +445,46 @@ export function UnifiedContentStudio() {
       }));
       setGeneratedImages(mockImages);
       toast.success('Изображения сгенерированы (demo)');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ============== Image-to-Video (Pollo AI) ==============
+  const handleImageToVideo = async () => {
+    if (!itvImagePath.trim() && !itvPrompt.trim()) {
+      toast.error('Укажите изображение или промпт');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const response = await fetch(`${CONTENT_STUDIO_API}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: itvPrompt,
+          duration: parseFloat(itvDuration),
+          aspect_ratio: itvAspectRatio,
+          provider: 'pollo',
+          image_path: itvImagePath,
+          generate_audio: itvGenerateAudio,
+          priority: 'high',
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success(`Задача Image-to-Video добавлена: ${data.task_id}`);
+        setItvImagePath('');
+        setItvPrompt('');
+        fetchTasks();
+      } else {
+        toast.error(data.error || 'Ошибка генерации');
+      }
+    } catch (error) {
+      toast.success('Задача Image-to-Video добавлена (demo)');
     } finally {
       setLoading(false);
     }
@@ -835,7 +885,7 @@ export function UnifiedContentStudio() {
                         <Select value={promptTheme} onValueChange={setPromptTheme}>
                           <SelectTrigger className="w-32 h-8"><SelectValue placeholder="Тема" /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Без темы</SelectItem>
+                            <SelectItem value="none">Без темы</SelectItem>
                             <SelectItem value="nature">Природа</SelectItem>
                             <SelectItem value="city">Город</SelectItem>
                             <SelectItem value="fantasy">Фэнтези</SelectItem>
@@ -950,6 +1000,99 @@ export function UnifiedContentStudio() {
                       ))}
                     </div>
                   )}
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+
+          {/* Image-to-Video (Pollo AI) */}
+          <Collapsible open={expandedSections.has('itv')} onOpenChange={() => toggleSection('itv')}>
+            <Card className="border-purple-500/30">
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Film className="h-5 w-5 text-purple-400" />
+                      Image-to-Video
+                      <Badge variant="outline" className="ml-2 text-purple-400 border-purple-400">Pollo AI</Badge>
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">+ Аудио</Badge>
+                      {expandedSections.has('itv') ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </div>
+                  </div>
+                  <CardDescription className="text-xs mt-1">
+                    Оживите изображения с автоматическим звуком • 4-15 сек • Доступ к 50+ моделям
+                  </CardDescription>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs">Путь к изображению</Label>
+                      <Input
+                        placeholder="/path/to/image.png"
+                        value={itvImagePath}
+                        onChange={(e) => setItvImagePath(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">Длительность</Label>
+                      <Select value={itvDuration} onValueChange={setItvDuration}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="4">4 сек</SelectItem>
+                          <SelectItem value="5">5 сек</SelectItem>
+                          <SelectItem value="6">6 сек</SelectItem>
+                          <SelectItem value="8">8 сек</SelectItem>
+                          <SelectItem value="10">10 сек</SelectItem>
+                          <SelectItem value="12">12 сек</SelectItem>
+                          <SelectItem value="15">15 сек</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Промпт (опционально)</Label>
+                    <Textarea
+                      placeholder="Опишите движение: 'camera slowly zooms in, hair flows in the wind...'"
+                      value={itvPrompt}
+                      onChange={(e) => setItvPrompt(e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs">Формат</Label>
+                      <Select value={itvAspectRatio} onValueChange={setItvAspectRatio}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="16:9">16:9</SelectItem>
+                          <SelectItem value="9:16">9:16</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2 flex items-end">
+                      <Button 
+                        variant={itvGenerateAudio ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setItvGenerateAudio(!itvGenerateAudio)}
+                        className="w-full"
+                      >
+                        <Volume2 className="h-3 w-3 mr-1" />
+                        {itvGenerateAudio ? 'Аудио: ВКЛ' : 'Аудио: ВЫКЛ'}
+                      </Button>
+                    </div>
+                    <div className="flex items-end">
+                      <Button onClick={handleImageToVideo} disabled={loading} className="w-full">
+                        <Film className="h-4 w-4 mr-2" />
+                        Оживить
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </CollapsibleContent>
             </Card>

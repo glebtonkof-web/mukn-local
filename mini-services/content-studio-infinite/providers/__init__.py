@@ -22,6 +22,17 @@ class UniversalProvider(BaseVideoProvider):
     """
     
     PROVIDER_SELECTORS = {
+        'pollo': {
+            'login_url': 'https://pollo.ai/login',
+            'signup_url': 'https://pollo.ai/signup',
+            'create_url': 'https://pollo.ai/create',
+            'prompt_input': 'textarea[placeholder*="prompt"], textarea, .prompt-input',
+            'image_upload': 'input[type="file"][accept*="image"]',
+            'generate_button': 'button:has-text("Generate"), button:has-text("Create")',
+            'video_player': 'video',
+            'credits_display': '.credits, [class*="credit"]',
+            'audio_toggle': '.audio-toggle, button:has-text("Audio")',
+        },
         'kling': {
             'login_url': 'https://klingai.com/login',
             'signup_url': 'https://klingai.com/signup',

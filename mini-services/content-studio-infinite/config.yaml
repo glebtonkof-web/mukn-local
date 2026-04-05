@@ -15,6 +15,20 @@ settings:
   max_requests_per_hour_per_account: 10  # Максимум запросов в час на аккаунт
 
 providers:
+  pollo:
+    enabled: true
+    url: "https://pollo.ai"
+    daily_credits: 50
+    max_requests_per_hour: 5
+    max_requests_per_day: 50
+    video_duration: [4, 5, 6, 7, 8, 9, 10, 11, 12, 15]
+    auto_register: true
+    priority: 0  # Высший приоритет - уникальные возможности
+    features:
+      image_to_video: true
+      auto_audio: true
+      models_access: 50  # Доступ к 50+ моделям
+    
   kling:
     enabled: true
     url: "https://klingai.com"

@@ -37,6 +37,20 @@ class InfiniteGenerator:
     """
     
     PROVIDER_CONFIGS = {
+        'pollo': {
+            'display_name': 'Pollo AI',
+            'url': 'https://pollo.ai',
+            'daily_credits': 50,
+            'max_requests_per_hour': 5,
+            'video_durations': [4, 5, 6, 7, 8, 9, 10, 11, 12, 15],
+            'auto_register': True,
+            'priority': 0,  # Высший приоритет
+            'features': {
+                'image_to_video': True,
+                'auto_audio': True,
+                'models_access': 50,
+            }
+        },
         'kling': {
             'display_name': 'Kling AI',
             'url': 'https://klingai.com',
@@ -327,7 +341,10 @@ class InfiniteGenerator:
         
         try:
             # Импортируем провайдер
-            if provider == 'kling':
+            if provider == 'pollo':
+                from ..providers.pollo import PolloAIProvider
+                provider_cls = PolloAIProvider
+            elif provider == 'kling':
                 from ..providers.kling import KlingProvider
                 provider_cls = KlingProvider
             elif provider == 'luma':

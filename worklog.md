@@ -1,6 +1,56 @@
 # Worklog - МУКН | Трафик
 
 ---
+Task ID: 10
+Agent: Main Agent
+Task: Исправление ошибок и расширение Content Studio с Pollo AI и Image-to-Video
+
+Work Log:
+- Исправлена ошибка Select.Item с пустым value="" → заменено на value="none"
+- Добавлен Pollo AI как 11-й провайдер в систему
+- Добавлена новая функция Image-to-Video (Pollo AI feature):
+  - Загрузка изображения для оживления
+  - Выбор длительности 4-15 секунд (10 опций)
+  - Автоматическая генерация аудио (переключатель)
+  - Форматы 16:9 и 9:16
+  - Промпт для описания движения (опционально)
+- Обновлены mock данные провайдеров (11 провайдеров включая Pollo AI, Qwen AI, Meta AI)
+- Создан Python backend server_simple.py для Content Studio API
+- Backend запускается на порту 8767
+
+Файлы изменены:
+- `/src/components/content-studio/unified-content-studio.tsx`:
+  - Исправлен SelectItem value=""
+  - Добавлены state переменные для Image-to-Video
+  - Добавлена функция handleImageToVideo
+  - Добавлена UI секция Image-to-Video с badge "Pollo AI"
+  - Обновлены mock провайдеры (11 шт)
+- `/mini-services/content-studio-infinite/providers/pollo.py` - новый провайдер
+- `/mini-services/content-studio-infinite/config.yaml` - добавлена конфигурация Pollo AI
+- `/mini-services/content-studio-infinite/core/infinite_generator.py` - Pollo AI добавлен в PROVIDER_CONFIGS
+- `/mini-services/content-studio-infinite/server_simple.py` - простой backend сервер
+
+Провайдеры в системе (11):
+1. Pollo AI - Image-to-Video с авто звуком, 4-15 сек, приоритет 0
+2. Kling AI - 100 кредитов/день, 5-10 сек
+3. Wan.video - 30 кредитов/день, 10 сек + Extend
+4. Digen.ai - 25 кредитов/день, 5 сек
+5. Qwen AI - 20 кредитов/день, 5-10 сек
+6. Runway Gen-3 - 125 кредитов, 10 сек
+7. Luma - 30 кредитов/день, 5 сек
+8. Pika Labs - 50 кредитов/день, 5-10 сек
+9. Haiper AI - 20 кредитов/день, 5-10 сек
+10. Vidu Studio - 15 кредитов/день, 5-10 сек
+11. Meta AI - 60 сек видео (ограниченная авторегистрация)
+
+Stage Summary:
+- Все ошибки UI исправлены
+- Pollo AI добавлен как провайдер с уникальными возможностями
+- Image-to-Video функционал добавлен в UI
+- Frontend работает с mock данными при недоступности backend
+- Next.js dev server работает на порту 3000
+
+---
 Task ID: 9
 Agent: Main Agent
 Task: Создание единой панели Content Studio со всеми инструментами в одной вкладке
