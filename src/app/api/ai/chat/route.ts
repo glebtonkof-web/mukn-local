@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
         const generationResult = await manager.generate(prompt, {
           temperature: body.temperature ?? 0.7,
           maxTokens: body.maxTokens ?? 1500,
-          systemPrompt: SYSTEM_PROMPT,
+          systemPrompt: body.systemPrompt || 'Ты — полезный AI-ассистент. Отвечай на русском языке.',
           messages: chatHistory,
         }, DEMO_USER_ID);
 
