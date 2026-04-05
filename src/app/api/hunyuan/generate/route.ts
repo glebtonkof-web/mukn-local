@@ -211,14 +211,130 @@ async function generateImage(prompt: string, imageStyle: string) {
   }
 }
 
-// Генерация видео (заглушка)
+// Генерация видео через z-ai-web-dev-sdk
 async function generateVideo(prompt: string, params: any) {
-  return NextResponse.json({
-    success: true,
-    message: 'Video generation requires additional configuration',
-    prompt,
-    status: 'pending',
-  });
+  const startTime = Date.now();
+  
+  try {
+    const zai = await ZAI.create();
+    
+    const style = params.style || 'cinematic';
+    const duration = params.duration || 5;
+    const resolution = params.resolution || '720p';
+    
+    // Стили для видео
+    const styleEnhancements: Record<string, string> = {
+      cinematic: 'cinematic style, dramatic lighting, film quality, 4k, professional camera movement',
+      anime: 'anime style, vibrant colors, Japanese animation, detailed frames',
+      realistic: 'photorealistic, high detail, natural lighting, documentary quality',
+      '3d': '3D render, octane render, CGI quality, cinematic lighting, detailed modeling',
+      fantasy: 'fantasy style, magical atmosphere, ethereal, epic scene, detailed',
+      scifi: 'sci-fi futuristic style, cyberpunk elements, neon lights, high tech',
+      nature: 'nature documentary style, beautiful landscapes, wildlife, aerial shots',
+      abstract: 'abstract artistic style, creative visuals, motion graphics, artistic',
+    };
+    
+    const enhancedPrompt = `${prompt}, ${styleEnhancements[style] || styleEnhancements.cinematic}`;
+    
+    // Маппинг разрешения
+    const sizeMap: Record<string, string> = {
+      '720p': '1280x720',
+      '1080p': '1920x1080',
+      '4k': '3840x2160',
+    };
+    
+    // Создаём задачу на генерацию видео
+    const task = await zai.video.generations.create({
+      prompt: enhancedPrompt,
+      quality: 'quality',
+      size: sizeMap[resolution] || '1280x720',
+      fps: 30,
+      duration: duration === 10 ? 10 : 5,
+      with_audio: false,
+    });
+    
+    console.log('[Hunyuan] Video task created:', task.id);
+    
+    // Poll for results (с таймаутом)
+    let result = await zai.async.result.query(task.id);
+    let pollCount = 0;
+    const maxPolls = 120; // 10 минут максимум
+    const pollInterval = 5000; // 5 секунд
+    
+    while (result.task_status === 'PROCESSING' && pollCount < maxPolls) {
+      pollCount++;
+      console.log(`[Hunyuan] Polling ${pollCount}/${maxPolls}: Status is ${result.task_status}`);
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      result = await zai.async.result.query(task.id);
+    }
+    
+    if (result.task_status === 'SUCCESS') {
+      const videoUrl = (result as any).video_result?.[0]?.url ||
+                      (result as any).video_url ||
+                      (result as any).url ||
+                      (result as any).video;
+      
+      // Сохраняем в БД
+      const fs = await import('fs');
+      const path = await import('path');
+      const { nanoid } = await import('nanoid');
+      
+      const downloadDir = path.join(process.cwd(), 'download', 'hunyuan', 'videos');
+      if (!fs.existsSync(downloadDir)) {
+        fs.mkdirSync(downloadDir, { recursive: true });
+      }
+      
+      const content = await db.generatedContent.create({
+        data: {
+          id: nanoid(),
+          type: 'video',
+          platform: 'telegram',
+          source: 'z-ai-sdk-hunyuan',
+          prompt: enhancedPrompt,
+          mediaUrl: videoUrl || null,
+          status: 'completed',
+          generationTime: Date.now() - startTime,
+          metadata: JSON.stringify({
+            taskId: task.id,
+            style,
+            duration,
+            resolution,
+          }),
+          updatedAt: new Date()
+        }
+      });
+      
+      return NextResponse.json({
+        success: true,
+        url: videoUrl,
+        videoUrl,
+        contentId: content.id,
+        taskId: task.id,
+        prompt: enhancedPrompt,
+        style,
+        duration,
+        resolution,
+        generationTime: Date.now() - startTime,
+      });
+    } else {
+      return NextResponse.json({
+        success: false,
+        error: 'Video generation timed out or failed',
+        taskId: task.id,
+        status: result.task_status,
+        generationTime: Date.now() - startTime,
+      });
+    }
+    
+  } catch (error) {
+    console.error('[Hunyuan] Video generation error:', error);
+    
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      generationTime: Date.now() - startTime,
+    });
+  }
 }
 
 // Fallback генератор контента

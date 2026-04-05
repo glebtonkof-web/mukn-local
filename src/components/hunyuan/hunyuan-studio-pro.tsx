@@ -16,7 +16,7 @@ import {
   Sparkles, Play, Image, Video, Edit3, History, Settings, Download,
   Wand2, Film, Camera, ExternalLink, RefreshCw, Home, ArrowLeft, ArrowRight,
   Maximize2, Minimize2, Globe, Zap, Info, AlertCircle, Loader2, CheckCircle,
-  XCircle, Clock, Trash2
+  XCircle, Clock, Trash2, Share2, Copy, Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -27,6 +27,7 @@ interface GeneratedItem {
   id: string;
   type: 'video' | 'image';
   url: string;
+  contentId?: string;
   prompt: string;
   timestamp: Date;
   status: 'pending' | 'completed' | 'failed';
@@ -39,6 +40,7 @@ interface GenerationTask {
   status: 'pending' | 'processing' | 'completed' | 'failed';
   progress: number;
   resultUrl?: string;
+  contentId?: string;
   error?: string;
   createdAt: Date;
 }
@@ -56,15 +58,19 @@ const VIDEO_STYLES = [
   { id: 'anime', name: 'Аниме' },
   { id: 'realistic', name: 'Реалистичный' },
   { id: '3d', name: '3D Анимация' },
-  { id: 'cartoon', name: 'Мультфильм' },
+  { id: 'fantasy', name: 'Фэнтези' },
+  { id: 'scifi', name: 'Научная фантастика' },
+  { id: 'nature', name: 'Природа' },
+  { id: 'abstract', name: 'Абстракция' },
 ];
 
 const IMAGE_STYLES = [
-  { id: 'photorealistic', name: 'Фотореализм' },
+  { id: 'realistic', name: 'Фотореализм' },
   { id: 'digital-art', name: 'Цифровое искусство' },
-  { id: 'oil-painting', name: 'Масляная живопись' },
-  { id: 'watercolor', name: 'Акварель' },
   { id: 'anime', name: 'Аниме' },
+  { id: '3d', name: '3D Рендер' },
+  { id: 'cinematic', name: 'Кинематографичный' },
+  { id: 'fantasy', name: 'Фэнтези' },
 ];
 
 const ASPECT_RATIOS = [
@@ -86,18 +92,24 @@ export function HunyuanStudioPro() {
   const [videoPrompt, setVideoPrompt] = useState('');
   const [videoStyle, setVideoStyle] = useState('cinematic');
   const [videoDuration, setVideoDuration] = useState(5);
+  const [videoResolution, setVideoResolution] = useState('720p');
   const [videoGenerating, setVideoGenerating] = useState(false);
   
   // Генерация изображений
   const [imagePrompt, setImagePrompt] = useState('');
-  const [imageStyle, setImageStyle] = useState('photorealistic');
+  const [imageStyle, setImageStyle] = useState('realistic');
   const [aspectRatio, setAspectRatio] = useState('16:9');
   const [imageGenerating, setImageGenerating] = useState(false);
   
   // Редактор
-  const [editImageUrl, setEditImageUrl] = useState('');
+  const [editSourceUrl, setEditSourceUrl] = useState('');
   const [editPrompt, setEditPrompt] = useState('');
+  const [editType, setEditType] = useState<'image' | 'video'>('image');
   const [editing, setEditing] = useState(false);
+  
+  // Просмотр результата
+  const [previewItem, setPreviewItem] = useState<GeneratedItem | null>(null);
+  const [downloading, setDownloading] = useState<string | null>(null);
 
   // Загрузка истории
   useEffect(() => {
@@ -113,7 +125,7 @@ export function HunyuanStudioPro() {
 
   // Сохранение истории
   const saveToHistory = (item: GeneratedItem) => {
-    const newHistory = [item, ...history].slice(0, 50);
+    const newHistory = [item, ...history].slice(0, 100);
     setHistory(newHistory);
     localStorage.setItem('hunyuan_history', JSON.stringify(newHistory));
   };
@@ -139,6 +151,8 @@ export function HunyuanStudioPro() {
     }]);
     
     try {
+      toast.info('Генерация видео запущена...', { description: 'Это может занять 2-5 минут' });
+      
       const response = await fetch('/api/hunyuan/video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -146,28 +160,29 @@ export function HunyuanStudioPro() {
           prompt: videoPrompt,
           style: videoStyle,
           duration: videoDuration,
+          resolution: videoResolution,
         }),
       });
       
       const data = await response.json();
       
-      if (data.success || data.taskId) {
-        toast.success('Видео генерируется...', { description: 'Это может занять несколько минут' });
+      if (data.success && data.url) {
+        toast.success('Видео создано!', { description: `За ${Math.round((data.generationTime || 0) / 1000)} сек` });
         
-        // Сохраняем в историю как pending
         saveToHistory({
           id: taskId,
           type: 'video',
-          url: data.resultUrl || '',
+          url: data.url,
+          contentId: data.contentId,
           prompt: videoPrompt,
           timestamp: new Date(),
-          status: 'pending',
+          status: 'completed',
         });
         
         // Обновляем задачу
         setTasks(prev => prev.map(t => 
           t.id === taskId 
-            ? { ...t, status: 'completed', progress: 100, resultUrl: data.resultUrl }
+            ? { ...t, status: 'completed', progress: 100, resultUrl: data.url, contentId: data.contentId }
             : t
         ));
         
@@ -211,22 +226,24 @@ export function HunyuanStudioPro() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: 'image',
+          mode: 'image',
           prompt: imagePrompt,
           style: imageStyle,
-          aspectRatio,
         }),
       });
       
       const data = await response.json();
       
-      if (data.success && data.imageUrl) {
+      if (data.success && (data.image || data.imageUrl)) {
+        const imageUrl = data.image || data.imageUrl;
+        
         toast.success('Изображение создано!');
         
         saveToHistory({
           id: taskId,
           type: 'image',
-          url: data.imageUrl,
+          url: imageUrl,
+          contentId: data.contentId,
           prompt: imagePrompt,
           timestamp: new Date(),
           status: 'completed',
@@ -234,7 +251,7 @@ export function HunyuanStudioPro() {
         
         setTasks(prev => prev.map(t => 
           t.id === taskId 
-            ? { ...t, status: 'completed', progress: 100, resultUrl: data.imageUrl }
+            ? { ...t, status: 'completed', progress: 100, resultUrl: imageUrl, contentId: data.contentId }
             : t
         ));
         
@@ -255,37 +272,43 @@ export function HunyuanStudioPro() {
   };
 
   // Редактирование через API
-  const editImage = async () => {
-    if (!editImageUrl.trim() || !editPrompt.trim()) {
-      toast.error('Введите URL изображения и описание правок');
+  const handleEdit = async () => {
+    if (!editSourceUrl.trim() || !editPrompt.trim()) {
+      toast.error('Введите URL и описание правок');
       return;
     }
     
     setEditing(true);
     
     try {
-      const response = await fetch('/api/hunyuan/generate', {
+      const response = await fetch('/api/hunyuan/edit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: 'image',
-          prompt: editPrompt,
-          referenceImage: editImageUrl,
+          type: editType,
+          sourceUrl: editSourceUrl,
+          editPrompt,
+          editType: 'modify',
         }),
       });
       
       const data = await response.json();
       
-      if (data.success && data.imageUrl) {
-        toast.success('Изображение отредактировано!');
+      if (data.success) {
+        const resultUrl = data.imageUrl || data.videoUrl;
+        
+        toast.success(`${editType === 'image' ? 'Изображение' : 'Видео'} отредактировано!`);
+        
         saveToHistory({
           id: `edit-${Date.now()}`,
-          type: 'image',
-          url: data.imageUrl,
+          type: editType,
+          url: resultUrl,
+          contentId: data.contentId,
           prompt: `Edit: ${editPrompt}`,
           timestamp: new Date(),
           status: 'completed',
         });
+        
         setEditPrompt('');
       } else {
         throw new Error(data.error || 'Ошибка редактирования');
@@ -294,6 +317,56 @@ export function HunyuanStudioPro() {
       toast.error('Ошибка редактирования', { description: error.message });
     } finally {
       setEditing(false);
+    }
+  };
+
+  // Скачать контент
+  const handleDownload = async (item: GeneratedItem) => {
+    if (!item.url && !item.contentId) {
+      toast.error('Нет данных для скачивания');
+      return;
+    }
+    
+    setDownloading(item.id);
+    
+    try {
+      // Если есть contentId, скачиваем через API
+      if (item.contentId) {
+        const response = await fetch(`/api/hunyuan/download?contentId=${item.contentId}`);
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${item.type}_${item.id}.${item.type === 'video' ? 'mp4' : 'png'}`;
+          document.body.appendChild(a);
+          a.click();
+          URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          toast.success('Файл скачан');
+        } else {
+          throw new Error('Ошибка скачивания');
+        }
+      } else if (item.url) {
+        // Прямая ссылка - открываем в новом окне
+        window.open(item.url, '_blank');
+        toast.info('Открыта ссылка для скачивания');
+      }
+    } catch (error: any) {
+      toast.error('Ошибка скачивания', { description: error.message });
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  // Копировать URL
+  const copyUrl = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('URL скопирован');
+    } catch {
+      toast.error('Ошибка копирования');
     }
   };
 
@@ -328,14 +401,14 @@ export function HunyuanStudioPro() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-white">Hunyuan Studio Pro</h1>
-            <p className="text-xs text-[#8A8A8A]">AI генерация видео и изображений</p>
+            <p className="text-xs text-[#8A8A8A]">AI генерация видео и изображений • Tencent Hunyuan 13B</p>
           </div>
         </div>
         
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="outline" className="border-[#00D26A] text-[#00D26A]">
             <Globe className="w-3 h-3 mr-1" />
-            Tencent Hunyuan
+            Real API
           </Badge>
           <Button 
             variant="outline" 
@@ -354,9 +427,9 @@ export function HunyuanStudioPro() {
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-2">
             {[
-              { name: '🏠 Главная', url: HUNYUAN_URLS.main },
-              { name: '🎬 Видео', url: HUNYUAN_URLS.video },
-              { name: '🖼️ Изображения', url: HUNYUAN_URLS.image },
+              { name: '🏠 Главная Hunyuan', url: HUNYUAN_URLS.main },
+              { name: '🎬 Видео студия', url: HUNYUAN_URLS.video },
+              { name: '🖼️ Генератор изображений', url: HUNYUAN_URLS.image },
             ].map((link) => (
               <Button
                 key={link.url}
@@ -374,10 +447,10 @@ export function HunyuanStudioPro() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="generate" className="text-xs py-2">
             <Sparkles className="w-3 h-3 mr-1" />
-            Генерация
+            Быстро
           </TabsTrigger>
           <TabsTrigger value="video" className="text-xs py-2">
             <Film className="w-3 h-3 mr-1" />
@@ -386,6 +459,10 @@ export function HunyuanStudioPro() {
           <TabsTrigger value="image" className="text-xs py-2">
             <Image className="w-3 h-3 mr-1" />
             Картинки
+          </TabsTrigger>
+          <TabsTrigger value="edit" className="text-xs py-2">
+            <Edit3 className="w-3 h-3 mr-1" />
+            Редактор
           </TabsTrigger>
           <TabsTrigger value="history" className="text-xs py-2">
             <History className="w-3 h-3 mr-1" />
@@ -411,12 +488,12 @@ export function HunyuanStudioPro() {
                 <Textarea
                   value={videoPrompt}
                   onChange={(e) => setVideoPrompt(e.target.value)}
-                  placeholder="Опишите видео, которое хотите создать..."
+                  placeholder="Опишите видео, которое хотите создать... Например: Космический корабль летит сквозь туманность, кинематографичное освещение"
                   className="bg-[#1E1F26] border-[#2A2B32] text-white min-h-[100px]"
                 />
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label className="text-[#8A8A8A]">Стиль</Label>
                   <Select value={videoStyle} onValueChange={setVideoStyle}>
@@ -434,15 +511,27 @@ export function HunyuanStudioPro() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label className="text-[#8A8A8A]">Длительность (сек)</Label>
+                  <Label className="text-[#8A8A8A]">Длительность</Label>
                   <Select value={String(videoDuration)} onValueChange={(v) => setVideoDuration(Number(v))}>
                     <SelectTrigger className="bg-[#1E1F26] border-[#2A2B32] text-white">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-[#1E1F26] border-[#2A2B32]">
-                      <SelectItem value="3" className="text-white">3 сек</SelectItem>
-                      <SelectItem value="5" className="text-white">5 сек</SelectItem>
-                      <SelectItem value="10" className="text-white">10 сек</SelectItem>
+                      <SelectItem value="5" className="text-white">5 секунд</SelectItem>
+                      <SelectItem value="10" className="text-white">10 секунд</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-[#8A8A8A]">Разрешение</Label>
+                  <Select value={videoResolution} onValueChange={setVideoResolution}>
+                    <SelectTrigger className="bg-[#1E1F26] border-[#2A2B32] text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1E1F26] border-[#2A2B32]">
+                      <SelectItem value="720p" className="text-white">720p HD</SelectItem>
+                      <SelectItem value="1080p" className="text-white">1080p Full HD</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -456,7 +545,7 @@ export function HunyuanStudioPro() {
                 {videoGenerating ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Генерация...
+                    Генерация видео... (2-5 мин)
                   </>
                 ) : (
                   <>
@@ -545,25 +634,46 @@ export function HunyuanStudioPro() {
               </Button>
             </CardContent>
           </Card>
-          
-          {/* Editor */}
+        </TabsContent>
+
+        {/* Edit Tab */}
+        <TabsContent value="edit" className="space-y-4">
           <Card className="bg-[#14151A] border-[#2A2B32]">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
                 <Edit3 className="w-5 h-5 text-[#FFB800]" />
-                Редактор изображений
+                AI Редактор
               </CardTitle>
               <CardDescription>
-                Отредактируйте существующее изображение с помощью AI
+                Отредактируйте изображение или видео с помощью AI
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant={editType === 'image' ? 'default' : 'outline'}
+                  onClick={() => setEditType('image')}
+                  className={editType === 'image' ? 'bg-[#00D26A]' : 'border-[#2A2B32]'}
+                >
+                  <Image className="w-4 h-4 mr-2" />
+                  Изображение
+                </Button>
+                <Button
+                  variant={editType === 'video' ? 'default' : 'outline'}
+                  onClick={() => setEditType('video')}
+                  className={editType === 'video' ? 'bg-[#6C63FF]' : 'border-[#2A2B32]'}
+                >
+                  <Film className="w-4 h-4 mr-2" />
+                  Видео
+                </Button>
+              </div>
+              
               <div className="space-y-2">
-                <Label className="text-[#8A8A8A]">URL изображения</Label>
+                <Label className="text-[#8A8A8A]">URL исходного файла</Label>
                 <Input
-                  value={editImageUrl}
-                  onChange={(e) => setEditImageUrl(e.target.value)}
-                  placeholder="https://example.com/image.jpg"
+                  value={editSourceUrl}
+                  onChange={(e) => setEditSourceUrl(e.target.value)}
+                  placeholder="https://example.com/image.jpg или выберите из истории"
                   className="bg-[#1E1F26] border-[#2A2B32] text-white"
                 />
               </div>
@@ -573,14 +683,14 @@ export function HunyuanStudioPro() {
                 <Textarea
                   value={editPrompt}
                   onChange={(e) => setEditPrompt(e.target.value)}
-                  placeholder="Опишите изменения, которые нужно внести..."
-                  className="bg-[#1E1F26] border-[#2A2B32] text-white min-h-[80px]"
+                  placeholder="Опишите изменения: добавить солнечные очки, изменить фон на пляж, сделать цвета ярче..."
+                  className="bg-[#1E1F26] border-[#2A2B32] text-white min-h-[100px]"
                 />
               </div>
               
               <Button
-                onClick={editImage}
-                disabled={editing || !editImageUrl.trim() || !editPrompt.trim()}
+                onClick={handleEdit}
+                disabled={editing || !editSourceUrl.trim() || !editPrompt.trim()}
                 className="w-full bg-[#FFB800] hover:bg-[#FFB800]/80 text-black"
               >
                 {editing ? (
@@ -597,6 +707,36 @@ export function HunyuanStudioPro() {
               </Button>
             </CardContent>
           </Card>
+          
+          {/* Quick select from history */}
+          {history.length > 0 && (
+            <Card className="bg-[#14151A] border-[#2A2B32]">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-white">Быстрый выбор из истории</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-32">
+                  <div className="flex gap-2 pb-2">
+                    {history.slice(0, 10).map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => setEditSourceUrl(item.url)}
+                        className="shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 border-transparent hover:border-[#FFB800] transition-colors"
+                      >
+                        {item.type === 'image' && item.url ? (
+                          <img src={item.url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-[#1E1F26] flex items-center justify-center">
+                            <Film className="w-6 h-6 text-[#6C63FF]" />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Combined Generation Tab */}
@@ -689,7 +829,7 @@ export function HunyuanStudioPro() {
         {/* History Tab */}
         <TabsContent value="history" className="space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-white">История генераций</h3>
+            <h3 className="text-lg font-semibold text-white">История генераций ({history.length})</h3>
             {history.length > 0 && (
               <Button variant="ghost" size="sm" onClick={clearHistory} className="text-[#FF4D4D]">
                 <Trash2 className="w-4 h-4 mr-2" />
@@ -710,13 +850,13 @@ export function HunyuanStudioPro() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {history.map((item) => (
                 <Card key={item.id} className="bg-[#14151A] border-[#2A2B32] group relative overflow-hidden">
-                  <div className="aspect-video bg-[#1E1F26] flex items-center justify-center">
+                  <div className="aspect-video bg-[#1E1F26] flex items-center justify-center relative">
                     {item.url ? (
                       item.type === 'image' ? (
                         <img src={item.url} alt={item.prompt} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="flex items-center justify-center w-full h-full">
-                          <Film className="w-8 h-8 text-[#6C63FF]" />
+                        <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-[#6C63FF]/20 to-[#00D26A]/20">
+                          <Film className="w-12 h-12 text-[#6C63FF]" />
                         </div>
                       )
                     ) : (
@@ -728,7 +868,35 @@ export function HunyuanStudioPro() {
                         )}
                       </div>
                     )}
+                    
+                    {/* Overlay with actions */}
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      {item.url && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => window.open(item.url, '_blank')}
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          Открыть
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleDownload(item)}
+                        disabled={downloading === item.id}
+                      >
+                        {downloading === item.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Download className="w-4 h-4 mr-1" />
+                        )}
+                        Скачать
+                      </Button>
+                    </div>
                   </div>
+                  
                   <CardContent className="p-3">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-xs text-white truncate flex-1">{item.prompt}</p>
@@ -744,18 +912,30 @@ export function HunyuanStudioPro() {
                         {item.status === 'completed' ? 'Готово' : item.status === 'failed' ? 'Ошибка' : 'В процессе'}
                       </Badge>
                     </div>
-                    <p className="text-xs text-[#8A8A8A] mt-1">
-                      {new Date(item.timestamp).toLocaleString('ru-RU')}
-                    </p>
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-xs text-[#8A8A8A]">
+                        {new Date(item.timestamp).toLocaleString('ru-RU')}
+                      </p>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => copyUrl(item.url)}
+                        >
+                          <Copy className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-[#FF4D4D]"
+                          onClick={() => removeFromHistory(item.id)}
+                        >
+                          <XCircle className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
                   </CardContent>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 bg-[#FF4D4D]/20 hover:bg-[#FF4D4D]/40"
-                    onClick={() => removeFromHistory(item.id)}
-                  >
-                    <XCircle className="w-4 h-4 text-[#FF4D4D]" />
-                  </Button>
                 </Card>
               ))}
             </div>
@@ -769,10 +949,10 @@ export function HunyuanStudioPro() {
           <div className="flex items-start gap-3">
             <Info className="w-5 h-5 text-[#6C63FF] shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="text-white font-medium mb-1">Tencent Hunyuan</p>
+              <p className="text-white font-medium mb-1">Tencent Hunyuan — Реальная генерация</p>
               <p className="text-[#8A8A8A]">
-                AI модель с 13 миллиардами параметров для генерации видео и изображений. 
-                Для полного функционала вы можете перейти на официальный сайт.
+                AI модель с 13 миллиардами параметров для генерации видео и изображений через z-ai-web-dev-sdk. 
+                Видео генерируются 2-5 минут, изображения — 10-30 секунд. Все результаты сохраняются и доступны для скачивания.
               </p>
             </div>
           </div>
