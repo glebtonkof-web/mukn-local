@@ -71,13 +71,12 @@ const navSections = [
   {
     title: 'AI & Автоматизация',
     items: [
+      { id: 'content-studio', label: 'Content Studio', icon: Layers, badge: 'PRO' },
       { id: 'ai-assistant', label: 'AI Ассистент', icon: Bot, badge: 'NEW' },
-      { id: 'deepseek-free', label: 'DeepSeek Free', icon: Cpu, badge: 'PRO' },
+      { id: 'deepseek-free', label: 'DeepSeek Free', icon: Cpu, badge: 'FREE' },
       { id: 'hunyuan', label: 'Hunyuan Studio', icon: Sparkles },
       { id: 'ai-comments', label: 'AI Комментарии', icon: MessageSquare },
       { id: 'ai-pool', label: 'AI Pool', icon: Brain },
-      { id: 'content', label: 'Контент', icon: Calendar },
-      { id: 'video-generator', label: 'Видео генератор', icon: Video },
     ]
   },
   {

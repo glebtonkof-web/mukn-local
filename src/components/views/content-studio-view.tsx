@@ -4,8 +4,8 @@ import React from 'react';
 import dynamic from 'next/dynamic';
 
 // Динамический импорт для избежания SSR проблем
-const ContentStudioProPanel = dynamic(
-  () => import('@/components/content-studio/content-studio-pro-panel').then(mod => mod.ContentStudioProPanel),
+const UnifiedContentStudio = dynamic(
+  () => import('@/components/content-studio/unified-content-studio').then(mod => mod.UnifiedContentStudio),
   { 
     ssr: false,
     loading: () => (
@@ -21,14 +21,14 @@ const ContentStudioProPanel = dynamic(
 
 export function ContentStudioView() {
   return (
-    <div className="container mx-auto py-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Content Studio Infinite</h1>
-        <p className="text-muted-foreground mt-1">
-          Бесконечная генерация видео через 10+ бесплатных провайдеров с авто-регистрацией аккаунтов
+    <div className="container mx-auto py-4 px-4 max-w-[1800px]">
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold">Content Studio</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Универсальная студия контента: видео, изображения, аудио, текст — всё в одном месте
         </p>
       </div>
-      <ContentStudioProPanel />
+      <UnifiedContentStudio />
     </div>
   );
 }
