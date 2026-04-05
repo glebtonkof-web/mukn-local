@@ -1207,6 +1207,7 @@ export function UnifiedAutoEarnWizard() {
   const [accounts, setAccounts] = useState<PlatformAccount[]>([]);
   const [links, setLinks] = useState<AccountLink[]>([]);
   const [loading, setLoading] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [settings, setSettings] = useState({
     budget: 10000,
     geo: ['RU'],
@@ -1224,6 +1225,12 @@ export function UnifiedAutoEarnWizard() {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [confirmStartOpen, setConfirmStartOpen] = useState(false);
   const [launchResult, setLaunchResult] = useState<Record<string, unknown> | null>(null);
+
+  // Фильтрация схем по категории
+  const filteredSchemes = useMemo(() => {
+    if (categoryFilter === 'all') return MONETIZATION_SCHEMES;
+    return MONETIZATION_SCHEMES.filter(s => s.category === categoryFilter);
+  }, [categoryFilter]);
 
   // Группировка аккаунтов по платформам
   const accountsByPlatform = useMemo(() => {
@@ -1431,27 +1438,35 @@ export function UnifiedAutoEarnWizard() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-white">Выберите схему монетизации</h3>
               <Badge variant="outline" className="border-[#6C63FF] text-[#6C63FF]">
-                {MONETIZATION_SCHEMES.length} схем
+                {filteredSchemes.length} схем
               </Badge>
             </div>
 
             {/* Фильтры по категориям */}
             <div className="flex flex-wrap gap-2 mb-4">
-              {['all', 'arbitrage', 'content', 'service', 'passive', 'hybrid'].map((cat) => (
+              {[
+                { id: 'all', label: 'Все' },
+                { id: 'arbitrage', label: 'Арбитраж' },
+                { id: 'content', label: 'Контент' },
+                { id: 'service', label: 'Услуги' },
+                { id: 'passive', label: 'Пассивный' },
+                { id: 'hybrid', label: 'Гибрид' },
+              ].map((cat) => (
                 <Button
-                  key={cat}
+                  key={cat.id}
                   size="sm"
-                  variant="outline"
-                  className="border-[#2A2B32]"
+                  variant={categoryFilter === cat.id ? 'default' : 'outline'}
+                  onClick={() => setCategoryFilter(cat.id)}
+                  className={categoryFilter === cat.id ? 'bg-[#6C63FF] hover:bg-[#6C63FF]/80' : 'border-[#2A2B32] text-[#8A8A8A] hover:text-white'}
                 >
-                  {cat === 'all' ? 'Все' : cat === 'arbitrage' ? 'Арбитраж' : cat === 'content' ? 'Контент' : cat === 'service' ? 'Услуги' : cat === 'passive' ? 'Пассивный' : 'Гибрид'}
+                  {cat.label}
                 </Button>
               ))}
             </div>
 
             <ScrollArea className="h-[500px] pr-4">
               <div className="space-y-3">
-                {MONETIZATION_SCHEMES.map((scheme) => (
+                {filteredSchemes.map((scheme) => (
                   <SchemeCard
                     key={scheme.id}
                     scheme={scheme}

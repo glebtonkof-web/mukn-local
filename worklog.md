@@ -1,6 +1,32 @@
 # Worklog - МУКН | Трафик
 
 ---
+Task ID: 5
+Agent: Main Agent
+Task: Fix non-clickable buttons in "Авто-заработок PRO" (Quick Start tab)
+
+Work Log:
+- Identified the problem: Category filter buttons in unified-auto-earn-wizard.tsx had no onClick handlers
+- The buttons "Все", "Арбитраж", "Контент", etc. were rendered but did nothing when clicked
+- Also the scheme selection was using unfiltered MONETIZATION_SCHEMES array
+
+Fixes applied:
+1. Added `categoryFilter` state to track selected category
+2. Added `filteredSchemes` useMemo to filter schemes by category
+3. Added onClick handlers to all filter buttons
+4. Updated active button styling (variant='default' for selected)
+5. Changed scheme rendering to use `filteredSchemes` instead of `MONETIZATION_SCHEMES`
+
+Files modified:
+- /src/components/auto-earn/unified-auto-earn-wizard.tsx
+
+Stage Summary:
+- All category filter buttons now work correctly
+- Schemes are properly filtered when category is selected
+- Active category is visually highlighted
+- Build successful
+
+---
 Task ID: 4
 Agent: Main Agent
 Task: Fix AI Assistant not having access to real campaign data and similar issues
