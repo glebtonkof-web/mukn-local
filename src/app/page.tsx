@@ -33,6 +33,8 @@ import { useModeStore } from '@/store/mode-store';
 import { MobileMenu, MobileHeader } from '@/components/ui/mobile-menu';
 import { NotificationsSheet } from '@/components/notifications/notifications-sheet';
 import { AIProvidersSettings } from '@/components/settings/ai-providers-settings';
+import { AutoEarnWizard } from '@/components/auto-earn/auto-earn-wizard';
+import { AutoEarnDashboard } from '@/components/auto-earn/auto-earn-dashboard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -217,6 +219,200 @@ interface ChartDataPoint {
   comments: number;
 }
 
+// ==================== ГЛАВНАЯ СТРАНИЦА AUTO-EARN ====================
+
+function AutoEarnView() {
+  const [activeTab, setActiveTab] = useState<'wizard' | 'dashboard'>('wizard');
+
+  return (
+    <div className="space-y-6">
+      {/* Заголовок */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <Zap className="w-6 h-6 text-[#FFB800]" />
+            Авто-заработок
+          </h1>
+          <p className="text-[#8A8A8A]">Автоматический пассивный доход с помощью AI</p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant={activeTab === 'wizard' ? 'default' : 'outline'}
+            onClick={() => setActiveTab('wizard')}
+            className={activeTab === 'wizard' ? 'bg-[#6C63FF]' : 'border-[#2A2B32] text-[#8A8A8A]'}
+          >
+            <Rocket className="w-4 h-4 mr-2" />
+            Запуск
+          </Button>
+          <Button
+            variant={activeTab === 'dashboard' ? 'default' : 'outline'}
+            onClick={() => setActiveTab('dashboard')}
+            className={activeTab === 'dashboard' ? 'bg-[#6C63FF]' : 'border-[#2A2B32] text-[#8A8A8A]'}
+          >
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Мониторинг
+          </Button>
+        </div>
+      </div>
+
+      {/* Контент */}
+      {activeTab === 'wizard' ? (
+        <AutoEarnWizard />
+      ) : (
+        <AutoEarnDashboard />
+      )}
+    </div>
+  );
+}
+
+// ==================== ГЛАВНОЕ ПРИЛОЖЕНИЕ ====================
+
+export default function Page() {
+  const { activeTab, setActiveTab, settings, updateSettings, settingsOpen, setSettingsOpen } = useAppStore();
+  const { mode } = useModeStore();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [campaignModalOpen, setCampaignModalOpen] = useState(false);
+  const [hotkeysDialogOpen, setHotkeysDialogOpen] = useState(false);
+  const [aiProvidersOpen, setAiProvidersOpen] = useState(false);
+  const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+
+  // Горячие клавиши
+  useHotkeys([
+    { key: 'n', ctrl: true, action: () => setCampaignModalOpen(true), description: 'Новая кампания' },
+    { key: 's', ctrl: true, action: () => setSettingsOpen(true), description: 'Настройки' },
+    { key: '/', action: () => setHotkeysDialogOpen(true), description: 'Горячие клавиши' },
+    { key: 'Escape', action: () => { setSettingsOpen(false); setCampaignModalOpen(false); }, description: 'Закрыть' },
+  ]);
+
+  // Рендер контента на основе активного таба
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'auto-earn':
+        return <AutoEarnView />;
+      case 'dashboard':
+        return <DashboardView />;
+      case 'campaigns':
+        return <CampaignsView />;
+      case 'traffic':
+        return <TrafficView />;
+      case 'warming':
+        return <WarmingViewEnhanced />;
+      case 'instagram-warming':
+        return <InstagramWarmingView />;
+      case 'ai-comments':
+        return <AICommentsView />;
+      case 'monetization':
+        return <MonetizationView />;
+      case 'ofm':
+        return <OFMView />;
+      case 'content':
+        return <ContentView />;
+      case 'video-generator':
+        return <VideoGeneratorView />;
+      case 'offers':
+        return <OffersView />;
+      case 'influencers':
+        return <InfluencersView />;
+      case 'analytics':
+        return <AnalyticsView />;
+      case 'shadow-ban':
+        return <ShadowBanView />;
+      case 'ai-pool':
+        return <AIPoolView />;
+      case 'hunyuan':
+        return <HunyuanView />;
+      case 'traffic-pour':
+        return <TrafficPourView />;
+      case 'antidetect':
+        return <AntidetectView />;
+      case 'advanced':
+        return <AdvancedView />;
+      case 'deepseek-free':
+        return <DeepSeekFreePanelPro />;
+      case 'proxies':
+        return <ProxiesView />;
+      case 'sim-cards':
+        return <SimCardsView />;
+      case 'settings':
+        return <SettingsView />;
+      default:
+        return <AutoEarnView />;
+    }
+  };
+
+  // Терминальный режим
+  if (mode === 'terminal') {
+    return (
+      <TerminalMode />
+    );
+  }
+
+  return (
+    <TooltipProvider>
+      <div className="flex h-screen bg-[#0A0A0C] text-white overflow-hidden">
+        {/* Sidebar */}
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          settingsOpen={settingsOpen}
+          setSettingsOpen={setSettingsOpen}
+        />
+
+        {/* Main content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Header */}
+          <MobileHeader
+            menuOpen={mobileMenuOpen}
+            setMenuOpen={setMobileMenuOpen}
+            notificationsOpen={notificationsOpen}
+            setNotificationsOpen={setNotificationsOpen}
+          />
+
+          {/* Content area */}
+          <main className="flex-1 overflow-y-auto p-6 bg-[#0A0A0C]">
+            <div className="max-w-7xl mx-auto">
+              {renderContent()}
+            </div>
+          </main>
+        </div>
+
+        {/* Mobile Menu */}
+        <MobileMenu
+          open={mobileMenuOpen}
+          onOpenChange={setMobileMenuOpen}
+          activeTab={activeTab}
+          setActiveTab={(tab) => {
+            setActiveTab(tab);
+            setMobileMenuOpen(false);
+          }}
+        />
+
+        {/* Notifications Sheet */}
+        <NotificationsSheet
+          open={notificationsOpen}
+          onOpenChange={setNotificationsOpen}
+        />
+
+        {/* AI Providers Settings */}
+        <AIProvidersSettings
+          open={aiProvidersOpen}
+          onOpenChange={setAiProvidersOpen}
+        />
+
+        {/* Hotkeys Dialog */}
+        <HotkeysHelpDialog open={hotkeysDialogOpen} onOpenChange={setHotkeysDialogOpen} />
+
+        {/* Onboarding Tour */}
+        <OnboardingTour />
+
+        {/* Beginner Hints */}
+        <BeginnerHints />
+      </div>
+    </TooltipProvider>
+  );
+}
+
 // ==================== КОМПОНЕНТ ДАШБОРДА (ГЛАВНАЯ) ====================
 
 function DashboardView() {
@@ -233,7 +429,6 @@ function DashboardView() {
     setLoading(true);
     setError(null);
     try {
-      // Параллельная загрузка всех данных
       const [kpiRes, activitiesRes, campaignsRes, accountsRes, revenueRes] = await Promise.all([
         fetch('/api/dashboard/kpi'),
         fetch('/api/dashboard/activities?limit=20'),
@@ -254,30 +449,11 @@ function DashboardView() {
       const accountsJson = await accountsRes.json();
       const revenueJson = await revenueRes.json();
 
-      // Устанавливаем KPI данные
-      if (kpiJson.kpi) {
-        setKpiData(kpiJson.kpi);
-      }
-
-      // Устанавливаем активности
-      if (activitiesJson.activities) {
-        setActivities(activitiesJson.activities);
-      }
-
-      // Устанавливаем кампании в стор
-      if (campaignsJson.campaigns) {
-        setCampaigns(campaignsJson.campaigns);
-      }
-
-      // Устанавливаем аккаунты в стор
-      if (accountsJson.accounts) {
-        setAccounts(accountsJson.accounts);
-      }
-
-      // Устанавливаем данные для графика
-      if (revenueJson.chartData) {
-        setChartData(revenueJson.chartData);
-      }
+      if (kpiJson.kpi) setKpiData(kpiJson.kpi);
+      if (activitiesJson.activities) setActivities(activitiesJson.activities);
+      if (campaignsJson.campaigns) setCampaigns(campaignsJson.campaigns);
+      if (accountsJson.accounts) setAccounts(accountsJson.accounts);
+      if (revenueJson.chartData) setChartData(revenueJson.chartData);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError(err instanceof Error ? err.message : 'Ошибка загрузки данных');
@@ -287,7 +463,6 @@ function DashboardView() {
     }
   }, [setCampaigns, setAccounts]);
 
-  // Загрузка при монтировании
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -318,21 +493,19 @@ function DashboardView() {
     }
   };
 
-  // Пауза всех кампаний
   const handlePauseAll = async () => {
     try {
       const res = await fetch('/api/campaigns/pause-all', { method: 'POST' });
       if (!res.ok) throw new Error('Ошибка приостановки кампаний');
       const data = await res.json();
       toast.success(data.message || `Приостановлено ${data.pausedCount} кампаний`);
-      fetchData(); // Перезагрузка данных
+      fetchData();
     } catch (err) {
       console.error('Error pausing campaigns:', err);
       toast.error('Не удалось приостановить кампании');
     }
   };
 
-  // Проверка здоровья всех аккаунтов
   const handleHealthCheck = async () => {
     try {
       toast.info('Проверка всех аккаунтов запущена...');
@@ -350,14 +523,12 @@ function DashboardView() {
     }
   };
 
-  // Экспорт отчёта
   const handleExportReport = async () => {
     try {
       toast.info('Формирование отчёта...');
       const res = await fetch('/api/reports/export/excel?type=dashboard');
       if (!res.ok) throw new Error('Ошибка экспорта отчёта');
       
-      // Получаем blob и скачиваем файл
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -448,7 +619,6 @@ function DashboardView() {
 
       {/* График и лента активности */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* График дохода */}
         <Card className="bg-[#14151A] border-[#2A2B32]">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -524,7 +694,6 @@ function DashboardView() {
           </CardContent>
         </Card>
 
-        {/* Лента активности */}
         <Card className="bg-[#14151A] border-[#2A2B32]">
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
@@ -646,7 +815,6 @@ function CampaignsView() {
   const [editingCampaign, setEditingCampaign] = useState<CampaignFromAPI | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Default form data
   const defaultFormData = {
     name: '',
     type: 'crypto',
@@ -655,16 +823,14 @@ function CampaignsView() {
     status: 'draft',
     budget: 0,
     description: '',
-  startDate: '',
+    startDate: '',
     endDate: '',
-  influencerIds: [] as string[],
+    influencerIds: [] as string[],
     offerIds: [] as string[],
   };
 
-  // Форма создания/редактирования
   const [formData, setFormData] = useState(defaultFormData);
 
-  // Загрузка кампаний через API
   const fetchCampaigns = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -682,7 +848,6 @@ function CampaignsView() {
     }
   }, []);
 
-  // Загрузка при монтировании
   useEffect(() => {
     fetchCampaigns();
   }, [fetchCampaigns]);
@@ -725,7 +890,6 @@ function CampaignsView() {
     setFormData(defaultFormData);
   };
 
-  // Создание/обновление кампании
   const handleSave = async () => {
     if (!formData.name) {
       toast.error('Введите название кампании');
@@ -740,7 +904,6 @@ function CampaignsView() {
     setActionLoading('save');
     try {
       if (editingCampaign) {
-        // Обновление через PUT
         const res = await fetch('/api/campaigns', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -754,7 +917,6 @@ function CampaignsView() {
         if (!res.ok) throw new Error('Ошибка обновления кампании');
         toast.success('Кампания обновлена');
       } else {
-        // Создание через POST
         const res = await fetch('/api/campaigns', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -762,7 +924,7 @@ function CampaignsView() {
             ...formData,
             startDate: formData.startDate ? new Date(formData.startDate) : undefined,
             endDate: formData.endDate ? new Date(formData.endDate) : undefined,
-            userId: 'default-user', // TODO: получить из auth
+            userId: 'default-user',
           }),
         });
         if (!res.ok) throw new Error('Ошибка создания кампании');
@@ -778,7 +940,6 @@ function CampaignsView() {
     }
   };
 
-  // Удаление кампании
   const handleDelete = async () => {
     if (!campaignToDelete) return;
     
@@ -800,7 +961,6 @@ function CampaignsView() {
     }
   };
 
-  // Переключение статуса (пауза/запуск)
   const handleToggleStatus = async (campaign: CampaignFromAPI) => {
     const action = campaign.status === 'active' ? 'pause' : 'resume';
     setActionLoading(campaign.id);
@@ -819,7 +979,6 @@ function CampaignsView() {
     }
   };
 
-  // Дублирование кампании
   const handleDuplicate = async (campaign: CampaignFromAPI) => {
     setActionLoading(`dup-${campaign.id}`);
     try {
@@ -837,7 +996,6 @@ function CampaignsView() {
     }
   };
 
-  // AI анализ
   const handleAIAnalysis = async () => {
     if (campaigns.length === 0) {
       toast.error('Нет кампаний для анализа');
@@ -846,7 +1004,6 @@ function CampaignsView() {
     
     setActionLoading('ai-analysis');
     try {
-      // Анализируем первую активную кампанию (или первую в списке)
       const campaignToAnalyze = campaigns.find(c => c.status === 'active') || campaigns[0];
       
       const res = await fetch('/api/ai/analyze-campaign', {
@@ -854,7 +1011,7 @@ function CampaignsView() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           campaignId: campaignToAnalyze.id,
-          userId: 'default-user', // TODO: получить из auth
+          userId: 'default-user',
           analysisType: 'full_analysis',
         }),
       });
@@ -1040,212 +1197,77 @@ function CampaignsView() {
                   <p className="text-white font-medium">{campaign.geo || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-[#8A8A8A]">Лиды</p>
-                  <p className="text-white font-medium">{campaign.leadsCount}</p>
+                  <p className="text-[#8A8A8A]">Бюджет</p>
+                  <p className="text-white font-medium">{campaign.budget.toLocaleString()} ₽</p>
                 </div>
+                <div>
+                  <p className="text-[#8A8A8A]">Потрачено</p>
+                  <p className="text-white font-medium">{campaign.spent.toLocaleString()} ₽</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-sm">
                 <div>
                   <p className="text-[#8A8A8A]">Доход</p>
                   <p className="text-[#00D26A] font-medium">{campaign.revenue.toLocaleString()} ₽</p>
                 </div>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs text-[#8A8A8A]">
-                  <span>Расход бюджета</span>
-                  <span>{campaign.budget > 0 ? Math.round((campaign.spent / campaign.budget) * 100) : 0}%</span>
+                <div>
+                  <p className="text-[#8A8A8A]">Лиды</p>
+                  <p className="text-white font-medium">{campaign.leadsCount}</p>
                 </div>
-                <Progress value={campaign.budget > 0 ? (campaign.spent / campaign.budget) * 100 : 0} className="h-2" />
+                <div>
+                  <p className="text-[#8A8A8A]">ROI</p>
+                  <p className={cn(
+                    'font-medium',
+                    campaign.spent > 0 && ((campaign.revenue - campaign.spent) / campaign.spent * 100) >= 0
+                      ? 'text-[#00D26A]'
+                      : 'text-[#FF4D4D]'
+                  )}>
+                    {campaign.spent > 0 
+                      ? (((campaign.revenue - campaign.spent) / campaign.spent) * 100).toFixed(1)
+                      : '0'
+                    }%
+                  </p>
+                </div>
               </div>
 
-              <Button
-                onClick={() => handleToggleStatus(campaign)}
-                disabled={actionLoading === campaign.id}
-                className={cn(
-                  'w-full',
-                  campaign.status === 'active' ? 'bg-[#FFB800] hover:bg-[#FFB800]/80 text-black' : 'bg-[#00D26A] hover:bg-[#00D26A]/80 text-black'
-                )}
-              >
-                {actionLoading === campaign.id ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : campaign.status === 'active' ? (
-                  <Pause className="w-4 h-4 mr-2" />
-                ) : (
-                  <Play className="w-4 h-4 mr-2" />
-                )}
-                {campaign.status === 'active' ? 'Приостановить' : 'Запустить'}
-              </Button>
+              <Progress
+                value={campaign.budget > 0 ? (campaign.spent / campaign.budget) * 100 : 0}
+                className="h-1.5"
+              />
             </CardContent>
           </Card>
         ))}
       </div>
 
       {filteredCampaigns.length === 0 && (
-        <Card className="bg-[#14151A] border-[#2A2B32] p-12 text-center">
-          <Rocket className="w-16 h-16 mx-auto text-[#8A8A8A] opacity-50 mb-4" />
-          <h3 className="text-xl font-bold text-white mb-2">Нет кампаний</h3>
-          <p className="text-[#8A8A8A] mb-6">Создайте первую кампанию для начала работы</p>
-          <Button onClick={() => handleOpenModal()} className="bg-[#6C63FF] hover:bg-[#6C63FF]/80">
+        <div className="flex flex-col items-center justify-center py-12 text-[#8A8A8A]">
+          <BarChart3 className="w-12 h-12 mb-4 opacity-50" />
+          <p>Нет кампаний</p>
+          <Button
+            onClick={() => handleOpenModal()}
+            className="mt-4 bg-[#6C63FF] hover:bg-[#6C63FF]/80"
+          >
             <Plus className="w-4 h-4 mr-2" />
-            Создать кампанию
+            Создать первую кампанию
           </Button>
-        </Card>
+        </div>
       )}
-
-      {/* Модалка создания/редактирования кампании */}
-      <Dialog open={campaignModalOpen} onOpenChange={setCampaignModalOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-[#14151A] border-[#2A2B32] text-white">
-          <DialogHeader>
-            <DialogTitle>{editingCampaign ? 'Редактирование кампании' : 'Новая кампания'}</DialogTitle>
-          </DialogHeader>
-
-          <Tabs value={modalTab} onValueChange={setModalTab} className="mt-4">
-            <TabsList className="bg-[#1E1F26] border-[#2A2B32] w-full justify-start">
-              <TabsTrigger value="offer" className="data-[state=active]:bg-[#6C63FF]">Оффер</TabsTrigger>
-              <TabsTrigger value="accounts" className="data-[state=active]:bg-[#6C63FF]">Аккаунты</TabsTrigger>
-              <TabsTrigger value="posting" className="data-[state=active]:bg-[#6C63FF]">Постинг</TabsTrigger>
-              <TabsTrigger value="budget" className="data-[state=active]:bg-[#6C63FF]">Бюджет</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="offer" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Название кампании *</Label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Название кампании"
-                  className="bg-[#1E1F26] border-[#2A2B32]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Тип кампании *</Label>
-                <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
-                  <SelectTrigger className="bg-[#1E1F26] border-[#2A2B32]">
-                    <SelectValue placeholder="Выберите тип" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#14151A] border-[#2A2B32]">
-                    <SelectItem value="casino">Казино</SelectItem>
-                    <SelectItem value="crypto">Крипта</SelectItem>
-                    <SelectItem value="dating">Дейтинг</SelectItem>
-                    <SelectItem value="nutra">Нутра</SelectItem>
-                    <SelectItem value="ecommerce">E-commerce</SelectItem>
-                    <SelectItem value="other">Другое</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Ниша</Label>
-                <Input
-                  value={formData.niche}
-                  onChange={(e) => setFormData({ ...formData, niche: e.target.value })}
-                  placeholder="Ниша кампании"
-                  className="bg-[#1E1F26] border-[#2A2B32]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Гео</Label>
-                <Input
-                  value={formData.geo}
-                  onChange={(e) => setFormData({ ...formData, geo: e.target.value })}
-                  placeholder="Страны (например: RU, UA, KZ)"
-                  className="bg-[#1E1F26] border-[#2A2B32]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Описание</Label>
-                <Textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Описание кампании"
-                  className="bg-[#1E1F26] border-[#2A2B32] min-h-[80px]"
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="accounts" className="space-y-4 mt-4">
-              <div className="p-4 bg-[#1E1F26] rounded-lg">
-                <p className="text-[#8A8A8A] text-sm">
-                  Выбор аккаунтов и настройки постинга будут доступны после создания кампании.
-                </p>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="posting" className="space-y-4 mt-4">
-              <div className="p-4 bg-[#1E1F26] rounded-lg">
-                <p className="text-[#8A8A8A] text-sm">
-                  Настройки постинга будут доступны после создания кампании.
-                </p>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="budget" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Бюджет (₽)</Label>
-                <Input
-                  type="number"
-                  value={formData.budget}
-                  onChange={(e) => setFormData({ ...formData, budget: parseInt(e.target.value) || 0 })}
-                  className="bg-[#1E1F26] border-[#2A2B32]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Дата начала</Label>
-                <Input
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  className="bg-[#1E1F26] border-[#2A2B32]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Дата окончания</Label>
-                <Input
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  className="bg-[#1E1F26] border-[#2A2B32]"
-                />
-              </div>
-            </TabsContent>
-          </Tabs>
-
-          <DialogFooter className="mt-6">
-            <Button variant="outline" onClick={handleCloseModal} className="border-[#2A2B32] text-[#8A8A8A]">
-              Отмена
-            </Button>
-            <Button 
-              onClick={handleSave} 
-              disabled={actionLoading === 'save'}
-              className="bg-[#6C63FF] hover:bg-[#6C63FF]/80"
-            >
-              {actionLoading === 'save' ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : null}
-              {editingCampaign ? 'Сохранить' : 'Создать'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Диалог удаления */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-[#14151A] border-[#2A2B32] text-white">
+        <AlertDialogContent className="bg-[#14151A] border-[#2A2B32]">
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить кампанию?</AlertDialogTitle>
+            <AlertDialogTitle className="text-white">Удалить кампанию?</AlertDialogTitle>
             <AlertDialogDescription className="text-[#8A8A8A]">
               Вы уверены, что хотите удалить кампанию &quot;{campaignToDelete?.name}&quot;? Это действие нельзя отменить.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-[#1E1F26] border-[#2A2B32] text-white hover:bg-[#2A2B32]">
+            <AlertDialogCancel className="border-[#2A2B32] text-[#8A8A8A] hover:text-white">
               Отмена
             </AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleDelete}
               disabled={actionLoading === 'delete'}
               className="bg-[#FF4D4D] hover:bg-[#FF4D4D]/80"
@@ -1258,466 +1280,154 @@ function CampaignsView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
-}
 
-// ==================== КОМПОНЕНТ АККАУНТОВ ====================
-
-function AccountsView() {
-  const { accounts, setAccounts, accountModalOpen, setAccountModalOpen, selectedAccounts, setSelectedAccounts, updateAccount, removeAccount } = useAppStore();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [modalTab, setModalTab] = useState('import');
-  const [proxyDialogOpen, setProxyDialogOpen] = useState(false);
-  const [selectedAccountForProxy, setSelectedAccountForProxy] = useState<Account | null>(null);
-
-  const filteredAccounts = useMemo(() => {
-    return accounts.filter(a => {
-      const matchesSearch = (a.username || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
-                           (a.phone || '').includes(searchQuery);
-      const matchesStatus = statusFilter === 'all' || a.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [accounts, searchQuery, statusFilter]);
-
-  const handleSelectAll = () => {
-    if (selectedAccounts.length === filteredAccounts.length) {
-      setSelectedAccounts([]);
-    } else {
-      setSelectedAccounts(filteredAccounts.map(a => a.id));
-    }
-  };
-
-  const handleSelectAccount = (id: string) => {
-    if (selectedAccounts.includes(id)) {
-      setSelectedAccounts(selectedAccounts.filter(a => a !== id));
-    } else {
-      setSelectedAccounts([...selectedAccounts, id]);
-    }
-  };
-
-  const handleWarmAccount = (account: Account) => {
-    toast.info(`Прогрев аккаунта ${account.username} запущен...`);
-    updateAccount(account.id, { status: 'active', warmingProgress: 0 });
-  };
-
-  const handleChangeProxy = (account: Account) => {
-    setSelectedAccountForProxy(account);
-    setProxyDialogOpen(true);
-  };
-
-  const handleDeleteAccount = (account: Account) => {
-    removeAccount(account.id);
-    toast.success(`Аккаунт ${account.username} удалён`);
-  };
-
-  const handleBulkDelete = () => {
-    selectedAccounts.forEach(id => removeAccount(id));
-    setSelectedAccounts([]);
-    toast.success(`${selectedAccounts.length} аккаунтов удалено`);
-  };
-
-  const handleBulkExport = () => {
-    toast.success('Экспорт в CSV запущен...');
-  };
-
-  const getStatusIcon = (account: Account) => {
-    if (account.status === 'banned') {
-      return <div className="w-2 h-2 rounded-full bg-[#FF4D4D]" title="Забанен" />;
-    }
-    if (account.banRisk >= 70) {
-      return <div className="w-2 h-2 rounded-full bg-[#FF4D4D]" title="Высокий риск" />;
-    }
-    if (account.status === 'limit' || account.banRisk >= 30) {
-      return <div className="w-2 h-2 rounded-full bg-[#FFB800]" title="Лимит/Средний риск" />;
-    }
-    if (account.status === 'new') {
-      return <div className="w-2 h-2 rounded-full bg-[#8A8A8A]" title="Новый" />;
-    }
-    return <div className="w-2 h-2 rounded-full bg-[#00D26A]" title="Жив" />;
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Заголовок */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Аккаунты</h1>
-          <p className="text-[#8A8A8A]">Управление Telegram аккаунтами</p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => {
-              toast.info('AI анализ запущен...');
-              // Call AI API
-            }}
-            className="border-[#6C63FF] text-[#6C63FF]"
-          >
-            <Sparkles className="w-4 h-4 mr-2" />
-            AI Анализ
-          </Button>
-          <Button onClick={() => setAccountModalOpen(true)} className="bg-[#6C63FF] hover:bg-[#6C63FF]/80">
-            <Plus className="w-4 h-4 mr-2" />
-            Добавить аккаунт
-          </Button>
-        </div>
-      </div>
-
-      {/* Фильтры */}
-      <div className="flex gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#8A8A8A]" />
-          <Input
-            placeholder="Поиск по username или телефону..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-[#14151A] border-[#2A2B32] text-white"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40 bg-[#14151A] border-[#2A2B32] text-white">
-            <SelectValue placeholder="Статус" />
-          </SelectTrigger>
-          <SelectContent className="bg-[#14151A] border-[#2A2B32]">
-            <SelectItem value="all">Все</SelectItem>
-            <SelectItem value="active">Живые</SelectItem>
-            <SelectItem value="limit">Лимит</SelectItem>
-            <SelectItem value="banned">Забаненные</SelectItem>
-            <SelectItem value="new">Новые</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Массовые операции */}
-      {selectedAccounts.length > 0 && (
-        <Card className="bg-[#1E1F26] border-[#6C63FF]/50">
-          <CardContent className="flex items-center gap-4 py-4">
-            <span className="text-white">Выбрано: {selectedAccounts.length}</span>
-            <Button variant="outline" size="sm" onClick={handleBulkDelete} className="border-[#FF4D4D] text-[#FF4D4D]">
-              <Trash2 className="w-4 h-4 mr-2" />
-              Удалить
-            </Button>
-            <Button variant="outline" size="sm" className="border-[#6C63FF] text-[#6C63FF]">
-              <Globe className="w-4 h-4 mr-2" />
-              Сменить прокси
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleBulkExport} className="border-[#00D26A] text-[#00D26A]">
-              <Download className="w-4 h-4 mr-2" />
-              Экспорт CSV
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Таблица аккаунтов */}
-      <Card className="bg-[#14151A] border-[#2A2B32]">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-[#2A2B32]">
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={selectedAccounts.length === filteredAccounts.length && filteredAccounts.length > 0}
-                    onCheckedChange={handleSelectAll}
-                  />
-                </TableHead>
-                <TableHead className="text-[#8A8A8A]">Статус</TableHead>
-                <TableHead className="text-[#8A8A8A]">ID/Имя</TableHead>
-                <TableHead className="text-[#8A8A8A]">Прокси</TableHead>
-                <TableHead className="text-[#8A8A8A]">Сегодня комментов</TableHead>
-                <TableHead className="text-[#8A8A8A]">Всего комментов</TableHead>
-                <TableHead className="text-[#8A8A8A]">Бан-риск</TableHead>
-                <TableHead className="text-[#8A8A8A]">Действия</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredAccounts.map((account) => (
-                <TableRow key={account.id} className="hover:bg-[#1E1F26] border-[#2A2B32]">
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedAccounts.includes(account.id)}
-                      onCheckedChange={() => handleSelectAccount(account.id)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          {getStatusIcon(account)}
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{getStatusLabel(account.status)}</p>
-                          <p>Риск: {account.banRisk}%</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="text-white font-medium">@{account.username || 'unknown'}</p>
-                      <p className="text-xs text-[#8A8A8A]">{account.phone || ''}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-[#8A8A8A]">{account.proxy || '—'}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-white">{account.commentsToday}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-white">{account.commentsTotal}</span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Progress value={account.banRisk} className="w-16 h-2" />
-                      <span style={{ color: getRiskColor(account.banRisk) }}>{account.banRisk}%</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="sm" onClick={() => handleChangeProxy(account)} className="h-8 w-8 p-0 text-[#8A8A8A] hover:text-white">
-                              <Globe className="w-4 h-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Сменить прокси</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      
-                      {account.status === 'new' && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="ghost" size="sm" onClick={() => handleWarmAccount(account)} className="h-8 w-8 p-0 text-[#FFB800] hover:text-white">
-                                <Thermometer className="w-4 h-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Прогреть</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                      
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="sm" onClick={() => handleDeleteAccount(account)} className="h-8 w-8 p-0 text-[#FF4D4D] hover:text-white">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Удалить</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-
-          {filteredAccounts.length === 0 && (
-            <div className="py-12 text-center">
-              <Users className="w-16 h-16 mx-auto text-[#8A8A8A] opacity-50 mb-4" />
-              <p className="text-[#8A8A8A]">Нет аккаунтов</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Модалка добавления аккаунта */}
-      <Dialog open={accountModalOpen} onOpenChange={setAccountModalOpen}>
-        <DialogContent className="max-w-2xl bg-[#14151A] border-[#2A2B32] text-white">
+      {/* Диалог создания/редактирования кампании */}
+      <Dialog open={campaignModalOpen} onOpenChange={setCampaignModalOpen}>
+        <DialogContent className="bg-[#14151A] border-[#2A2B32] max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Добавить аккаунты</DialogTitle>
+            <DialogTitle className="text-white">
+              {editingCampaign ? 'Редактировать кампанию' : 'Новая кампания'}
+            </DialogTitle>
           </DialogHeader>
-
-          <Tabs value={modalTab} onValueChange={setModalTab} className="mt-4">
-            <TabsList className="bg-[#1E1F26] border-[#2A2B32] w-full">
-              <TabsTrigger value="import" className="data-[state=active]:bg-[#6C63FF] flex-1">Импорт из файла</TabsTrigger>
-              <TabsTrigger value="manual" className="data-[state=active]:bg-[#6C63FF] flex-1">Ручное добавление</TabsTrigger>
-              <TabsTrigger value="auto" className="data-[state=active]:bg-[#6C63FF] flex-1">Авто-регистрация</TabsTrigger>
+          
+          <Tabs value={modalTab} onValueChange={setModalTab}>
+            <TabsList className="bg-[#1E1F26] border-[#2A2B32]">
+              <TabsTrigger value="offer" className="data-[state=active]:bg-[#6C63FF]">Оффер</TabsTrigger>
+              <TabsTrigger value="accounts" className="data-[state=active]:bg-[#6C63FF]">Аккаунты</TabsTrigger>
+              <TabsTrigger value="settings" className="data-[state=active]:bg-[#6C63FF]">Настройки</TabsTrigger>
             </TabsList>
-
-            <TabsContent value="import" className="mt-4">
-              <div className="border-2 border-dashed border-[#2A2B32] rounded-lg p-8 text-center hover:border-[#6C63FF] transition-colors cursor-pointer">
-                <FileUp className="w-12 h-12 mx-auto text-[#8A8A8A] mb-4" />
-                <p className="text-white mb-2">Перетащите файл сюда или нажмите для выбора</p>
-                <p className="text-sm text-[#8A8A8A]">Поддерживаемые форматы: CSV, JSON</p>
+            
+            <TabsContent value="offer" className="space-y-4 mt-4">
+              <div>
+                <Label className="text-[#8A8A8A]">Название кампании *</Label>
+                <Input
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Название кампании"
+                  className="bg-[#1E1F26] border-[#2A2B32] text-white mt-1"
+                />
               </div>
-            </TabsContent>
-
-            <TabsContent value="manual" className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Телефон</Label>
-                  <Input placeholder="+79001234567" className="bg-[#1E1F26] border-[#2A2B32]" />
+                <div>
+                  <Label className="text-[#8A8A8A]">Тип *</Label>
+                  <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
+                    <SelectTrigger className="bg-[#1E1F26] border-[#2A2B32] text-white mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1E1F26] border-[#2A2B32]">
+                      <SelectItem value="crypto">Крипта</SelectItem>
+                      <SelectItem value="casino">Казино</SelectItem>
+                      <SelectItem value="dating">Дейтинг</SelectItem>
+                      <SelectItem value="nutra">Нутра</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>API ID</Label>
-                  <Input placeholder="12345" className="bg-[#1E1F26] border-[#2A2B32]" />
-                </div>
-                <div className="space-y-2">
-                  <Label>API Hash</Label>
-                  <Input placeholder="abcdef123456..." className="bg-[#1E1F26] border-[#2A2B32]" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Session String</Label>
-                  <Input placeholder="session_string..." className="bg-[#1E1F26] border-[#2A2B32]" />
+                <div>
+                  <Label className="text-[#8A8A8A]">Ниша</Label>
+                  <Input
+                    value={formData.niche}
+                    onChange={(e) => setFormData({ ...formData, niche: e.target.value })}
+                    placeholder="Ниша"
+                    className="bg-[#1E1F26] border-[#2A2B32] text-white mt-1"
+                  />
                 </div>
               </div>
-              <Button className="w-full bg-[#6C63FF] hover:bg-[#6C63FF]/80">
-                Добавить
-              </Button>
+              <div>
+                <Label className="text-[#8A8A8A]">Описание</Label>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Описание кампании"
+                  className="bg-[#1E1F26] border-[#2A2B32] text-white mt-1"
+                />
+              </div>
             </TabsContent>
-
-            <TabsContent value="auto" className="mt-4">
-              <div className="text-center py-8">
-                <Bot className="w-12 h-12 mx-auto text-[#6C63FF] mb-4" />
-                <p className="text-white mb-2">Автоматическая регистрация через сервис</p>
-                <p className="text-sm text-[#8A8A8A] mb-4">Интеграция с SMS-сервисами для массовой регистрации</p>
-                <Button variant="outline" className="border-[#6C63FF] text-[#6C63FF]">
-                  Настроить сервис
-                </Button>
+            
+            <TabsContent value="accounts" className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-[#8A8A8A]">Гео</Label>
+                  <Input
+                    value={formData.geo}
+                    onChange={(e) => setFormData({ ...formData, geo: e.target.value })}
+                    placeholder="RU, US, etc."
+                    className="bg-[#1E1F26] border-[#2A2B32] text-white mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[#8A8A8A]">Бюджет (₽)</Label>
+                  <Input
+                    type="number"
+                    value={formData.budget}
+                    onChange={(e) => setFormData({ ...formData, budget: parseFloat(e.target.value) || 0 })}
+                    placeholder="0"
+                    className="bg-[#1E1F26] border-[#2A2B32] text-white mt-1"
+                  />
+                </div>
+              </div>
+              <p className="text-[#8A8A8A] text-sm">
+                Выберите аккаунты для кампании в разделе &quot;Инфраструктура&quot; → &quot;Аккаунты&quot;
+              </p>
+            </TabsContent>
+            
+            <TabsContent value="settings" className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-[#8A8A8A]">Дата начала</Label>
+                  <Input
+                    type="date"
+                    value={formData.startDate}
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    className="bg-[#1E1F26] border-[#2A2B32] text-white mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[#8A8A8A]">Дата окончания</Label>
+                  <Input
+                    type="date"
+                    value={formData.endDate}
+                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    className="bg-[#1E1F26] border-[#2A2B32] text-white mt-1"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-[#8A8A8A]">Статус</Label>
+                <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
+                  <SelectTrigger className="bg-[#1E1F26] border-[#2A2B32] text-white mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1E1F26] border-[#2A2B32]">
+                    <SelectItem value="draft">Черновик</SelectItem>
+                    <SelectItem value="active">Активна</SelectItem>
+                    <SelectItem value="paused">Пауза</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </TabsContent>
           </Tabs>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleCloseModal}
+              className="border-[#2A2B32] text-[#8A8A8A] hover:text-white"
+            >
+              Отмена
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={actionLoading === 'save'}
+              className="bg-[#6C63FF] hover:bg-[#6C63FF]/80"
+            >
+              {actionLoading === 'save' ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
+              {editingCampaign ? 'Сохранить' : 'Создать'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-// ==================== ГЛАВНЫЙ КОМПОНЕНТ ====================
-
-export default function MUKNTrafficApp() {
-  const { activeTab } = useAppStore();
-  const { aiPanelOpen, terminalMode, uiMode, theme } = useModeStore();
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-
-  // Hotkeys
-  const { helpDialogOpen, setHelpDialogOpen } = useHotkeys();
-
-  // Apply theme class to body
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.remove('dark', 'light', 'high-contrast');
-    root.classList.add(theme);
-  }, [theme]);
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return <DashboardView />;
-      case 'campaigns':
-        return <CampaignsView />;
-      case 'accounts':
-        return <AccountsView />;
-      case 'analytics':
-        return <AnalyticsView />;
-      case 'settings':
-        return <SettingsView />;
-      case 'traffic':
-        return <TrafficView />;
-      case 'offers':
-        return <OffersView />;
-      case 'influencers':
-        return <InfluencersView />;
-      case 'ai-comments':
-        return <AICommentsView />;
-      case 'ai-pool':
-        return <AIPoolView />;
-      case 'hunyuan':
-        return <HunyuanView />;
-      case 'content':
-        return <ContentView />;
-      case 'video-generator':
-        return <VideoGeneratorView />;
-      case 'advanced':
-        return <AdvancedView />;
-      case 'warming':
-        return <WarmingViewEnhanced />;
-      case 'shadow-ban':
-        return <ShadowBanView />;
-      case 'monetization':
-        return <MonetizationView />;
-      case 'ofm':
-        return <OFMView />;
-      case 'proxies':
-        return <ProxiesView />;
-      case 'sim-cards':
-        return <SimCardsView />;
-      case 'ig-warming':
-        return <InstagramWarmingView />;
-      case 'traffic-pour':
-        return <TrafficPourView />;
-      case 'antidetect':
-        return <AntidetectView />;
-      case 'deepseek-free':
-        return <DeepSeekFreePanelPro />;
-      default:
-        return <DashboardView />;
-    }
-  };
-
-  // Adjust main content margin based on AI panel
-  const mainStyle = aiPanelOpen
-    ? { marginRight: '380px' }
-    : {};
-
-  return (
-    <div className="flex h-screen bg-[#0A0B0E]">
-      {/* Mobile Menu (Sheet-based drawer) */}
-      <MobileMenu onNotificationsClick={() => setNotificationsOpen(true)} />
-      
-      {/* Desktop Sidebar */}
-      <Sidebar onNotificationsClick={() => setNotificationsOpen(true)} />
-
-      <main className="flex-1 overflow-hidden" style={mainStyle}>
-        {/* Mobile Header */}
-        <MobileHeader 
-          onNotificationsClick={() => setNotificationsOpen(true)}
-        />
-        
-        {/* Desktop Header with Mode Switcher */}
-        <div className="hidden md:flex items-center justify-between px-4 py-2 border-b border-[#2A2B32] bg-[#14151A]">
-          <div className="flex items-center gap-2">
-            <Badge className={cn(
-              'text-xs',
-              uiMode === 'simple' ? 'bg-[#00D26A]/20 text-[#00D26A]' : 'bg-[#FFB800]/20 text-[#FFB800]'
-            )}>
-              {uiMode === 'simple' ? 'Простой режим' : 'Эксперт режим'}
-            </Badge>
-          </div>
-          <ModeSwitcher />
-        </div>
-
-        <ScrollArea className="h-full" style={{ height: 'calc(100vh - 49px)' }}>
-          <div className="p-4 md:p-6 pt-16 md:pt-6">
-            {renderContent()}
-          </div>
-        </ScrollArea>
-      </main>
-
-      <NotificationsSheet open={notificationsOpen} onOpenChange={setNotificationsOpen} />
-      
-      {/* AI Assistant Panel */}
-      <AIAssistantPanel />
-      
-      {/* Onboarding Tour */}
-      <OnboardingTour />
-      <BeginnerHints />
-      
-      {/* Terminal Mode */}
-      <TerminalMode />
-      
-      {/* Hotkeys Help (Expert mode only) */}
-      {uiMode === 'expert' && <HotkeysHelp />}
-      
-      {/* Hotkeys Help Dialog */}
-      <HotkeysHelpDialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen} />
     </div>
   );
 }

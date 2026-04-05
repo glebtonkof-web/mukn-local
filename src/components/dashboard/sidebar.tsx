@@ -45,6 +45,12 @@ import { ThemeSwitcherIcon } from '@/components/ui/theme-switcher';
 
 const navSections = [
   {
+    title: '🚀 Быстрый старт',
+    items: [
+      { id: 'auto-earn', label: 'Авто-заработок', icon: Zap, badge: 'NEW' },
+    ]
+  },
+  {
     title: 'Основное',
     items: [
       { id: 'dashboard', label: 'Главная', icon: LayoutDashboard },
