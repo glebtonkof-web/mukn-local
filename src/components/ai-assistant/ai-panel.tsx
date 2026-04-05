@@ -499,7 +499,6 @@ export function AIAssistantPanel() {
   // Голосовые функции
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [speechSynthesis, setSpeechSynthesis] = useState<SpeechSynthesis | null>(null);
   
   // Черновик
   const [draft, setDraft] = useState('');
@@ -565,11 +564,6 @@ export function AIAssistantPanel() {
         console.error('Error loading custom prompts:', e);
       }
     }
-
-    // Инициализация Speech Synthesis
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      setSpeechSynthesis(window.speechSynthesis);
-    }
   }, []);
 
   // Сохранение в localStorage
@@ -590,6 +584,17 @@ export function AIAssistantPanel() {
   useEffect(() => {
     localStorage.setItem('ai-custom-prompts', JSON.stringify(customPrompts));
   }, [customPrompts]);
+
+  // Предзагрузка голосов для Speech Synthesis
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      const synth = window.speechSynthesis;
+      // Загружаем голоса
+      synth.getVoices();
+      // В некоторых браузерах голоса загружаются асинхронно
+      synth.onvoiceschanged = () => synth.getVoices();
+    }
+  }, []);
 
   // Автопрокрутка
   useEffect(() => {
@@ -1013,23 +1018,49 @@ export function AIAssistantPanel() {
 
   // Озвучка ответа
   const speakText = (text: string) => {
-    if (!speechSynthesis) return;
+    // Проверяем поддержку Speech Synthesis
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      toast.error('Озвучка не поддерживается в этом браузере');
+      return;
+    }
 
+    const synth = window.speechSynthesis;
+
+    // Если уже говорим — останавливаем
     if (isSpeaking) {
-      speechSynthesis.cancel();
+      synth.cancel();
       setIsSpeaking(false);
       return;
     }
 
+    // Останавливаем любой предыдущий синтез
+    synth.cancel();
+
+    // Создаём utterance
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'ru-RU';
     utterance.rate = 1;
     utterance.pitch = 1;
+    utterance.volume = 1;
 
+    // Получаем русский голос если доступен
+    const voices = synth.getVoices();
+    const russianVoice = voices.find(v => v.lang.startsWith('ru'));
+    if (russianVoice) {
+      utterance.voice = russianVoice;
+    }
+
+    utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
+    utterance.onerror = (e) => {
+      console.error('Speech error:', e);
+      setIsSpeaking(false);
+      if (e.error !== 'canceled') {
+        toast.error('Ошибка озвучки');
+      }
+    };
 
-    speechSynthesis.speak(utterance);
+    synth.speak(utterance);
     setIsSpeaking(true);
   };
 
