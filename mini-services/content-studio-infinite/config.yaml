@@ -1,0 +1,147 @@
+# Content Studio Infinite - Configuration
+# МУКН | Трафик - Enterprise AI-powered Content Generation Platform
+
+settings:
+  target_daily_minutes: 300  # Цель: 5 часов видео в день
+  max_accounts_per_provider: 50  # До 50 аккаунтов на сервис
+  parallel_workers: 10  # 10 параллельных генераций
+  headless: true  # Без графического интерфейса
+  auto_register: true  # Автоматическая регистрация новых аккаунтов
+  min_available_accounts: 5  # Минимум активных аккаунтов
+  
+  # Антибан
+  min_delay: 2.0  # Минимальная задержка между запросами
+  max_delay: 10.0  # Максимальная задержка
+  max_requests_per_hour_per_account: 10  # Максимум запросов в час на аккаунт
+
+providers:
+  kling:
+    enabled: true
+    url: "https://klingai.com"
+    daily_credits: 100
+    max_requests_per_hour: 5
+    max_requests_per_day: 50
+    video_duration: [5, 10]
+    auto_register: true
+    priority: 1
+    
+  wan:
+    enabled: true
+    url: "https://wan.video"
+    daily_credits: 30
+    max_requests_per_hour: 5
+    max_requests_per_day: 30
+    video_duration: [10]
+    auto_register: true
+    priority: 2
+    
+  digen:
+    enabled: true
+    url: "https://digen.ai"
+    daily_credits: 25
+    max_requests_per_hour: 4
+    max_requests_per_day: 25
+    video_duration: [5]
+    auto_register: true
+    priority: 3
+    
+  qwen:
+    enabled: true
+    url: "https://qwen.ai"
+    daily_credits: 20
+    max_requests_per_hour: 4
+    max_requests_per_day: 20
+    video_duration: [5, 10]
+    auto_register: true
+    priority: 4
+    
+  runway:
+    enabled: true
+    url: "https://runwayml.com"
+    daily_credits: 125  # One-time, but high
+    max_requests_per_hour: 5
+    max_requests_per_day: 30
+    video_duration: [10]
+    auto_register: true
+    priority: 5
+    
+  luma:
+    enabled: true
+    url: "https://lumalabs.ai/dream-machine"
+    daily_credits: 30
+    max_requests_per_hour: 5
+    max_requests_per_day: 30
+    video_duration: [5]
+    auto_register: true
+    priority: 6
+    
+  pika:
+    enabled: true
+    url: "https://pika.art"
+    daily_credits: 50
+    max_requests_per_hour: 5
+    max_requests_per_day: 50
+    video_duration: [5, 10]
+    auto_register: true
+    priority: 7
+    
+  haiper:
+    enabled: true
+    url: "https://haiper.ai"
+    daily_credits: 20
+    max_requests_per_hour: 4
+    max_requests_per_day: 20
+    video_duration: [5, 10]
+    auto_register: true
+    priority: 8
+    
+  vidu:
+    enabled: true
+    url: "https://vidu.studio"
+    daily_credits: 15
+    max_requests_per_hour: 3
+    max_requests_per_day: 15
+    video_duration: [5, 10]
+    auto_register: true
+    priority: 9
+    
+  meta:
+    enabled: false  # Сложно автоматизировать Facebook
+    url: "https://meta.ai"
+    daily_credits: 20
+    max_requests_per_hour: 5
+    max_requests_per_day: 20
+    video_duration: [60]
+    auto_register: false  # Требуется ручная настройка Facebook
+    priority: 10
+
+temp_email:
+  services:
+    - "1secmail"
+    - "guerrilla"
+    - "tempmail"
+  timeout: 300  # секунд ожидания письма
+  retry_interval: 5  # секунд между проверками
+
+video_stitcher:
+  default_transition: "fade"
+  transition_duration: 0.5
+  output_format: "mp4"
+  output_codec: "libx264"
+  output_quality: "high"
+
+proxy:
+  enabled: false
+  rotation: true
+  list_file: "./data/proxies.txt"
+
+database:
+  path: "./data/content_studio.db"
+  backup_interval: 3600  # секунд
+
+api:
+  host: "0.0.0.0"
+  port: 8767
+  cors_origins:
+    - "http://localhost:3000"
+    - "https://mukn.traffic"
