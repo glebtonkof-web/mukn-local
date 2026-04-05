@@ -33,6 +33,21 @@
   --chart-3: #FFB800;
   --chart-4: #FF4D4D;
   --chart-5: #00B4D8;
+  
+  /* AI Panel dimensions */
+  --ai-panel-width: 420px;
+  --ai-panel-history-width: 280px;
+  --ai-panel-total-width: 700px; /* 420 + 280 */
+  
+  /* Sidebar width */
+  --sidebar-width: 256px;
+  
+  /* Breakpoints (for reference) */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
 }
 
 /* Light Theme */
@@ -463,6 +478,60 @@ html {
 @media (min-width: 641px) and (max-width: 1024px) {
   .tablet-full-width {
     width: 100% !important;
+  }
+}
+
+/* ==================== AI PANEL RESPONSIVE ==================== */
+/* On screens < 1280px, AI panel becomes a drawer (handled by JS) */
+/* On screens >= 1280px, AI panel is a fixed side panel */
+
+/* Main content area adjustment for AI panel on desktop */
+@media (min-width: 1280px) {
+  .main-content-with-ai-panel {
+    margin-right: var(--ai-panel-width);
+    transition: margin-right 0.3s ease-out;
+  }
+  
+  .main-content-with-ai-panel.expanded {
+    margin-right: 0;
+  }
+}
+
+/* Hide AI panel floating button on desktop when panel is open */
+@media (min-width: 1280px) {
+  .ai-floating-button {
+    display: none;
+  }
+}
+
+/* Show AI panel floating button on mobile/tablet */
+@media (max-width: 1279px) {
+  .ai-floating-button {
+    display: flex;
+  }
+}
+
+/* AI Panel drawer mode adjustments */
+.ai-panel-drawer {
+  width: 85vw !important;
+  max-width: 600px;
+}
+
+@media (min-width: 640px) {
+  .ai-panel-drawer {
+    width: 400px !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .ai-panel-drawer {
+    width: 500px !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ai-panel-drawer {
+    width: 600px !important;
   }
 }
 

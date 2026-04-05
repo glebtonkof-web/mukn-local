@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useModeStore } from '@/store/mode-store';
+import { useAIPanelResponsive } from '@/hooks/use-responsive';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,6 +19,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { 
   Bot, Send, Maximize2, Minimize2, X, 
   Copy, Check, Trash2, RotateCcw, Square,
@@ -1563,9 +1570,33 @@ GET /api/ofm/prompts — Шаблоны промптов
 export function AIAssistantPanel() {
   const {
     aiPanelOpen, aiPanelWidth, aiPanelExpanded,
-    setAIPanelOpen, setAIPanelExpanded,
+    setAIPanelOpen, setAIPanelExpanded, setAIPanelDrawerMode,
     getCachedResponse, cacheResponse,
   } = useModeStore();
+  
+  // Responsive detection
+  const responsive = useAIPanelResponsive();
+  
+  // Update drawer mode in store when responsive state changes
+  useEffect(() => {
+    setAIPanelDrawerMode(responsive.shouldUseDrawer);
+    
+    // On mobile, auto-close panel by default
+    if (responsive.hideByDefault && aiPanelOpen) {
+      // Only auto-close on initial load on mobile
+      const hasBeenOpened = sessionStorage.getItem('ai-panel-opened');
+      if (!hasBeenOpened) {
+        setAIPanelOpen(false);
+      }
+    }
+  }, [responsive.shouldUseDrawer, responsive.hideByDefault]);
+  
+  // Store opened state in session storage
+  useEffect(() => {
+    if (aiPanelOpen) {
+      sessionStorage.setItem('ai-panel-opened', 'true');
+    }
+  }, [aiPanelOpen]);
 
   // Состояния
   const [input, setInput] = useState('');
@@ -2383,36 +2414,36 @@ export function AIAssistantPanel() {
 
   // ==================== РЕНДЕРИНГ ====================
 
+  // Calculate panel width based on responsive state
+  const panelWidth = aiPanelExpanded ? '100%' : `${responsive.getAvailableWidth(aiPanelWidth, showHistory)}px`;
+
+  // Floating button to open panel
+  const FloatingButton = () => (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={() => setAIPanelOpen(true)}
+            className="fixed right-4 bottom-4 w-14 h-14 rounded-full bg-[#6C63FF] shadow-lg flex items-center justify-center hover:bg-[#6C63FF]/80 transition-all z-50 group"
+          >
+            <Bot className="w-6 h-6 text-white" />
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-[#00D26A] rounded-full animate-pulse" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="left">
+          <p>Открыть AI чат (Ctrl+K)</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+
   if (!aiPanelOpen) {
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={() => setAIPanelOpen(true)}
-              className="fixed right-4 bottom-4 w-14 h-14 rounded-full bg-[#6C63FF] shadow-lg flex items-center justify-center hover:bg-[#6C63FF]/80 transition-all z-50 group"
-            >
-              <Bot className="w-6 h-6 text-white" />
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-[#00D26A] rounded-full animate-pulse" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="left">
-            <p>Открыть AI чат (Ctrl+K)</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    );
+    return <FloatingButton />;
   }
 
-  return (
-    <div 
-      className={cn(
-        'fixed right-0 top-0 h-full bg-[#14151A] border-l border-[#2A2B32] flex transition-all z-40',
-        aiPanelExpanded ? 'w-full' : '',
-        showHistory ? '' : ''
-      )}
-      style={{ width: aiPanelExpanded ? '100%' : `${aiPanelWidth + (showHistory ? 280 : 0)}px` }}
-    >
+  // Panel content (shared between fixed panel and drawer)
+  const PanelContent = () => (
+    <>
       {/* Боковая панель истории */}
       {showHistory && (
         <div className="w-[280px] border-r border-[#2A2B32] flex flex-col bg-[#0D0E12]">
@@ -3179,7 +3210,45 @@ export function AIAssistantPanel() {
           </div>
         </div>
       </div>
-    </div>
+    </>
+  );
+
+  // Responsive rendering: Sheet (drawer) for small screens, fixed panel for desktop
+  if (responsive.shouldUseDrawer) {
+    return (
+      <>
+        <Sheet open={aiPanelOpen} onOpenChange={setAIPanelOpen}>
+          <SheetContent 
+            side="right" 
+            className="w-[85vw] sm:w-[400px] md:w-[500px] lg:w-[600px] p-0 bg-[#14151A] border-l border-[#2A2B32]"
+          >
+            <SheetHeader className="sr-only">
+              <SheetTitle>AI Ассистент</SheetTitle>
+            </SheetHeader>
+            <div className="h-full flex flex-col">
+              <PanelContent />
+            </div>
+          </SheetContent>
+        </Sheet>
+        <FloatingButton />
+      </>
+    );
+  }
+
+  // Desktop: Fixed panel
+  return (
+    <>
+      <div 
+        className={cn(
+          'fixed right-0 top-0 h-full bg-[#14151A] border-l border-[#2A2B32] flex transition-all z-40',
+          aiPanelExpanded ? 'w-full' : ''
+        )}
+        style={{ width: panelWidth }}
+      >
+        <PanelContent />
+      </div>
+      <FloatingButton />
+    </>
   );
 }
 

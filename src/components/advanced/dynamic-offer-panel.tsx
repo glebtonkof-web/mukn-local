@@ -303,12 +303,12 @@ export function DynamicOfferPanel() {
             </div>
             <div className="space-y-2">
               <Label>Backup Offer</Label>
-              <Select value={backupOfferId} onValueChange={setBackupOfferId}>
+              <Select value={backupOfferId || 'none'} onValueChange={(v) => setBackupOfferId(v === 'none' ? '' : v)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select backup offer..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {offers
                     .filter((o) => o.id !== primaryOfferId)
                     .map((offer) => (

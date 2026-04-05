@@ -637,12 +637,12 @@ export function InfluencersView() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="bg-[#1E1F26] border-[#2A2B32] flex-1"
             />
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
               <SelectTrigger className="bg-[#1E1F26] border-[#2A2B32] w-48">
                 <SelectValue placeholder="Все статусы" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Все статусы</SelectItem>
+                <SelectItem value="all">Все статусы</SelectItem>
                 <SelectItem value="active">Активные</SelectItem>
                 <SelectItem value="draft">Черновики</SelectItem>
                 <SelectItem value="paused">На паузе</SelectItem>

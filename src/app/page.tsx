@@ -269,13 +269,18 @@ function AutoEarnView() {
 
 export default function Page() {
   const { activeTab, setActiveTab, settings, updateSettings, settingsOpen, setSettingsOpen } = useAppStore();
-  const { mode } = useModeStore();
+  const { terminalMode, aiPanelOpen, aiPanelWidth, aiPanelDrawerMode } = useModeStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [campaignModalOpen, setCampaignModalOpen] = useState(false);
   const [hotkeysDialogOpen, setHotkeysDialogOpen] = useState(false);
 
-  const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+  // Calculate main content margin based on AI panel state
+  // Only apply margin on desktop (not drawer mode) when panel is open
+  const showAIPanelMargin = aiPanelOpen && !aiPanelDrawerMode;
+  const mainContentStyle = showAIPanelMargin 
+    ? { marginRight: `${aiPanelWidth}px` } as React.CSSProperties
+    : undefined;
 
   // Горячие клавиши
   useHotkeys([
@@ -342,7 +347,7 @@ export default function Page() {
   };
 
   // Терминальный режим
-  if (mode === 'terminal') {
+  if (terminalMode) {
     return (
       <TerminalMode />
     );
@@ -360,7 +365,10 @@ export default function Page() {
         />
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div 
+          className="flex-1 flex flex-col overflow-hidden transition-all duration-300"
+          style={mainContentStyle}
+        >
           {/* Header */}
           <MobileHeader
             menuOpen={mobileMenuOpen}

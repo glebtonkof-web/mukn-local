@@ -241,12 +241,12 @@ export function CreativeGeneratorPanel() {
                     <Gamepad2 className="w-4 h-4" />
                     Игра
                   </Label>
-                  <Select value={selectedGame} onValueChange={setSelectedGame}>
+                  <Select value={selectedGame || 'random'} onValueChange={(v) => setSelectedGame(v === 'random' ? '' : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Случайная игра" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">🎲 Случайная</SelectItem>
+                      <SelectItem value="random">🎲 Случайная</SelectItem>
                       {games.map(game => (
                         <SelectItem key={game.slug} value={game.slug}>
                           {game.name}

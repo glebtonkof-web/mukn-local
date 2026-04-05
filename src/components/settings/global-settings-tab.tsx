@@ -245,14 +245,14 @@ export function GlobalSettingsTab() {
           <div>
             <Label className="text-[#8A8A8A] text-sm">Fallback AI (резерв)</Label>
             <Select
-              value={settings.fallbackAI || ''}
-              onValueChange={(v) => setSettings({ ...settings, fallbackAI: v || null })}
+              value={settings.fallbackAI || 'none'}
+              onValueChange={(v) => setSettings({ ...settings, fallbackAI: v === 'none' ? null : v })}
             >
               <SelectTrigger className="bg-[#14151A] border-[#2A2B32] text-white mt-1">
                 <SelectValue placeholder="Не выбран" />
               </SelectTrigger>
               <SelectContent className="bg-[#1E1F26] border-[#2A2B32]">
-                <SelectItem value="" className="text-white">Не выбран</SelectItem>
+                <SelectItem value="none" className="text-white">Не выбран</SelectItem>
                 <SelectItem value="chatgpt" className="text-white">ChatGPT</SelectItem>
                 <SelectItem value="claude" className="text-white">Claude</SelectItem>
                 <SelectItem value="gemini" className="text-white">Gemini</SelectItem>

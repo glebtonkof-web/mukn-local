@@ -43,9 +43,11 @@ interface ModeState {
   aiPanelOpen: boolean;
   aiPanelWidth: number;
   aiPanelExpanded: boolean;
+  aiPanelDrawerMode: boolean; // true when screen < 1280px, panel becomes drawer
   setAIPanelOpen: (open: boolean) => void;
   setAIPanelWidth: (width: number) => void;
   setAIPanelExpanded: (expanded: boolean) => void;
+  setAIPanelDrawerMode: (drawerMode: boolean) => void;
   
   // AI Chat Messages
   aiMessages: AIMessage[];
@@ -95,11 +97,13 @@ export const useModeStore = create<ModeState>()(
       
       // AI Assistant Panel
       aiPanelOpen: true,
-      aiPanelWidth: 380,
+      aiPanelWidth: 420,
       aiPanelExpanded: false,
+      aiPanelDrawerMode: false,
       setAIPanelOpen: (open) => set({ aiPanelOpen: open }),
       setAIPanelWidth: (width) => set({ aiPanelWidth: width }),
       setAIPanelExpanded: (expanded) => set({ aiPanelExpanded: expanded }),
+      setAIPanelDrawerMode: (drawerMode) => set({ aiPanelDrawerMode: drawerMode }),
       
       // AI Chat Messages
       aiMessages: [],
