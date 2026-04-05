@@ -1,18 +1,74 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useModeStore } from '@/store/mode-store';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { 
   Bot, Send, Maximize2, Minimize2, X, 
-  Copy, Check, Trash2
+  Copy, Check, Trash2, RotateCcw, Square,
+  History, Bookmark, BookmarkCheck, Download,
+  Settings, Mic, MicOff, Volume2, VolumeX,
+  MessageSquare, Plus, Search, Edit2, CheckCircle,
+  XCircle, ChevronLeft, ChevronRight, Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
-const quickPrompts = [
+// ==================== ТИПЫ ====================
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  bookmarked?: boolean;
+  edited?: boolean;
+  regenerationOf?: string;
+}
+
+interface Chat {
+  id: string;
+  title: string;
+  messages: Message[];
+  createdAt: Date;
+  updatedAt: Date;
+  model?: string;
+  systemPrompt?: string;
+}
+
+interface Settings {
+  model: string;
+  temperature: number;
+  systemPrompt: string;
+}
+
+// ==================== КОНСТАНТЫ ====================
+
+const MODELS = [
+  { id: 'deepseek', name: 'DeepSeek', icon: '🧠' },
+  { id: 'gpt-4', name: 'GPT-4', icon: '🤖' },
+  { id: 'claude', name: 'Claude', icon: '🎭' },
+];
+
+const QUICK_PROMPTS = [
   { id: 'code', label: '💻 Код', prompt: 'Напиши пример кода на Python' },
   { id: 'explain', label: '📚 Объясни', prompt: 'Объясни простыми словами как работает blockchain' },
   { id: 'translate', label: '🌐 Переведи', prompt: 'Переведи на английский: Привет, как дела?' },
@@ -21,124 +77,480 @@ const quickPrompts = [
   { id: 'help', label: '❓ Помощь', prompt: 'Что ты умеешь?' },
 ];
 
+const DEFAULT_SYSTEM_PROMPT = `Ты — дружелюбный AI-ассистент DeepSeek.
+
+Ты можешь обсуждать абсолютно любые темы:
+- Программирование и технологии
+- Наука, математика, физика
+- История, философия, литература
+- Бизнес, финансы, маркетинг
+- Творчество, искусство, музыка
+- Повседневные вопросы
+- И абсолютно любые другие темы
+
+Правила общения:
+- Отвечай развернуто и полезно
+- Будь дружелюбным и позитивным
+- Используй эмодзи умеренно
+- Форматируй списки через • или цифры
+- Если что-то не знаешь — честно признай
+- Давай примеры и пояснения
+
+Отвечай на том языке, на котором задан вопрос.`;
+
+// ==================== ГЛАВНЫЙ КОМПОНЕНТ ====================
+
 export function AIAssistantPanel() {
   const {
     aiPanelOpen, aiPanelWidth, aiPanelExpanded,
     setAIPanelOpen, setAIPanelExpanded,
-    aiMessages, addAIMessage, clearAIMessages,
     getCachedResponse, cacheResponse,
   } = useModeStore();
-  
+
+  // Состояния
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [streamingContent, setStreamingContent] = useState('');
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+  
+  // История чатов
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Редактирование
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  
+  // Настройки
+  const [settings, setSettings] = useState<Settings>({
+    model: 'deepseek',
+    temperature: 0.7,
+    systemPrompt: DEFAULT_SYSTEM_PROMPT,
+  });
+  const [showSettings, setShowSettings] = useState(false);
+  
+  // Голосовые функции
+  const [isRecording, setIsRecording] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speechSynthesis, setSpeechSynthesis] = useState<SpeechSynthesis | null>(null);
+  
+  // Черновик
+  const [draft, setDraft] = useState('');
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Автоматическая прокрутка вниз при новых сообщениях
+  // Текущий чат
+  const currentChat = chats.find(c => c.id === currentChatId);
+  const messages = currentChat?.messages || [];
+
+  // ==================== ЭФФЕКТЫ ====================
+
+  // Загрузка данных из localStorage
+  useEffect(() => {
+    const savedChats = localStorage.getItem('ai-chats');
+    const savedSettings = localStorage.getItem('ai-settings');
+    const savedDraft = localStorage.getItem('ai-draft');
+    
+    if (savedChats) {
+      try {
+        const parsed = JSON.parse(savedChats);
+        setChats(parsed.map((c: Chat) => ({
+          ...c,
+          createdAt: new Date(c.createdAt),
+          updatedAt: new Date(c.updatedAt),
+          messages: c.messages.map((m: Message) => ({
+            ...m,
+            timestamp: new Date(m.timestamp)
+          }))
+        })));
+        if (parsed.length > 0) {
+          setCurrentChatId(parsed[0].id);
+        }
+      } catch (e) {
+        console.error('Error loading chats:', e);
+      }
+    }
+    
+    if (savedSettings) {
+      try {
+        setSettings(JSON.parse(savedSettings));
+      } catch (e) {
+        console.error('Error loading settings:', e);
+      }
+    }
+    
+    if (savedDraft) {
+      setDraft(savedDraft);
+      setInput(savedDraft);
+    }
+    
+    // Инициализация Speech Synthesis
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      setSpeechSynthesis(window.speechSynthesis);
+    }
+  }, []);
+
+  // Сохранение в localStorage
+  useEffect(() => {
+    if (chats.length > 0) {
+      localStorage.setItem('ai-chats', JSON.stringify(chats));
+    }
+  }, [chats]);
+
+  useEffect(() => {
+    localStorage.setItem('ai-settings', JSON.stringify(settings));
+  }, [settings]);
+
+  useEffect(() => {
+    localStorage.setItem('ai-draft', input);
+  }, [input]);
+
+  // Автопрокрутка
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [aiMessages, loading]);
+  }, [messages, streamingContent, loading]);
 
-  if (!aiPanelOpen) {
-    return (
-      <button
-        onClick={() => setAIPanelOpen(true)}
-        className="fixed right-4 bottom-4 w-14 h-14 rounded-full bg-[#6C63FF] shadow-lg flex items-center justify-center hover:bg-[#6C63FF]/80 transition-all z-50"
-      >
-        <Bot className="w-6 h-6 text-white" />
-      </button>
-    );
-  }
+  // Горячие клавиши
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+K - открыть/закрыть панель
+      if (e.ctrlKey && e.key === 'k') {
+        e.preventDefault();
+        setAIPanelOpen(!aiPanelOpen);
+      }
+      // Ctrl+N - новый чат
+      if (e.ctrlKey && e.key === 'n' && aiPanelOpen) {
+        e.preventDefault();
+        createNewChat();
+      }
+      // Ctrl+R - регенерация
+      if (e.ctrlKey && e.key === 'r' && aiPanelOpen && messages.length > 0) {
+        e.preventDefault();
+        regenerateLastResponse();
+      }
+      // Escape - отмена генерации
+      if (e.key === 'Escape' && loading) {
+        stopGeneration();
+      }
+    };
 
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [aiPanelOpen, loading, messages]);
+
+  // ==================== ФУНКЦИИ ====================
+
+  // Создание нового чата
+  const createNewChat = useCallback(() => {
+    const newChat: Chat = {
+      id: Date.now().toString(),
+      title: 'Новый чат',
+      messages: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      model: settings.model,
+    };
+    setChats(prev => [newChat, ...prev]);
+    setCurrentChatId(newChat.id);
+  }, [settings.model]);
+
+  // Удаление чата
+  const deleteChat = useCallback((chatId: string) => {
+    setChats(prev => prev.filter(c => c.id !== chatId));
+    if (currentChatId === chatId) {
+      setCurrentChatId(chats.length > 1 ? chats.find(c => c.id !== chatId)?.id || null : null);
+    }
+  }, [currentChatId, chats]);
+
+  // Обновление заголовка чата
+  const updateChatTitle = useCallback((chatId: string, firstMessage: string) => {
+    const title = firstMessage.substring(0, 30) + (firstMessage.length > 30 ? '...' : '');
+    setChats(prev => prev.map(c => 
+      c.id === chatId ? { ...c, title, updatedAt: new Date() } : c
+    ));
+  }, []);
+
+  // Отправка сообщения
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
-    const userMessage = {
+    // Создаём чат если нет
+    let chatId = currentChatId;
+    if (!chatId) {
+      const newChat: Chat = {
+        id: Date.now().toString(),
+        title: 'Новый чат',
+        messages: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      setChats(prev => [newChat, ...prev]);
+      chatId = newChat.id;
+      setCurrentChatId(chatId);
+    }
+
+    const userMessage: Message = {
       id: Date.now().toString(),
-      role: 'user' as const,
+      role: 'user',
       content: input,
       timestamp: new Date(),
     };
 
-    addAIMessage(userMessage);
-    setInput('');
-    setLoading(true);
+    // Добавляем сообщение пользователя
+    setChats(prev => prev.map(c => 
+      c.id === chatId 
+        ? { ...c, messages: [...c.messages, userMessage], updatedAt: new Date() }
+        : c
+    ));
 
-    // Check cache first
+    // Обновляем заголовок если первое сообщение
+    const currentMessages = chats.find(c => c.id === chatId)?.messages || [];
+    if (currentMessages.length === 0) {
+      updateChatTitle(chatId, input);
+    }
+
+    setInput('');
+    setDraft('');
+    setLoading(true);
+    setStreamingContent('');
+
+    // Проверяем кэш
     const cached = getCachedResponse(input, 'default');
     if (cached) {
-      const assistantMessage = {
+      const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        role: 'assistant' as const,
-        content: cached.response + '\n\n_📦 Из кэша (экономия токенов)_',
+        role: 'assistant',
+        content: cached.response + '\n\n_📦 Из кэша_',
         timestamp: new Date(),
       };
-      addAIMessage(assistantMessage);
+      setChats(prev => prev.map(c => 
+        c.id === chatId 
+          ? { ...c, messages: [...c.messages, assistantMessage], updatedAt: new Date() }
+          : c
+      ));
       setLoading(false);
       return;
     }
 
+    // Создаём AbortController для возможности отмены
+    const controller = new AbortController();
+    setAbortController(controller);
+
     try {
-      // Real API call to DeepSeek
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [
-            ...aiMessages.map(m => ({ role: m.role, content: m.content })),
+            ...messages.map(m => ({ role: m.role, content: m.content })),
             { role: 'user', content: input }
           ],
-          temperature: 0.7,
+          temperature: settings.temperature,
           maxTokens: 2000,
+          systemPrompt: settings.systemPrompt,
+          model: settings.model,
+          stream: true,
         }),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
         throw new Error('API request failed');
       }
 
-      const data = await response.json();
+      // Проверяем, поддерживает ли ответ streaming
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType?.includes('text/event-stream') || contentType?.includes('application/stream+json')) {
+        // Streaming
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let fullContent = '';
 
-      const assistantMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant' as const,
-        content: data.result,
-        timestamp: new Date(),
-      };
+        while (reader) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-      addAIMessage(assistantMessage);
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
 
-      // Cache the response
-      cacheResponse({
-        key: `${input}|default`,
-        prompt: input,
-        context: 'default',
-        response: data.result,
-        tokensUsed: data.usage?.tokens || 0,
-        timestamp: new Date(),
-      });
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (data.content) {
+                  fullContent += data.content;
+                  setStreamingContent(fullContent);
+                }
+              } catch (e) {
+                // Игнорируем ошибки парсинга
+              }
+            }
+          }
+        }
 
-    } catch (error) {
-      console.error('AI Chat error:', error);
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: fullContent,
+          timestamp: new Date(),
+        };
 
-      // Fallback to simulated response
-      const fallbackText = generateFallbackResponse(input);
+        setChats(prev => prev.map(c => 
+          c.id === chatId 
+            ? { ...c, messages: [...c.messages, assistantMessage], updatedAt: new Date() }
+            : c
+        ));
+        setStreamingContent('');
 
-      const assistantMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant' as const,
-        content: fallbackText + '\n\n_⚠️ Оффлайн-режим (проверьте подключение)_',
-        timestamp: new Date(),
-      };
+        // Кэшируем
+        cacheResponse({
+          key: `${input}|default`,
+          prompt: input,
+          context: 'default',
+          response: fullContent,
+          tokensUsed: 0,
+          timestamp: new Date(),
+        });
 
-      addAIMessage(assistantMessage);
+      } else {
+        // Обычный ответ без streaming
+        const data = await response.json();
+        
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: data.result,
+          timestamp: new Date(),
+        };
+
+        setChats(prev => prev.map(c => 
+          c.id === chatId 
+            ? { ...c, messages: [...c.messages, assistantMessage], updatedAt: new Date() }
+            : c
+        ));
+
+        cacheResponse({
+          key: `${input}|default`,
+          prompt: input,
+          context: 'default',
+          response: data.result,
+          tokensUsed: data.usage?.tokens || 0,
+          timestamp: new Date(),
+        });
+      }
+
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        // Отменено пользователем
+      } else {
+        console.error('AI Chat error:', error);
+        
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: `⚠️ Ошибка подключения. Проверьте интернет и попробуйте снова.\n\nВаш вопрос: "${input.substring(0, 100)}${input.length > 100 ? '...' : ''}"`,
+          timestamp: new Date(),
+        };
+
+        setChats(prev => prev.map(c => 
+          c.id === chatId 
+            ? { ...c, messages: [...c.messages, errorMessage], updatedAt: new Date() }
+            : c
+        ));
+      }
     }
 
     setLoading(false);
+    setAbortController(null);
   };
 
+  // Остановка генерации
+  const stopGeneration = () => {
+    if (abortController) {
+      abortController.abort();
+      setLoading(false);
+      setStreamingContent('');
+    }
+  };
+
+  // Регенерация последнего ответа
+  const regenerateLastResponse = async () => {
+    if (messages.length < 2 || loading) return;
+
+    // Находим последнее сообщение пользователя
+    const lastUserIndex = messages.findLastIndex(m => m.role === 'user');
+    if (lastUserIndex === -1) return;
+
+    const lastUserMessage = messages[lastUserIndex];
+    
+    // Удаляем последний ответ ассистента
+    setChats(prev => prev.map(c => {
+      if (c.id !== currentChatId) return c;
+      const newMessages = c.messages.slice(0, lastUserIndex + 1);
+      return { ...c, messages: newMessages, updatedAt: new Date() };
+    }));
+
+    // Генерируем новый ответ
+    setInput(lastUserMessage.content);
+    setTimeout(() => {
+      sendMessage();
+    }, 100);
+  };
+
+  // Редактирование сообщения
+  const startEditing = (messageId: string, content: string) => {
+    setEditingMessageId(messageId);
+    setEditContent(content);
+  };
+
+  const saveEdit = async () => {
+    if (!editingMessageId || !editContent.trim()) return;
+
+    const messageIndex = messages.findIndex(m => m.id === editingMessageId);
+    if (messageIndex === -1) return;
+
+    // Обновляем сообщение и удаляем все последующие
+    setChats(prev => prev.map(c => {
+      if (c.id !== currentChatId) return c;
+      const newMessages = c.messages.slice(0, messageIndex);
+      newMessages.push({
+        ...c.messages[messageIndex],
+        content: editContent,
+        edited: true,
+      });
+      return { ...c, messages: newMessages, updatedAt: new Date() };
+    }));
+
+    setEditingMessageId(null);
+    setEditContent('');
+    
+    // Генерируем новый ответ
+    setInput(editContent);
+    setTimeout(() => sendMessage(), 100);
+  };
+
+  // Закладки
+  const toggleBookmark = (messageId: string) => {
+    setChats(prev => prev.map(c => {
+      if (c.id !== currentChatId) return c;
+      return {
+        ...c,
+        messages: c.messages.map(m => 
+          m.id === messageId ? { ...m, bookmarked: !m.bookmarked } : m
+        ),
+        updatedAt: new Date(),
+      };
+    }));
+  };
+
+  // Копирование
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
@@ -146,180 +558,696 @@ export function AIAssistantPanel() {
     toast.success('Скопировано');
   };
 
+  // Экспорт чата
+  const exportChat = (format: 'md' | 'json' | 'txt') => {
+    if (!currentChat) return;
+
+    let content = '';
+    const filename = `chat-${currentChatId}.${format}`;
+
+    if (format === 'json') {
+      content = JSON.stringify(currentChat, null, 2);
+    } else if (format === 'md') {
+      content = `# ${currentChat.title}\n\n`;
+      content += `*Создан: ${currentChat.createdAt.toLocaleString()}*\n\n---\n\n`;
+      messages.forEach(m => {
+        content += `## ${m.role === 'user' ? '👤 Вы' : '🤖 AI'}\n\n${m.content}\n\n`;
+      });
+    } else {
+      content = `${currentChat.title}\n${'='.repeat(50)}\n\n`;
+      messages.forEach(m => {
+        content += `[${m.role === 'user' ? 'ВЫ' : 'AI'}]:\n${m.content}\n\n`;
+      });
+    }
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Экспортировано в ${format.toUpperCase()}`);
+  };
+
+  // Голосовой ввод
+  const toggleVoiceInput = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      toast.error('Голосовой ввод не поддерживается в этом браузере');
+      return;
+    }
+
+    if (isRecording) {
+      setIsRecording(false);
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'ru-RU';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((result: any) => result[0].transcript)
+        .join('');
+      setInput(transcript);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      toast.error('Ошибка распознавания речи');
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognition.start();
+    setIsRecording(true);
+  };
+
+  // Озвучка ответа
+  const speakText = (text: string) => {
+    if (!speechSynthesis) return;
+
+    if (isSpeaking) {
+      speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'ru-RU';
+    utterance.rate = 1;
+    utterance.pitch = 1;
+
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    speechSynthesis.speak(utterance);
+    setIsSpeaking(true);
+  };
+
+  // Очистка чата
+  const clearCurrentChat = () => {
+    setChats(prev => prev.map(c => 
+      c.id === currentChatId 
+        ? { ...c, messages: [], title: 'Новый чат', updatedAt: new Date() }
+        : c
+    ));
+  };
+
+  // Фильтрация чатов для поиска
+  const filteredChats = chats.filter(c => 
+    c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.messages.some(m => m.content.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  // ==================== РЕНДЕРИНГ ====================
+
+  if (!aiPanelOpen) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => setAIPanelOpen(true)}
+              className="fixed right-4 bottom-4 w-14 h-14 rounded-full bg-[#6C63FF] shadow-lg flex items-center justify-center hover:bg-[#6C63FF]/80 transition-all z-50 group"
+            >
+              <Bot className="w-6 h-6 text-white" />
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-[#00D26A] rounded-full animate-pulse" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="left">
+            <p>Открыть AI чат (Ctrl+K)</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
   return (
     <div 
       className={cn(
-        'fixed right-0 top-0 h-full bg-[#14151A] border-l border-[#2A2B32] flex flex-col transition-all z-40',
-        aiPanelExpanded ? 'w-full' : ''
+        'fixed right-0 top-0 h-full bg-[#14151A] border-l border-[#2A2B32] flex transition-all z-40',
+        aiPanelExpanded ? 'w-full' : '',
+        showHistory ? '' : ''
       )}
-      style={{ width: aiPanelExpanded ? '100%' : `${aiPanelWidth}px` }}
+      style={{ width: aiPanelExpanded ? '100%' : `${aiPanelWidth + (showHistory ? 280 : 0)}px` }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-[#2A2B32]">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[#6C63FF]/20 flex items-center justify-center">
-            <Bot className="w-5 h-5 text-[#6C63FF]" />
+      {/* Боковая панель истории */}
+      {showHistory && (
+        <div className="w-[280px] border-r border-[#2A2B32] flex flex-col bg-[#0D0E12]">
+          <div className="p-4 border-b border-[#2A2B32] flex items-center justify-between">
+            <h3 className="text-white font-medium flex items-center gap-2">
+              <History className="w-4 h-4" />
+              История
+            </h3>
+            <Button size="sm" onClick={createNewChat} className="h-8 bg-[#6C63FF]">
+              <Plus className="w-4 h-4" />
+            </Button>
           </div>
-          <div>
-            <h3 className="text-white font-medium">DeepSeek AI</h3>
-            <Badge className="bg-[#00D26A]/20 text-[#00D26A] text-xs">Бесплатно</Badge>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={() => setAIPanelExpanded(!aiPanelExpanded)} className="text-[#8A8A8A]">
-            {aiPanelExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setAIPanelOpen(false)} className="text-[#8A8A8A]">
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Безлимитный статус */}
-      <div className="px-4 py-2 border-b border-[#2A2B32]">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-[#00D26A] flex items-center gap-1">
-            <span className="w-2 h-2 bg-[#00D26A] rounded-full animate-pulse" />
-            Безлимитный режим
-          </span>
-          <span className="text-[#8A8A8A]">DeepSeek AI</span>
-        </div>
-      </div>
-
-      {/* Quick prompts - общие темы */}
-      <div className="px-4 py-2 border-b border-[#2A2B32] flex gap-1 flex-wrap">
-        {quickPrompts.map((qp) => (
-          <Button
-            key={qp.id}
-            variant="outline"
-            size="sm"
-            onClick={() => setInput(qp.prompt)}
-            className="h-7 text-xs border-[#2A2B32] text-[#8A8A8A] hover:text-white"
-          >
-            {qp.label}
-          </Button>
-        ))}
-      </div>
-
-      {/* Messages */}
-      <div 
-        className="flex-1 overflow-y-auto p-4 min-h-0 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-[#1E1F26] [&::-webkit-scrollbar-thumb]:bg-[#6C63FF] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#8B7FFF]"
-        style={{
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#6C63FF #1E1F26'
-        }}
-      >
-        {aiMessages.length === 0 ? (
-          <div className="text-center py-8">
-            <Bot className="w-12 h-12 mx-auto text-[#6C63FF] mb-4" />
-            <h4 className="text-white font-medium mb-2">Привет! Чем могу помочь?</h4>
-            <p className="text-sm text-[#8A8A8A] mb-4">
-              Спроси меня о чём угодно — я отвечу!
-            </p>
-            <div className="space-y-2 text-left max-w-[280px] mx-auto">
-              <div className="p-3 bg-[#1E1F26] rounded-lg text-sm text-[#8A8A8A]">
-                💡 "Напиши код на Python"
-              </div>
-              <div className="p-3 bg-[#1E1F26] rounded-lg text-sm text-[#8A8A8A]">
-                💡 "Объясни квантовую физику"
-              </div>
+          
+          {/* Поиск */}
+          <div className="p-2 border-b border-[#2A2B32]">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8A8A]" />
+              <input
+                type="text"
+                placeholder="Поиск..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-[#1E1F26] border border-[#2A2B32] rounded pl-8 pr-3 py-2 text-sm text-white placeholder-[#8A8A8A] focus:outline-none focus:border-[#6C63FF]"
+              />
             </div>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {aiMessages.map((msg) => (
+          
+          {/* Список чатов */}
+          <div className="flex-1 overflow-y-auto">
+            {filteredChats.map(chat => (
               <div
-                key={msg.id}
+                key={chat.id}
+                onClick={() => setCurrentChatId(chat.id)}
                 className={cn(
-                  'p-3 rounded-lg',
-                  msg.role === 'user' 
-                    ? 'bg-[#6C63FF]/20 ml-4' 
-                    : 'bg-[#1E1F26] mr-4'
+                  'p-3 cursor-pointer border-b border-[#2A2B32] hover:bg-[#1E1F26] transition-colors',
+                  chat.id === currentChatId && 'bg-[#1E1F26] border-l-2 border-l-[#6C63FF]'
                 )}
               >
-                <div className="flex items-start gap-2">
-                  {msg.role === 'assistant' && (
-                    <Bot className="w-5 h-5 text-[#6C63FF] shrink-0 mt-0.5" />
-                  )}
+                <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white whitespace-pre-wrap">{msg.content}</p>
-                    {msg.actions && msg.actions.length > 0 && (
-                      <div className="flex gap-2 mt-3 flex-wrap">
-                        {msg.actions.map((action, i) => (
-                          <Button
-                            key={i}
-                            size="sm"
-                            onClick={() => executeAction(action)}
-                            className="bg-[#6C63FF] hover:bg-[#6C63FF]/80 text-xs"
-                          >
-                            {action.label}
-                          </Button>
-                        ))}
-                      </div>
-                    )}
-                    {msg.role === 'assistant' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(msg.content, msg.id)}
-                        className="h-6 mt-2 text-xs text-[#8A8A8A]"
-                      >
-                        {copiedId === msg.id ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
-                        {copiedId === msg.id ? 'Скопировано' : 'Копировать'}
-                      </Button>
-                    )}
+                    <p className="text-sm text-white truncate">{chat.title}</p>
+                    <p className="text-xs text-[#8A8A8A] mt-1">
+                      {chat.messages.length} сообщений • {chat.updatedAt.toLocaleDateString()}
+                    </p>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteChat(chat.id);
+                    }}
+                    className="h-6 w-6 p-0 text-[#8A8A8A] hover:text-red-500"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
                 </div>
               </div>
             ))}
-            {loading && (
-              <div className="flex items-center gap-2 p-3 bg-[#1E1F26] rounded-lg mr-4">
-                <Bot className="w-5 h-5 text-[#6C63FF] animate-pulse" />
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-[#6C63FF] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-2 h-2 bg-[#6C63FF] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-2 h-2 bg-[#6C63FF] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
+        </div>
+      )}
+
+      {/* Основная панель */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-[#2A2B32]">
+          <div className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowHistory(!showHistory)}
+                    className="text-[#8A8A8A]"
+                  >
+                    {showHistory ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{showHistory ? 'Скрыть историю' : 'Показать историю'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            <div className="w-8 h-8 rounded-lg bg-[#6C63FF]/20 flex items-center justify-center">
+              <Bot className="w-5 h-5 text-[#6C63FF]" />
+            </div>
+            <div>
+              <h3 className="text-white font-medium">DeepSeek AI</h3>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-[#00D26A]/20 text-[#00D26A] text-xs">
+                  <span className="w-1.5 h-1.5 bg-[#00D26A] rounded-full mr-1 animate-pulse" />
+                  Безлимит
+                </Badge>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-1">
+            {/* Выбор модели */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-[#8A8A8A]">
+                  <Sparkles className="w-4 h-4 mr-1" />
+                  {MODELS.find(m => m.id === settings.model)?.name}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48 bg-[#1E1F26] border-[#2A2B32]">
+                <div className="space-y-1">
+                  {MODELS.map(model => (
+                    <Button
+                      key={model.id}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSettings(s => ({ ...s, model: model.id }))}
+                      className={cn(
+                        'w-full justify-start text-[#8A8A8A] hover:text-white',
+                        settings.model === model.id && 'text-white bg-[#6C63FF]/20'
+                      )}
+                    >
+                      {model.icon} {model.name}
+                    </Button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+            
+            {/* Настройки */}
+            <Popover open={showSettings} onOpenChange={setShowSettings}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-[#8A8A8A]">
+                  <Settings className="w-4 h-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 bg-[#1E1F26] border-[#2A2B32]">
+                <div className="space-y-4">
+                  <h4 className="text-white font-medium">Настройки</h4>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[#8A8A8A]">Температура</span>
+                      <span className="text-white">{settings.temperature}</span>
+                    </div>
+                    <Slider
+                      value={[settings.temperature]}
+                      min={0}
+                      max={2}
+                      step={0.1}
+                      onValueChange={([v]) => setSettings(s => ({ ...s, temperature: v }))}
+                    />
+                    <p className="text-xs text-[#8A8A8A]">
+                      Низкая = точность, Высокая = креативность
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-sm text-[#8A8A8A]">Системный промпт</Label>
+                    <Textarea
+                      value={settings.systemPrompt}
+                      onChange={(e) => setSettings(s => ({ ...s, systemPrompt: e.target.value }))}
+                      className="bg-[#14151A] border-[#2A2B32] text-white text-xs min-h-[100px]"
+                    />
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+            
+            <Button variant="ghost" size="sm" onClick={() => setAIPanelExpanded(!aiPanelExpanded)} className="text-[#8A8A8A]">
+              {aiPanelExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setAIPanelOpen(false)} className="text-[#8A8A8A]">
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Quick prompts */}
+        <div className="px-4 py-2 border-b border-[#2A2B32] flex gap-1 flex-wrap">
+          {QUICK_PROMPTS.map((qp) => (
+            <Button
+              key={qp.id}
+              variant="outline"
+              size="sm"
+              onClick={() => setInput(qp.prompt)}
+              className="h-7 text-xs border-[#2A2B32] text-[#8A8A8A] hover:text-white"
+            >
+              {qp.label}
+            </Button>
+          ))}
+        </div>
+
+        {/* Messages */}
+        <div 
+          className="flex-1 overflow-y-auto p-4 min-h-0 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-[#1E1F26] [&::-webkit-scrollbar-thumb]:bg-[#6C63FF] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#8B7FFF]"
+          style={{ scrollbarWidth: 'thin', scrollbarColor: '#6C63FF #1E1F26' }}
+        >
+          {messages.length === 0 ? (
+            <div className="text-center py-8">
+              <Bot className="w-12 h-12 mx-auto text-[#6C63FF] mb-4" />
+              <h4 className="text-white font-medium mb-2">Привет! Чем могу помочь?</h4>
+              <p className="text-sm text-[#8A8A8A] mb-4">
+                Спроси меня о чём угодно — я отвечу!
+              </p>
+              <div className="space-y-2 text-left max-w-[280px] mx-auto">
+                <div className="p-3 bg-[#1E1F26] rounded-lg text-sm text-[#8A8A8A]">
+                  💡 "Напиши код на Python"
+                </div>
+                <div className="p-3 bg-[#1E1F26] rounded-lg text-sm text-[#8A8A8A]">
+                  💡 "Объясни квантовую физику"
                 </div>
               </div>
-            )}
-            {/* Якорь для автоматической прокрутки вниз */}
-            <div ref={messagesEndRef} />
-          </div>
-        )}
-      </div>
-
-      {/* Input */}
-      <div className="p-4 border-t border-[#2A2B32]">
-        <div className="flex gap-2">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-            placeholder="Спросите AI..."
-            className="bg-[#1E1F26] border-[#2A2B32]"
-            disabled={loading}
-          />
-          <Button onClick={sendMessage} disabled={loading || !input.trim()} className="bg-[#6C63FF]">
-            <Send className="w-4 h-4" />
-          </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={cn(
+                    'p-3 rounded-lg group',
+                    msg.role === 'user' 
+                      ? 'bg-[#6C63FF]/20 ml-4' 
+                      : 'bg-[#1E1F26] mr-4'
+                  )}
+                >
+                  <div className="flex items-start gap-2">
+                    {msg.role === 'assistant' && (
+                      <Bot className="w-5 h-5 text-[#6C63FF] shrink-0 mt-0.5" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      {/* Редактирование */}
+                      {editingMessageId === msg.id ? (
+                        <div className="space-y-2">
+                          <Textarea
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            className="bg-[#0D0E12] border-[#2A2B32] text-white min-h-[80px]"
+                          />
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={saveEdit} className="bg-[#00D26A]">
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                              Сохранить
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditingMessageId(null)} className="border-[#2A2B32]">
+                              <XCircle className="w-4 h-4 mr-1" />
+                              Отмена
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Markdown рендеринг */}
+                          <div className="text-sm text-white prose prose-invert prose-sm max-w-none">
+                            <ReactMarkdown
+                              components={{
+                                code({ className, children, ...props }) {
+                                  const match = /language-(\w+)/.exec(className || '');
+                                  const codeString = String(children).replace(/\n$/, '');
+                                  
+                                  if (match) {
+                                    return (
+                                      <div className="relative group/code">
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => copyToClipboard(codeString, `code-${msg.id}`)}
+                                          className="absolute top-2 right-2 h-6 px-2 bg-[#2A2B32]/80 opacity-0 group-hover/code:opacity-100 transition-opacity"
+                                        >
+                                          {copiedId === `code-${msg.id}` ? (
+                                            <Check className="w-3 h-3 text-[#00D26A]" />
+                                          ) : (
+                                            <Copy className="w-3 h-3" />
+                                          )}
+                                        </Button>
+                                        <SyntaxHighlighter
+                                          style={vscDarkPlus}
+                                          language={match[1]}
+                                          PreTag="div"
+                                          customStyle={{ 
+                                            margin: 0, 
+                                            borderRadius: '8px',
+                                            fontSize: '13px'
+                                          }}
+                                        >
+                                          {codeString}
+                                        </SyntaxHighlighter>
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  return (
+                                    <code className="bg-[#2A2B32] px-1.5 py-0.5 rounded text-[#FF79C6]" {...props}>
+                                      {children}
+                                    </code>
+                                  );
+                                },
+                                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                                ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                                li: ({ children }) => <li className="mb-1">{children}</li>,
+                                strong: ({ children }) => <strong className="font-bold text-[#6C63FF]">{children}</strong>,
+                                blockquote: ({ children }) => (
+                                  <blockquote className="border-l-2 border-[#6C63FF] pl-3 italic text-[#8A8A8A]">
+                                    {children}
+                                  </blockquote>
+                                ),
+                              }}
+                            >
+                              {msg.content}
+                            </ReactMarkdown>
+                          </div>
+                          
+                          {msg.edited && (
+                            <span className="text-xs text-[#8A8A8A] italic">(ред.)</span>
+                          )}
+                          
+                          {/* Кнопки действий */}
+                          {msg.role === 'assistant' && (
+                            <div className="flex flex-wrap gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => copyToClipboard(msg.content, msg.id)}
+                                      className="h-6 px-2 text-xs text-[#8A8A8A]"
+                                    >
+                                      {copiedId === msg.id ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                                      Копировать
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Копировать ответ</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => regenerateLastResponse()}
+                                      className="h-6 px-2 text-xs text-[#8A8A8A]"
+                                    >
+                                      <RotateCcw className="w-3 h-3 mr-1" />
+                                      Регенерировать
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Сгенерировать новый ответ (Ctrl+R)</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => speakText(msg.content)}
+                                      className="h-6 px-2 text-xs text-[#8A8A8A]"
+                                    >
+                                      {isSpeaking ? <VolumeX className="w-3 h-3 mr-1" /> : <Volume2 className="w-3 h-3 mr-1" />}
+                                      {isSpeaking ? 'Стоп' : 'Озвучить'}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Озвучить ответ</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => toggleBookmark(msg.id)}
+                                      className="h-6 px-2 text-xs text-[#8A8A8A]"
+                                    >
+                                      {msg.bookmarked ? (
+                                        <BookmarkCheck className="w-3 h-3 mr-1 text-[#FFD700]" />
+                                      ) : (
+                                        <Bookmark className="w-3 h-3 mr-1" />
+                                      )}
+                                      {msg.bookmarked ? 'В закладках' : 'В закладки'}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Сохранить в закладки</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                          )}
+                          
+                          {/* Кнопки для сообщений пользователя */}
+                          {msg.role === 'user' && (
+                            <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => startEditing(msg.id, msg.content)}
+                                className="h-6 px-2 text-xs text-[#8A8A8A]"
+                              >
+                                <Edit2 className="w-3 h-3 mr-1" />
+                                Редактировать
+                              </Button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {/* Streaming контент */}
+              {loading && streamingContent && (
+                <div className="p-3 rounded-lg bg-[#1E1F26] mr-4">
+                  <div className="flex items-start gap-2">
+                    <Bot className="w-5 h-5 text-[#6C63FF] shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-white prose prose-invert prose-sm max-w-none">
+                        <ReactMarkdown>{streamingContent}</ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Индикатор загрузки */}
+              {loading && !streamingContent && (
+                <div className="flex items-center gap-2 p-3 bg-[#1E1F26] rounded-lg mr-4">
+                  <Bot className="w-5 h-5 text-[#6C63FF] animate-pulse" />
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-[#6C63FF] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 bg-[#6C63FF] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-2 h-2 bg-[#6C63FF] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              )}
+              
+              <div ref={messagesEndRef} />
+            </div>
+          )}
         </div>
-        <div className="flex justify-between mt-2">
-          <p className="text-xs text-[#8A8A8A]">Ctrl+K для доступа</p>
-          <Button variant="ghost" size="sm" onClick={() => clearAIMessages()} className="h-5 text-xs text-[#8A8A8A]">
-            <Trash2 className="w-3 h-3 mr-1" />
-            Очистить
-          </Button>
+
+        {/* Input */}
+        <div className="p-4 border-t border-[#2A2B32]">
+          <div className="flex gap-2">
+            <div className="flex-1 relative">
+              <Textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                placeholder="Спросите AI... (Shift+Enter для новой строки)"
+                className="bg-[#1E1F26] border-[#2A2B32] text-white min-h-[44px] max-h-[200px] resize-none pr-20"
+                disabled={loading}
+                rows={1}
+              />
+              <div className="absolute right-2 bottom-2 flex gap-1">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={toggleVoiceInput}
+                        className={cn(
+                          'h-8 w-8 p-0 text-[#8A8A8A]',
+                          isRecording && 'text-red-500 animate-pulse'
+                        )}
+                      >
+                        {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{isRecording ? 'Остановить запись' : 'Голосовой ввод'}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </div>
+            
+            {loading ? (
+              <Button onClick={stopGeneration} className="bg-red-500 hover:bg-red-600 h-11">
+                <Square className="w-4 h-4" />
+              </Button>
+            ) : (
+              <Button onClick={sendMessage} disabled={!input.trim()} className="bg-[#6C63FF] h-11">
+                <Send className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+          
+          <div className="flex justify-between items-center mt-2">
+            <div className="flex gap-1">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="sm" onClick={createNewChat} className="h-6 text-xs text-[#8A8A8A]">
+                      <Plus className="w-3 h-3 mr-1" />
+                      Новый чат
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Создать новый чат (Ctrl+N)</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-6 text-xs text-[#8A8A8A]">
+                    <Download className="w-3 h-3 mr-1" />
+                    Экспорт
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-40 bg-[#1E1F26] border-[#2A2B32]">
+                  <div className="space-y-1">
+                    <Button variant="ghost" size="sm" onClick={() => exportChat('md')} className="w-full justify-start text-[#8A8A8A]">
+                      📄 Markdown
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => exportChat('json')} className="w-full justify-start text-[#8A8A8A]">
+                      📋 JSON
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => exportChat('txt')} className="w-full justify-start text-[#8A8A8A]">
+                      📝 TXT
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <div className="flex gap-1">
+              <span className="text-xs text-[#8A8A8A]">Ctrl+K закрыть</span>
+              <Button variant="ghost" size="sm" onClick={clearCurrentChat} className="h-6 text-xs text-[#8A8A8A]">
+                <Trash2 className="w-3 h-3 mr-1" />
+                Очистить
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// Fallback response generator для оффлайн-режима
-function generateFallbackResponse(input: string): string {
-  return `Извини, сейчас я не могу подключиться к серверу. 
-
-Пожалуйста, проверьте интернет-соединение и попробуйте ещё раз.
-
-Ваш вопрос: "${input.substring(0, 100)}${input.length > 100 ? '...' : ''}"`;
+// Label компонент
+function Label({ className, children }: { className?: string; children: React.ReactNode }) {
+  return <label className={cn('text-sm font-medium', className)}>{children}</label>;
 }

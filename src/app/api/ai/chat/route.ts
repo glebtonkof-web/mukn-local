@@ -15,10 +15,13 @@ interface ChatRequest {
   };
   temperature?: number;
   maxTokens?: number;
+  systemPrompt?: string;
+  model?: string;
+  stream?: boolean;
 }
 
 // Системный промпт для AI-ассистента - безлимитный чат на любые темы
-const SYSTEM_PROMPT = `Ты — дружелюбный AI-ассистент DeepSeek.
+const DEFAULT_SYSTEM_PROMPT = `Ты — дружелюбный AI-ассистент DeepSeek.
 
 Ты можешь обсуждать абсолютно любые темы:
 - Программирование и технологии
@@ -62,8 +65,10 @@ export async function POST(request: NextRequest) {
       contextMessage = `\n\n[Контекст: Кампаний: ${campaignsCount || 0}, Аккаунтов: ${accountsCount || 0}, Раздел: ${activeView || 'главная'}]`;
     }
 
+    const systemPrompt = body.systemPrompt || DEFAULT_SYSTEM_PROMPT;
+
     const messages: ChatMessage[] = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       ...body.messages.map((msg, i) => {
         if (i === body.messages.length - 1 && msg.role === 'user' && contextMessage) {
           return { ...msg, content: msg.content + contextMessage };
