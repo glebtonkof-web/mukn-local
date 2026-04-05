@@ -1,10 +1,12 @@
 /**
  * Content Generator Service - Генерация контента для инфлюенсеров
  * Порт: 3002
+ * Использует z-ai-web-dev-sdk для реальной AI генерации
  */
 
 import { createServer } from 'http';
 import { parse } from 'url';
+import ZAI from 'z-ai-web-dev-sdk';
 
 const PORT = 3002;
 
@@ -36,181 +38,41 @@ interface GeneratedContent {
   createdAt: Date;
 }
 
-// Шаблоны контента по нишам
-const CONTENT_TEMPLATES: Record<NicheType, Record<ContentType, string[]>> = {
-  gambling: {
-    post: [
-      '🎰 Сегодня удача на моей стороне! Очередной выигрыш заставляет сердце биться быстрее. Кто со мной?',
-      '💰 Жизнь — это игра, и я играю по своим правилам. Главное — знать момент для выхода.',
-      '🔥 Еще одна ночь, еще одна победа. Это не просто удача, это интуиция.',
-      '💎 Когда шансы на твоей стороне, остается только нажать кнопку.',
-      '⭐ Звезды сошлись! Сегодня мой день.',
-    ],
-    comment: [
-      'Отличный пост! 🔥',
-      'Согласен! Сам вчера выиграл!',
-      'Какой автомат?',
-      'Удачи всем! 🍀',
-      'Проверено — работает!',
-    ],
-    story: [
-      '🎰 Live! Смотрим игру вместе',
-      '💰 Результат дня',
-      '🔥 Горячая серия',
-      '⚡ Quick tip для новичков',
-    ],
-    dm: [
-      'Привет! Заинтересовал твой комментарий. Расскажешь подробнее?',
-      'Привет! Вижу, ты тоже в теме. Может обменяемся опытом?',
-    ],
-    bio: [
-      '🎰 Живу в ритме удачи',
-      '💰 Играю умно, выигрываю часто',
-      '🔥 Тот самый, кому везёт',
-    ],
-  },
-  crypto: {
-    post: [
-      '📈 Рынок снова показывает интересные движения. Кто следит за трендами?',
-      '💎 HODL — это не просто стратегия, это философия. Держим позиции!',
-      '🚀 Блокчейн меняет мир, и я рад быть частью этого процесса.',
-      '⚡ Быки или медведи? Время покажет, а я уже подготовился.',
-      '🌐 Децентрализация — будущее финансов.',
-    ],
-    comment: [
-      'Верное наблюдение! 📊',
-      'Технический анализ подтверждает',
-      'Long-term перспективы отличные',
-      'Ключевые уровни пробиты',
-    ],
-    story: [
-      '📊 Анализ рынка сегодня',
-      '📈 Токен дня',
-      '💡 Инсайт для подписчиков',
-    ],
-    dm: [
-      'Привет! Вижу, ты разбираешься в рынке. Есть вопрос.',
-      'Привет! Интересный портфель. Обсудим?',
-    ],
-    bio: [
-      '📈 Crypto enthusiast | Not financial advice',
-      '🌐 Web3 believer | HODLer since 2019',
-    ],
-  },
-  nutra: {
-    post: [
-      '💪 Трансформация продолжается! Результаты превышают ожидания.',
-      '🥗 Здоровое питание — это не диета, это образ жизни.',
-      '✨ Энергия, уверенность, результат. Начни свой путь к лучшей версии себя.',
-      '🌟 30 дней дисциплины изменили всё. Делюсь секретами.',
-    ],
-    comment: [
-      'Отличный результат! 💪',
-      'Какой курс используешь?',
-      'Вдохновляет!',
-      'Подписываюсь под каждым словом',
-    ],
-    story: [
-      '💪 Прогресс дня',
-      '🥗 Меню на сегодня',
-      '💡 Полезный совет',
-    ],
-    dm: [
-      'Привет! Заинтересовал твой результат. Подскажешь с чего начать?',
-    ],
-    bio: [
-      '💪 Здоровый образ жизни | Трансформация',
-      '🥗 Nutrition coach | Wellness advocate',
-    ],
-  },
-  bait: {
-    post: [
-      '🔥 Иногда достаточно одного взгляда... Угадайте, о чем я думаю?',
-      '💋 Загадочная улыбка может рассказать больше, чем тысячи слов.',
-      '💕 Настроение — бунтарское. Кто готов к приключениям?',
-      '✨ Сегодня особенный вечер. Чувствую это.',
-    ],
-    comment: [
-      '🔥🔥🔥',
-      'Потрясающе!',
-      'Wow! ✨',
-      'Невозможно отвести взгляд',
-    ],
-    story: [
-      '✨ Mood of the day',
-      '🔥 Behind the scenes',
-      '💕 Special moment',
-    ],
-    dm: [
-      'Привет 😉 Интересный профиль...',
-    ],
-    bio: [
-      '✨ Living my best life',
-      '💕 Spreading good vibes',
-    ],
-  },
-  lifestyle: {
-    post: [
-      '🌟 Новый день — новые возможности. Не упускай свой шанс!',
-      '🎯 Успех — это не конечная точка, а путь.',
-      '💫 Мечты сбываются у тех, кто действует.',
-      '🌈 Красота в простых вещах. Научись замечать.',
-    ],
-    comment: [
-      'Вдохновляет! ⭐',
-      'Согласен на 100%',
-      'Очень позитивный пост',
-      'Спасибо за настроение!',
-    ],
-    story: [
-      '🌟 Утренняя рутина',
-      '💡 Мысли дня',
-      '📍 Место дня',
-    ],
-    dm: [
-      'Привет! Интересный профиль. Давай общаться!',
-    ],
-    bio: [
-      '🌟 Creating my own path',
-      '💫 Dreamer | Doer | Believer',
-    ],
-  },
+// Описания ниш для AI промптов
+const NICHE_DESCRIPTIONS: Record<NicheType, string> = {
+  gambling: 'азартные игры, казино, ставки, выигрыши',
+  crypto: 'криптовалюты, трейдинг, инвестиции, блокчейн',
+  nutra: 'здоровье, фитнес, питание, трансформация тела',
+  bait: 'лайфстайл, красота, стиль, настроение',
+  lifestyle: 'мотивация, успех, саморазвитие, путешествия',
 };
 
-// Генерация контента
-function generateContent(request: ContentRequest): GeneratedContent[] {
-  const results: GeneratedContent[] = [];
-  const count = request.count || 1;
+// Описания типов контента
+const TYPE_DESCRIPTIONS: Record<ContentType, string> = {
+  post: 'пост для соцсетей (Instagram, Telegram, VK)',
+  comment: 'комментарий для взаимодействия с аудиторией',
+  story: 'короткий текст для сторис (до 100 символов)',
+  dm: 'сообщение для личных диалогов',
+  bio: 'текст для био профиля',
+};
 
-  const templates = CONTENT_TEMPLATES[request.niche]?.[request.type] || CONTENT_TEMPLATES.lifestyle.post;
+// Стандартные хештеги по нишам (добавляются к AI-контенту)
+const NICHE_HASHTAGS: Record<NicheType, string[]> = {
+  gambling: ['#казино', '#выигрыш', '#удача', '#игры', '#онлайнказино'],
+  crypto: ['#криптовалюта', '#биткоин', '#инвестиции', '#трейдинг', '#crypto'],
+  nutra: ['#здоровье', '#фитнес', '#пп', '#трансформация', '#здоровыйобразжизни'],
+  bait: ['#красота', '#стиль', '#настроение', '#life', '#vibes'],
+  lifestyle: ['#жизнь', '#мотивация', '#успех', '#inspiration', '#lifestyle'],
+};
 
-  for (let i = 0; i < count; i++) {
-    const template = templates[Math.floor(Math.random() * templates.length)];
+// Инициализация ZAI SDK
+let zaiInstance: Awaited<ReturnType<typeof ZAI.create>> | null = null;
 
-    // Персонализация
-    let content = template;
-    if (request.context) {
-      content = `${template}\n\n${request.context}`;
-    }
-
-    // Добавляем эмодзи если нужно
-    const emojis = extractEmojis(template);
-
-    results.push({
-      id: `content_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      type: request.type,
-      content,
-      niche: request.niche,
-      style: request.style || 'casual',
-      tone: request.tone || 'friendly',
-      language: request.language || 'ru',
-      hashtags: generateHashtags(request.niche),
-      emojis,
-      createdAt: new Date(),
-    });
+async function getZAI() {
+  if (!zaiInstance) {
+    zaiInstance = await ZAI.create();
   }
-
-  return results;
+  return zaiInstance;
 }
 
 // Извлечение эмодзи
@@ -220,17 +82,106 @@ function extractEmojis(text: string): string[] {
   return matches || [];
 }
 
-// Генерация хештегов
-function generateHashtags(niche: NicheType): string[] {
-  const hashtags: Record<NicheType, string[]> = {
-    gambling: ['#казино', '#выигрыш', '#удача', '#игры', '#онлайнказино'],
-    crypto: ['#криптовалюта', '#биткоин', '#инвестиции', '#трейдинг', '#crypto'],
-    nutra: ['#здоровье', '#фитнес', '#пп', '#трансформация', '#здоровыйобразжизни'],
-    bait: ['#красота', '#стиль', '#настроение', '#life', '#vibes'],
-    lifestyle: ['#жизнь', '#мотивация', '#успех', '#inspiration', '#lifestyle'],
-  };
+// Построение промпта для AI
+function buildPrompt(request: ContentRequest): string {
+  const nicheDesc = NICHE_DESCRIPTIONS[request.niche];
+  const typeDesc = TYPE_DESCRIPTIONS[request.type];
+  const style = request.style || 'casual';
+  const tone = request.tone || 'friendly';
+  const language = request.language || 'ru';
 
-  return hashtags[niche]?.slice(0, 3) || hashtags.lifestyle.slice(0, 3);
+  let prompt = `Создай ${typeDesc} для ниши "${nicheDesc}".
+Стиль: ${style}
+Тон: ${tone}
+Язык: ${language}`;
+
+  if (request.context) {
+    prompt += `\n\nКонтекст: ${request.context}`;
+  }
+
+  prompt += `\n\nТребования:
+- Текст должен быть естественным и живым
+- Используй эмодзи уместно
+- Не используй штампы и клише
+- Текст должен вовлекать аудиторию`;
+
+  if (request.type === 'post') {
+    prompt += `\n- Длина: 100-300 символов`;
+  } else if (request.type === 'comment') {
+    prompt += `\n- Длина: 20-80 символов`;
+  } else if (request.type === 'story') {
+    prompt += `\n- Длина: до 100 символов`;
+  } else if (request.type === 'dm') {
+    prompt += `\n- Длина: 50-150 символов`;
+    prompt += `\n- Должен начинаться с приветствия`;
+  } else if (request.type === 'bio') {
+    prompt += `\n- Длина: до 150 символов`;
+    prompt += `\n- Должен быть кратким и запоминающимся`;
+  }
+
+  prompt += `\n\nВерни только готовый текст без объяснений.`;
+
+  return prompt;
+}
+
+// Генерация контента через AI
+async function generateContent(request: ContentRequest): Promise<GeneratedContent[]> {
+  const results: GeneratedContent[] = [];
+  const count = request.count || 1;
+
+  try {
+    const zai = await getZAI();
+
+    for (let i = 0; i < count; i++) {
+      const prompt = buildPrompt(request);
+
+      const completion = await zai.chat.completions.create({
+        messages: [
+          {
+            role: 'system',
+            content: 'Ты опытный копирайтер для соцсетей. Создаёшь вовлекающий контент на русском языке. Всегда возвращай только готовый текст без markdown разметки и объяснений.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.9, // Высокая креативность
+        max_tokens: 500,
+      });
+
+      const content = completion.choices[0]?.message?.content?.trim() || '';
+
+      // Извлекаем эмодзи из сгенерированного текста
+      const emojis = extractEmojis(content);
+
+      results.push({
+        id: `content_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: request.type,
+        content,
+        niche: request.niche,
+        style: request.style || 'casual',
+        tone: request.tone || 'friendly',
+        language: request.language || 'ru',
+        hashtags: NICHE_HASHTAGS[request.niche]?.slice(0, 3) || NICHE_HASHTAGS.lifestyle.slice(0, 3),
+        emojis,
+        createdAt: new Date(),
+      });
+
+      // Небольшая задержка между запросами для вариативности
+      if (i < count - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    console.log(`[ContentGenerator] Generated ${results.length} items for niche=${request.niche}, type=${request.type}`);
+
+  } catch (error: any) {
+    console.error(`[ContentGenerator] Generation failed: ${error.message}`);
+    throw new Error(`Content generation failed: ${error.message}`);
+  }
+
+  return results;
 }
 
 // Статистика
@@ -259,10 +210,10 @@ const server = createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/generate') {
     let body = '';
     req.on('data', chunk => body += chunk);
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const request: ContentRequest = JSON.parse(body);
-        const contents = generateContent(request);
+        const contents = await generateContent(request);
 
         stats.totalGenerated += contents.length;
         stats.byType[request.type] = (stats.byType[request.type] || 0) + contents.length;
@@ -270,18 +221,26 @@ const server = createServer(async (req, res) => {
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ contents, count: contents.length }));
-      } catch (error) {
+      } catch (error: any) {
+        console.error('[ContentGenerator] Error:', error.message);
         res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Generation failed' }));
+        res.end(JSON.stringify({ error: error.message || 'Generation failed' }));
       }
     });
     return;
   }
 
-  // GET /templates - получить шаблоны
-  if (req.method === 'GET' && url.pathname === '/templates') {
+  // GET /niches - получить ниши
+  if (req.method === 'GET' && url.pathname === '/niches') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(CONTENT_TEMPLATES));
+    res.end(JSON.stringify(NICHE_DESCRIPTIONS));
+    return;
+  }
+
+  // GET /types - получить типы контента
+  if (req.method === 'GET' && url.pathname === '/types') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(TYPE_DESCRIPTIONS));
     return;
   }
 
@@ -299,6 +258,7 @@ const server = createServer(async (req, res) => {
       status: 'healthy',
       uptime: process.uptime(),
       totalGenerated: stats.totalGenerated,
+      usingRealAI: true,
     }));
     return;
   }
@@ -309,6 +269,7 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`[ContentGenerator] Running on port ${PORT}`);
+  console.log(`[ContentGenerator] Using z-ai-web-dev-sdk for real AI generation`);
 });
 
 // Graceful shutdown
@@ -320,4 +281,4 @@ process.on('SIGTERM', () => {
   });
 });
 
-export { generateContent, CONTENT_TEMPLATES };
+export { generateContent, NICHE_DESCRIPTIONS, TYPE_DESCRIPTIONS };

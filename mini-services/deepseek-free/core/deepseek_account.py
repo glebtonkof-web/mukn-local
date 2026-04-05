@@ -12,14 +12,18 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 from loguru import logger
 
-# Playwright imports
+# Playwright imports - REQUIRED (no mock mode)
 try:
     from playwright.async_api import async_playwright, Browser, Page, BrowserContext
     from playwright_stealth import stealth_async
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
-    logger.warning("Playwright not installed. Using mock mode.")
+    logger.error("Playwright not installed! Install with: pip install playwright playwright-stealth && playwright install chromium")
+    raise ImportError(
+        "Playwright is required for DeepSeek Free service. "
+        "Install with: pip install playwright playwright-stealth && playwright install chromium"
+    )
 
 
 class AccountStatus(str, Enum):
@@ -148,9 +152,10 @@ class DeepSeekAccount:
     async def initialize(self) -> bool:
         """Initialize browser session"""
         if not PLAYWRIGHT_AVAILABLE:
-            logger.warning(f"[{self.account_id}] Playwright not available, using mock mode")
-            self.status = AccountStatus.ACTIVE
-            return True
+            logger.error(f"[{self.account_id}] Playwright not available - cannot initialize")
+            self.status = AccountStatus.ERROR
+            self.last_error = "Playwright not installed"
+            return False
             
         try:
             logger.info(f"[{self.account_id}] Initializing browser session...")
@@ -449,9 +454,16 @@ class DeepSeekAccount:
                 'response_time': time.time() - start_time
             }
         
-        # Mock mode if Playwright not available
-        if not PLAYWRIGHT_AVAILABLE or not self.session:
-            return await self._mock_request(prompt, start_time)
+        # Playwright is REQUIRED - no mock mode
+        if not PLAYWRIGHT_AVAILABLE:
+            raise RuntimeError("Playwright not installed. Install with: pip install playwright playwright-stealth && playwright install chromium")
+        
+        if not self.session:
+            return {
+                'success': False,
+                'error': 'Browser session not initialized',
+                'response_time': time.time() - start_time
+            }
         
         try:
             page = self.session.page
@@ -617,30 +629,6 @@ class DeepSeekAccount:
                 await asyncio.sleep(1)
         
         return None
-    
-    async def _mock_request(self, prompt: str, start_time: float) -> Dict[str, Any]:
-        """Mock request for testing without Playwright"""
-        # Simulate network delay
-        await asyncio.sleep(random.uniform(2, 5))
-        
-        # Generate mock response
-        mock_responses = [
-            "Это тестовый ответ от DeepSeek Free. В реальном режиме здесь будет ответ от chat.deepseek.com",
-            "Согласно вашему запросу, вот развёрнутый ответ на тему...",
-            "Интересный вопрос! Позвольте рассказать подробнее...",
-            "Анализируя ваш запрос, могу сказать следующее...",
-        ]
-        
-        response = random.choice(mock_responses)
-        self._record_request(success=True)
-        
-        return {
-            'success': True,
-            'response': response,
-            'from_cache': False,
-            'response_time': time.time() - start_time,
-            'account_id': self.account_id
-        }
     
     def _can_make_request(self) -> bool:
         """Check if account can make a request"""

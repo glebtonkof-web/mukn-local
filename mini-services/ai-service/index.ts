@@ -1,11 +1,12 @@
 /**
  * AI Service - Централизованный AI-сервис для генерации контента
  * Порт: 3001
- * Поддерживает DeepSeek, OpenRouter, Gemini, Groq, Cerebras
+ * Поддерживает DeepSeek, OpenRouter, Gemini, Groq, Cerebras через z-ai-web-dev-sdk
  */
 
 import { createServer } from 'http';
 import { parse } from 'url';
+import ZAI from 'z-ai-web-dev-sdk';
 
 const PORT = 3001;
 
@@ -28,7 +29,7 @@ interface AIResponse {
   latency: number;
 }
 
-// Провайдеры AI
+// Провайдеры AI (для совместимости и fallback)
 const PROVIDERS = {
   deepseek: {
     name: 'DeepSeek',
@@ -77,7 +78,17 @@ const stats = {
   byProvider: {} as Record<string, number>,
 };
 
-// Генерация контента
+// Инициализация ZAI SDK
+let zaiInstance: Awaited<ReturnType<typeof ZAI.create>> | null = null;
+
+async function getZAI() {
+  if (!zaiInstance) {
+    zaiInstance = await ZAI.create();
+  }
+  return zaiInstance;
+}
+
+// Генерация контента через реальные AI API
 async function generateContent(request: AIRequest): Promise<AIResponse> {
   const startTime = Date.now();
   const provider = request.provider || 'deepseek';
@@ -94,18 +105,28 @@ async function generateContent(request: AIRequest): Promise<AIResponse> {
   stats.totalRequests++;
 
   try {
-    // В реальной реализации - вызов API провайдера
-    // const response = await fetch(PROVIDERS[provider].baseUrl, {...})
+    // Используем z-ai-web-dev-sdk для реальных AI вызовов
+    const zai = await getZAI();
 
-    // Симуляция ответа
-    const latency = 500 + Math.random() * 1500;
-    await new Promise(resolve => setTimeout(resolve, Math.min(latency, 100)));
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
 
-    const tokensIn = Math.ceil(request.prompt.length / 4);
-    const tokensOut = 100 + Math.floor(Math.random() * 400);
+    if (request.systemPrompt) {
+      messages.push({ role: 'system', content: request.systemPrompt });
+    }
+    messages.push({ role: 'user', content: request.prompt });
+
+    const completion = await zai.chat.completions.create({
+      messages,
+      temperature: request.temperature ?? 0.8,
+      max_tokens: request.maxTokens ?? 2048,
+    });
+
+    const content = completion.choices[0]?.message?.content || '';
+    const tokensIn = completion.usage?.prompt_tokens || Math.ceil(request.prompt.length / 4);
+    const tokensOut = completion.usage?.completion_tokens || Math.ceil(content.length / 4);
 
     const response: AIResponse = {
-      content: generateSimulatedContent(request.prompt, request.systemPrompt),
+      content,
       model,
       provider,
       tokensIn,
@@ -126,40 +147,11 @@ async function generateContent(request: AIRequest): Promise<AIResponse> {
     console.log(`[AI] Generated content via ${provider}/${model} in ${response.latency}ms`);
 
     return response;
-  } catch (error) {
+  } catch (error: any) {
     stats.failedRequests++;
-    throw error;
+    console.error(`[AI] Generation failed: ${error.message}`);
+    throw new Error(`AI generation failed: ${error.message}`);
   }
-}
-
-// Симуляция генерации контента
-function generateSimulatedContent(prompt: string, systemPrompt?: string): string {
-  const templates = [
-    '🔥 Отличная возможность! Сегодня удача на моей стороне. Кто со мной?',
-    '💰 Жизнь — это игра, и я играю по своим правилам. Главное — знать момент для выхода.',
-    '📈 Рынок показывает интересные тренды. Время действовать!',
-    '💎 Успех приходит к тем, кто принимает решения. Момент настал.',
-    '🚀 Новые горизонты открываются каждый день. Не упускай свой шанс!',
-    '⚡ Энергия, решимость, результат. Начни свой путь сегодня!',
-  ];
-
-  // Персонализация на основе промпта
-  if (prompt.toLowerCase().includes('коммент')) {
-    const comments = [
-      'Отличный пост! 🔥',
-      'Согласен на 100%!',
-      'Спасибо за полезную информацию!',
-      'Очень вдохновляет! 👏',
-      'Интересная мысль...',
-    ];
-    return comments[Math.floor(Math.random() * comments.length)];
-  }
-
-  if (prompt.toLowerCase().includes('пост') || prompt.toLowerCase().includes('текст')) {
-    return templates[Math.floor(Math.random() * templates.length)];
-  }
-
-  return templates[Math.floor(Math.random() * templates.length)];
 }
 
 // HTTP сервер
@@ -187,9 +179,10 @@ const server = createServer(async (req, res) => {
         const response = await generateContent(request);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(response));
-      } catch (error) {
+      } catch (error: any) {
+        console.error('[AI] Error:', error.message);
         res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Generation failed' }));
+        res.end(JSON.stringify({ error: error.message || 'Generation failed' }));
       }
     });
     return;
@@ -229,6 +222,7 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`[AI-Service] Running on port ${PORT}`);
+  console.log(`[AI-Service] Using z-ai-web-dev-sdk for real AI calls`);
 });
 
 // Graceful shutdown

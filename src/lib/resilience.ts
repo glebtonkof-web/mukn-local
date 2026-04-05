@@ -309,6 +309,26 @@ export interface HealthStatus {
 // Время старта сервера
 const serverStartTime = Date.now();
 
+// Счётчик ошибок
+const errorLog: { timestamp: number; error: string }[] = [];
+const ERROR_LOG_MAX_AGE = 3600000; // 1 час
+
+// Функция для записи ошибки
+export function logError(error: string): void {
+  errorLog.push({ timestamp: Date.now(), error });
+  // Удаляем старые записи
+  const oneHourAgo = Date.now() - ERROR_LOG_MAX_AGE;
+  while (errorLog.length > 0 && errorLog[0].timestamp < oneHourAgo) {
+    errorLog.shift();
+  }
+}
+
+// Функция для получения количества ошибок за последний час
+function getErrorsLastHour(): number {
+  const oneHourAgo = Date.now() - ERROR_LOG_MAX_AGE;
+  return errorLog.filter(e => e.timestamp > oneHourAgo).length;
+}
+
 export async function getHealthStatus(db: any): Promise<HealthStatus> {
   const errors: string[] = [];
   
@@ -362,7 +382,7 @@ export async function getHealthStatus(db: any): Promise<HealthStatus> {
       totalInfluencers,
       activeAccounts,
       pendingTasks,
-      errorsLastHour: 0, // TODO: реализовать подсчёт ошибок
+      errorsLastHour: getErrorsLastHour(),
     },
   };
 }
