@@ -48,6 +48,7 @@ const navSections = [
     title: '🚀 Быстрый старт',
     items: [
       { id: 'auto-earn', label: 'Авто-заработок', icon: Zap, badge: 'NEW' },
+      { id: 'monetization-wizard', label: 'Мастер монетизации', icon: Rocket, badge: 'WIZARD' },
     ]
   },
   {

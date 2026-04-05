@@ -961,8 +961,8 @@ export function DeepSeekFreePanelPro() {
                     Автоматическое восстановление при ошибках и блоках
                   </CardDescription>
                 </div>
-                <Badge className={status?.healing.monitoring_active ? "bg-green-500" : "bg-gray-500"}>
-                  {status?.healing.monitoring_active ? 'Активен' : 'Остановлен'}
+                <Badge className={status?.healing?.monitoring_active ? "bg-green-500" : "bg-gray-500"}>
+                  {status?.healing?.monitoring_active ? 'Активен' : 'Остановлен'}
                 </Badge>
               </div>
             </CardHeader>
@@ -970,17 +970,17 @@ export function DeepSeekFreePanelPro() {
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-muted rounded-lg">
                   <Shield className="w-8 h-8 mx-auto mb-2 text-red-500" />
-                  <p className="text-2xl font-bold">{status?.healing.quarantine_count || 0}</p>
+                  <p className="text-2xl font-bold">{status?.healing?.quarantine_count || 0}</p>
                   <p className="text-sm text-muted-foreground">В карантине</p>
                 </div>
                 <div className="text-center p-4 bg-muted rounded-lg">
                   <RotateCcw className="w-8 h-8 mx-auto mb-2 text-yellow-500" />
-                  <p className="text-2xl font-bold">{Object.keys(status?.healing.recovery_attempts || {}).length}</p>
+                  <p className="text-2xl font-bold">{Object.keys(status?.healing?.recovery_attempts || {}).length}</p>
                   <p className="text-sm text-muted-foreground">Попыток восстановления</p>
                 </div>
                 <div className="text-center p-4 bg-muted rounded-lg">
                   <Globe className="w-8 h-8 mx-auto mb-2 text-blue-500" />
-                  <p className="text-2xl font-bold">{status?.healing.proxy_assignments || 0}</p>
+                  <p className="text-2xl font-bold">{status?.healing?.proxy_assignments || 0}</p>
                   <p className="text-sm text-muted-foreground">Прокси назначено</p>
                 </div>
               </div>

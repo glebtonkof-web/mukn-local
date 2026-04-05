@@ -35,6 +35,7 @@ import { NotificationsSheet } from '@/components/notifications/notifications-she
 import { AIProvidersSettings } from '@/components/settings/ai-providers-settings';
 import { AutoEarnWizard } from '@/components/auto-earn/auto-earn-wizard';
 import { AutoEarnDashboard } from '@/components/auto-earn/auto-earn-dashboard';
+import { MonetizationWizard } from '@/components/wizards/monetization-wizard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -290,6 +291,8 @@ export default function Page() {
     switch (activeTab) {
       case 'auto-earn':
         return <AutoEarnView />;
+      case 'monetization-wizard':
+        return <MonetizationWizard />;
       case 'dashboard':
         return <DashboardView />;
       case 'campaigns':
