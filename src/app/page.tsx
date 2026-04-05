@@ -33,9 +33,8 @@ import { useModeStore } from '@/store/mode-store';
 import { MobileMenu, MobileHeader } from '@/components/ui/mobile-menu';
 import { NotificationsSheet } from '@/components/notifications/notifications-sheet';
 
-import { AutoEarnWizard } from '@/components/auto-earn/auto-earn-wizard';
+import { UnifiedAutoEarnWizard } from '@/components/auto-earn/unified-auto-earn-wizard';
 import { AutoEarnDashboard } from '@/components/auto-earn/auto-earn-dashboard';
-import { MonetizationWizard } from '@/components/wizards/monetization-wizard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -258,7 +257,7 @@ function AutoEarnView() {
 
       {/* Контент */}
       {activeTab === 'wizard' ? (
-        <AutoEarnWizard />
+        <UnifiedAutoEarnWizard />
       ) : (
         <AutoEarnDashboard />
       )}
@@ -291,8 +290,6 @@ export default function Page() {
     switch (activeTab) {
       case 'auto-earn':
         return <AutoEarnView />;
-      case 'monetization-wizard':
-        return <MonetizationWizard />;
       case 'dashboard':
         return <DashboardView />;
       case 'campaigns':
