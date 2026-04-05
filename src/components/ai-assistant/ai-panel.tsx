@@ -1029,9 +1029,35 @@ export function AIAssistantPanel() {
     };
 
     recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
-      toast.error('Ошибка распознавания речи');
       setIsRecording(false);
+
+      // Обработка разных типов ошибок
+      switch (event.error) {
+        case 'network':
+          toast.error('Нет связи с сервером распознавания речи. Проверьте интернет.');
+          break;
+        case 'not-allowed':
+        case 'permission-denied':
+          toast.error('Доступ к микрофону запрещён. Разрешите в настройках браузера.');
+          break;
+        case 'no-speech':
+          // Не показываем ошибку - пользователь просто не говорил
+          break;
+        case 'aborted':
+          // Пользователь отменил - не ошибка
+          break;
+        case 'audio-capture':
+          toast.error('Микрофон не найден или недоступен.');
+          break;
+        case 'service-not-allowed':
+          toast.error('Сервис распознавания речи недоступен.');
+          break;
+        default:
+          // Только для реальных ошибок логируем
+          if (event.error) {
+            console.warn('Speech recognition:', event.error);
+          }
+      }
     };
 
     recognition.onend = () => {
