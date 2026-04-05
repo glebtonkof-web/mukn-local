@@ -60,6 +60,15 @@ interface Settings {
   systemPrompt: string;
 }
 
+interface CustomPrompt {
+  id: string;
+  name: string;
+  description: string;
+  prompt: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // ==================== КОНСТАНТЫ ====================
 
 const MODELS = [
@@ -479,6 +488,14 @@ export function AIAssistantPanel() {
   });
   const [showSettings, setShowSettings] = useState(false);
   
+  // Пользовательские промпты
+  const [customPrompts, setCustomPrompts] = useState<CustomPrompt[]>([]);
+  const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
+  const [newPromptName, setNewPromptName] = useState('');
+  const [newPromptDescription, setNewPromptDescription] = useState('');
+  const [newPromptContent, setNewPromptContent] = useState('');
+  const [showAddPromptForm, setShowAddPromptForm] = useState(false);
+  
   // Голосовые функции
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -501,7 +518,8 @@ export function AIAssistantPanel() {
     const savedChats = localStorage.getItem('ai-chats');
     const savedSettings = localStorage.getItem('ai-settings');
     const savedDraft = localStorage.getItem('ai-draft');
-    
+    const savedCustomPrompts = localStorage.getItem('ai-custom-prompts');
+
     if (savedChats) {
       try {
         const parsed = JSON.parse(savedChats);
@@ -521,7 +539,7 @@ export function AIAssistantPanel() {
         console.error('Error loading chats:', e);
       }
     }
-    
+
     if (savedSettings) {
       try {
         setSettings(JSON.parse(savedSettings));
@@ -529,12 +547,25 @@ export function AIAssistantPanel() {
         console.error('Error loading settings:', e);
       }
     }
-    
+
     if (savedDraft) {
       setDraft(savedDraft);
       setInput(savedDraft);
     }
-    
+
+    if (savedCustomPrompts) {
+      try {
+        const parsed = JSON.parse(savedCustomPrompts);
+        setCustomPrompts(parsed.map((p: CustomPrompt) => ({
+          ...p,
+          createdAt: new Date(p.createdAt),
+          updatedAt: new Date(p.updatedAt),
+        })));
+      } catch (e) {
+        console.error('Error loading custom prompts:', e);
+      }
+    }
+
     // Инициализация Speech Synthesis
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       setSpeechSynthesis(window.speechSynthesis);
@@ -555,6 +586,10 @@ export function AIAssistantPanel() {
   useEffect(() => {
     localStorage.setItem('ai-draft', input);
   }, [input]);
+
+  useEffect(() => {
+    localStorage.setItem('ai-custom-prompts', JSON.stringify(customPrompts));
+  }, [customPrompts]);
 
   // Автопрокрутка
   useEffect(() => {
@@ -1000,11 +1035,91 @@ export function AIAssistantPanel() {
 
   // Очистка чата
   const clearCurrentChat = () => {
-    setChats(prev => prev.map(c => 
-      c.id === currentChatId 
+    setChats(prev => prev.map(c =>
+      c.id === currentChatId
         ? { ...c, messages: [], title: 'Новый чат', updatedAt: new Date() }
         : c
     ));
+  };
+
+  // ==================== ФУНКЦИИ ПОЛЬЗОВАТЕЛЬСКИХ ПРОМПТОВ ====================
+
+  // Добавление нового промпта
+  const addCustomPrompt = () => {
+    if (!newPromptName.trim() || !newPromptContent.trim()) {
+      toast.error('Заполните название и содержание промпта');
+      return;
+    }
+
+    const newPrompt: CustomPrompt = {
+      id: Date.now().toString(),
+      name: newPromptName.trim(),
+      description: newPromptDescription.trim() || 'Пользовательский промпт',
+      prompt: newPromptContent.trim(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    setCustomPrompts(prev => [...prev, newPrompt]);
+    setNewPromptName('');
+    setNewPromptDescription('');
+    setNewPromptContent('');
+    setShowAddPromptForm(false);
+    toast.success('Промпт добавлен');
+  };
+
+  // Удаление промпта
+  const deleteCustomPrompt = (id: string) => {
+    setCustomPrompts(prev => prev.filter(p => p.id !== id));
+    if (editingPromptId === id) {
+      setEditingPromptId(null);
+    }
+    toast.success('Промпт удалён');
+  };
+
+  // Начать редактирование промпта
+  const startEditingPrompt = (prompt: CustomPrompt) => {
+    setEditingPromptId(prompt.id);
+    setNewPromptName(prompt.name);
+    setNewPromptDescription(prompt.description);
+    setNewPromptContent(prompt.prompt);
+    setShowAddPromptForm(true);
+  };
+
+  // Сохранить отредактированный промпт
+  const saveEditedPrompt = () => {
+    if (!editingPromptId || !newPromptName.trim() || !newPromptContent.trim()) {
+      toast.error('Заполните название и содержание промпта');
+      return;
+    }
+
+    setCustomPrompts(prev => prev.map(p =>
+      p.id === editingPromptId
+        ? {
+            ...p,
+            name: newPromptName.trim(),
+            description: newPromptDescription.trim() || 'Пользовательский промпт',
+            prompt: newPromptContent.trim(),
+            updatedAt: new Date(),
+          }
+        : p
+    ));
+
+    setEditingPromptId(null);
+    setNewPromptName('');
+    setNewPromptDescription('');
+    setNewPromptContent('');
+    setShowAddPromptForm(false);
+    toast.success('Промпт обновлён');
+  };
+
+  // Отмена редактирования
+  const cancelEditingPrompt = () => {
+    setEditingPromptId(null);
+    setNewPromptName('');
+    setNewPromptDescription('');
+    setNewPromptContent('');
+    setShowAddPromptForm(false);
   };
 
   // Фильтрация чатов для поиска
@@ -1181,63 +1296,235 @@ export function AIAssistantPanel() {
                   <Settings className="w-4 h-4" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-96 bg-[#1E1F26] border-[#2A2B32] max-h-[80vh] flex flex-col">
-                <div className="space-y-4 flex flex-col min-h-0">
-                  <h4 className="text-white font-medium flex-shrink-0">Настройки</h4>
-                  
-                  {/* Температура */}
-                  <div className="space-y-2 flex-shrink-0">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-[#8A8A8A]">Температура</span>
-                      <span className="text-white">{settings.temperature}</span>
-                    </div>
-                    <Slider
-                      value={[settings.temperature]}
-                      min={0}
-                      max={2}
-                      step={0.1}
-                      onValueChange={([v]) => setSettings(s => ({ ...s, temperature: v }))}
-                    />
-                    <p className="text-xs text-[#8A8A8A]">
-                      Низкая = точность, Высокая = креативность
-                    </p>
+              <PopoverContent className="w-[420px] bg-[#1E1F26] border-[#2A2B32] max-h-[85vh] flex flex-col p-0">
+                <div className="flex flex-col min-h-0 h-full">
+                  {/* Заголовок */}
+                  <div className="p-4 border-b border-[#2A2B32] flex-shrink-0">
+                    <h4 className="text-white font-medium">Настройки AI</h4>
                   </div>
-                  
-                  {/* Системные промпты с прокруткой */}
-                  <div className="space-y-2 flex-1 min-h-0 flex flex-col">
-                    <span className="text-sm text-[#8A8A8A] flex-shrink-0">Системный промпт</span>
-                    
-                    {/* Список предустановок с прокруткой */}
-                    <div 
-                      className="flex-1 min-h-0 max-h-[300px] overflow-y-auto pr-1 space-y-1 
-                        [&::-webkit-scrollbar]:w-1.5 
-                        [&::-webkit-scrollbar-track]:bg-[#14151A] 
-                        [&::-webkit-scrollbar-thumb]:bg-[#6C63FF] 
-                        [&::-webkit-scrollbar-thumb]:rounded-full"
-                      style={{ scrollbarWidth: 'thin', scrollbarColor: '#6C63FF #14151A' }}
-                    >
-                      {SYSTEM_PROMPTS.map((sp) => (
-                        <button
-                          key={sp.id}
-                          onClick={() => setSettings(s => ({ ...s, systemPrompt: sp.prompt }))}
-                          className={cn(
-                            'w-full text-left p-2 rounded-lg transition-colors',
-                            'hover:bg-[#2A2B32] border border-transparent',
-                            settings.systemPrompt === sp.prompt && 'bg-[#6C63FF]/20 border-[#6C63FF]'
-                          )}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm">{sp.name}</span>
-                          </div>
-                          <p className="text-xs text-[#8A8A8A] mt-0.5">{sp.description}</p>
-                        </button>
-                      ))}
+
+                  {/* Прокручиваемая область */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4
+                    [&::-webkit-scrollbar]:w-2
+                    [&::-webkit-scrollbar-track]:bg-[#14151A]
+                    [&::-webkit-scrollbar-thumb]:bg-[#6C63FF]
+                    [&::-webkit-scrollbar-thumb]:rounded-full"
+                    style={{ scrollbarWidth: 'thin', scrollbarColor: '#6C63FF #14151A' }}
+                  >
+                    {/* Температура */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-[#8A8A8A]">Температура</span>
+                        <span className="text-white">{settings.temperature}</span>
+                      </div>
+                      <Slider
+                        value={[settings.temperature]}
+                        min={0}
+                        max={2}
+                        step={0.1}
+                        onValueChange={([v]) => setSettings(s => ({ ...s, temperature: v }))}
+                      />
+                      <p className="text-xs text-[#8A8A8A]">
+                        Низкая = точность, Высокая = креативность
+                      </p>
                     </div>
-                    
-                    {/* Редактор промпта */}
-                    <div className="flex-shrink-0 pt-2 border-t border-[#2A2B32]">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs text-[#8A8A8A]">Редактировать:</span>
+
+                    {/* Раздел: Стандартные промпты */}
+                    <div className="space-y-2">
+                      <span className="text-sm text-[#8A8A8A] font-medium">📚 Стандартные промпты (20)</span>
+                      <div className="max-h-[200px] overflow-y-auto space-y-1 pr-1
+                        [&::-webkit-scrollbar]:w-1
+                        [&::-webkit-scrollbar-track]:bg-[#14151A]
+                        [&::-webkit-scrollbar-thumb]:bg-[#6C63FF]
+                        [&::-webkit-scrollbar-thumb]:rounded-full"
+                        style={{ scrollbarWidth: 'thin', scrollbarColor: '#6C63FF #14151A' }}
+                      >
+                        {SYSTEM_PROMPTS.map((sp) => (
+                          <button
+                            key={sp.id}
+                            onClick={() => setSettings(s => ({ ...s, systemPrompt: sp.prompt }))}
+                            className={cn(
+                              'w-full text-left p-2 rounded-lg transition-colors',
+                              'hover:bg-[#2A2B32] border border-transparent',
+                              settings.systemPrompt === sp.prompt && 'bg-[#6C63FF]/20 border-[#6C63FF]'
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-white">{sp.name}</span>
+                              {settings.systemPrompt === sp.prompt && (
+                                <Check className="w-4 h-4 text-[#6C63FF]" />
+                              )}
+                            </div>
+                            <p className="text-xs text-[#8A8A8A] mt-0.5 truncate">{sp.description}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Раздел: Пользовательские промпты */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-[#8A8A8A] font-medium">
+                          ✨ Мои промпты ({customPrompts.length})
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setShowAddPromptForm(true);
+                            setEditingPromptId(null);
+                            setNewPromptName('');
+                            setNewPromptDescription('');
+                            setNewPromptContent('');
+                          }}
+                          className="h-7 px-2 text-xs text-[#6C63FF] hover:text-white hover:bg-[#6C63FF]/20"
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          Добавить
+                        </Button>
+                      </div>
+
+                      {customPrompts.length > 0 && (
+                        <div className="max-h-[150px] overflow-y-auto space-y-1 pr-1
+                          [&::-webkit-scrollbar]:w-1
+                          [&::-webkit-scrollbar-track]:bg-[#14151A]
+                          [&::-webkit-scrollbar-thumb]:bg-[#6C63FF]
+                          [&::-webkit-scrollbar-thumb]:rounded-full"
+                          style={{ scrollbarWidth: 'thin', scrollbarColor: '#6C63FF #14151A' }}
+                        >
+                          {customPrompts.map((cp) => (
+                            <div
+                              key={cp.id}
+                              className={cn(
+                                'p-2 rounded-lg border transition-colors',
+                                settings.systemPrompt === cp.prompt
+                                  ? 'bg-[#6C63FF]/20 border-[#6C63FF]'
+                                  : 'bg-[#14151A] border-[#2A2B32] hover:border-[#6C63FF]/50'
+                              )}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <button
+                                  onClick={() => setSettings(s => ({ ...s, systemPrompt: cp.prompt }))}
+                                  className="flex-1 text-left"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm text-white">{cp.name}</span>
+                                    {settings.systemPrompt === cp.prompt && (
+                                      <Check className="w-3 h-3 text-[#6C63FF]" />
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-[#8A8A8A] mt-0.5 truncate">{cp.description}</p>
+                                </button>
+                                <div className="flex gap-1 flex-shrink-0">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => startEditingPrompt(cp)}
+                                    className="h-6 w-6 p-0 text-[#8A8A8A] hover:text-[#6C63FF]"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => deleteCustomPrompt(cp.id)}
+                                    className="h-6 w-6 p-0 text-[#8A8A8A] hover:text-red-500"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {customPrompts.length === 0 && !showAddPromptForm && (
+                        <p className="text-xs text-[#8A8A8A] text-center py-2">
+                          Нет пользовательских промптов
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Форма добавления/редактирования промпта */}
+                    {showAddPromptForm && (
+                      <div className="space-y-3 p-3 bg-[#14151A] rounded-lg border border-[#2A2B32]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-white font-medium">
+                            {editingPromptId ? '✏️ Редактировать промпт' : '➕ Новый промпт'}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={cancelEditingPrompt}
+                            className="h-6 w-6 p-0 text-[#8A8A8A] hover:text-white"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            placeholder="Название промпта *"
+                            value={newPromptName}
+                            onChange={(e) => setNewPromptName(e.target.value)}
+                            className="w-full bg-[#0D0E12] border border-[#2A2B32] rounded px-3 py-2 text-sm text-white placeholder-[#8A8A8A] focus:outline-none focus:border-[#6C63FF]"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Описание (необязательно)"
+                            value={newPromptDescription}
+                            onChange={(e) => setNewPromptDescription(e.target.value)}
+                            className="w-full bg-[#0D0E12] border border-[#2A2B32] rounded px-3 py-2 text-sm text-white placeholder-[#8A8A8A] focus:outline-none focus:border-[#6C63FF]"
+                          />
+                          <Textarea
+                            placeholder="Содержание промпта *"
+                            value={newPromptContent}
+                            onChange={(e) => setNewPromptContent(e.target.value)}
+                            className="bg-[#0D0E12] border-[#2A2B32] text-white text-xs min-h-[100px] max-h-[200px]
+                              [&::-webkit-scrollbar]:w-1.5
+                              [&::-webkit-scrollbar-track]:bg-[#0D0E12]
+                              [&::-webkit-scrollbar-thumb]:bg-[#6C63FF]
+                              [&::-webkit-scrollbar-thumb]:rounded-full"
+                            style={{ scrollbarWidth: 'thin', scrollbarColor: '#6C63FF #0D0E12', overflowY: 'auto' }}
+                          />
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={editingPromptId ? saveEditedPrompt : addCustomPrompt}
+                            className="flex-1 bg-[#6C63FF] hover:bg-[#6C63FF]/80"
+                          >
+                            {editingPromptId ? (
+                              <>
+                                <Check className="w-4 h-4 mr-1" />
+                                Сохранить
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-4 h-4 mr-1" />
+                                Добавить
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={cancelEditingPrompt}
+                            className="border-[#2A2B32] text-[#8A8A8A]"
+                          >
+                            Отмена
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Редактор текущего промпта */}
+                    <div className="space-y-2 pt-2 border-t border-[#2A2B32]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-[#8A8A8A]">📝 Редактировать текущий:</span>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1250,7 +1537,12 @@ export function AIAssistantPanel() {
                       <Textarea
                         value={settings.systemPrompt}
                         onChange={(e) => setSettings(s => ({ ...s, systemPrompt: e.target.value }))}
-                        className="bg-[#14151A] border-[#2A2B32] text-white text-xs min-h-[120px] max-h-[200px] overflow-y-auto"
+                        className="bg-[#14151A] border-[#2A2B32] text-white text-xs min-h-[150px] max-h-[300px]
+                          [&::-webkit-scrollbar]:w-2
+                          [&::-webkit-scrollbar-track]:bg-[#14151A]
+                          [&::-webkit-scrollbar-thumb]:bg-[#6C63FF]
+                          [&::-webkit-scrollbar-thumb]:rounded-full"
+                        style={{ scrollbarWidth: 'thin', scrollbarColor: '#6C63FF #14151A', overflowY: 'auto' }}
                       />
                     </div>
                   </div>
