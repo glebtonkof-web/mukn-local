@@ -589,10 +589,36 @@ export function AIAssistantPanel() {
   useEffect(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       const synth = window.speechSynthesis;
-      // Загружаем голоса
-      synth.getVoices();
-      // В некоторых браузерах голоса загружаются асинхронно
-      synth.onvoiceschanged = () => synth.getVoices();
+
+      // Функция загрузки голосов
+      const loadVoices = () => {
+        const voices = synth.getVoices();
+        // Сохраняем в window для отладки
+        (window as any).__ttsVoices = voices;
+        return voices;
+      };
+
+      // Загружаем сразу
+      loadVoices();
+
+      // И при изменении списка голосов
+      if (synth.onvoiceschanged !== undefined) {
+        synth.onvoiceschanged = loadVoices;
+      }
+
+      // В Chrome иногда нужно вызвать resume при загрузке страницы
+      const fixChrome = () => {
+        if (synth.paused) {
+          synth.resume();
+        }
+      };
+
+      // Вызываем при visibility change
+      document.addEventListener('visibilitychange', fixChrome);
+
+      return () => {
+        document.removeEventListener('visibilitychange', fixChrome);
+      };
     }
   }, []);
 
@@ -1019,8 +1045,13 @@ export function AIAssistantPanel() {
   // Озвучка ответа
   const speakText = (text: string) => {
     // Проверяем поддержку Speech Synthesis
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      toast.error('Озвучка не поддерживается в этом браузере');
+    if (typeof window === 'undefined') {
+      toast.error('Озвучка недоступна');
+      return;
+    }
+
+    if (!('speechSynthesis' in window)) {
+      toast.error('Ваш браузер не поддерживает озвучку');
       return;
     }
 
@@ -1038,14 +1069,14 @@ export function AIAssistantPanel() {
 
     // Очищаем текст от markdown и спецсимволов
     const cleanText = text
-      .replace(/```[\s\S]*?```/g, '') // Удаляем блоки кода
-      .replace(/`[^`]+`/g, '') // Удаываем инлайн код
-      .replace(/\*\*([^*]+)\*\*/g, '$1') // Убираем жирное выделение
-      .replace(/\*([^*]+)\*/g, '$1') // Убираем курсив
-      .replace(/#{1,6}\s/g, '') // Убираем заголовки
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Убираем ссылки
-      .replace(/\n+/g, '. ') // Заменяем переносы на точки
-      .replace(/\s+/g, ' ') // Убираем лишние пробелы
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`[^`]+`/g, '')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/#{1,6}\s/g, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/\n+/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim();
 
     if (!cleanText) {
@@ -1053,102 +1084,75 @@ export function AIAssistantPanel() {
       return;
     }
 
-    // Разбиваем на части если текст слишком длинный (лимит ~200 символов для стабильности)
-    const maxLength = 200;
-    const chunks: string[] = [];
+    // Получаем голоса
+    let voices = synth.getVoices();
 
-    if (cleanText.length > maxLength) {
-      const sentences = cleanText.match(/[^.!?]+[.!?]+/g) || [cleanText];
-      let currentChunk = '';
+    const doSpeak = () => {
+      voices = synth.getVoices();
 
-      for (const sentence of sentences) {
-        if ((currentChunk + sentence).length > maxLength && currentChunk) {
-          chunks.push(currentChunk.trim());
-          currentChunk = sentence;
-        } else {
-          currentChunk += sentence;
-        }
-      }
-      if (currentChunk.trim()) {
-        chunks.push(currentChunk.trim());
-      }
-    } else {
-      chunks.push(cleanText);
-    }
-
-    let currentIndex = 0;
-
-    const speakChunk = () => {
-      if (currentIndex >= chunks.length) {
-        setIsSpeaking(false);
-        return;
-      }
-
-      const utterance = new SpeechSynthesisUtterance(chunks[currentIndex]);
+      const utterance = new SpeechSynthesisUtterance(cleanText);
       utterance.lang = 'ru-RU';
-      utterance.rate = 1;
+      utterance.rate = 0.9;
       utterance.pitch = 1;
       utterance.volume = 1;
 
-      // Получаем русский голос если доступен
-      const voices = synth.getVoices();
-      const russianVoice = voices.find(v => v.lang.startsWith('ru'));
+      // Ищем русский голос
+      const russianVoice = voices.find(v => v.lang === 'ru-RU') ||
+                           voices.find(v => v.lang.startsWith('ru'));
       if (russianVoice) {
         utterance.voice = russianVoice;
       }
 
       utterance.onstart = () => {
-        if (currentIndex === 0) setIsSpeaking(true);
+        setIsSpeaking(true);
       };
 
       utterance.onend = () => {
-        currentIndex++;
-        // Небольшая пауза между чанками
-        setTimeout(() => speakChunk(), 100);
+        setIsSpeaking(false);
       };
 
       utterance.onerror = (e) => {
-        // interrupted и canceled — нормальные события при остановке, не ошибка
-        if (e.error === 'canceled' || e.error === 'interrupted') {
-          return;
-        }
-
-        console.warn('Speech synthesis warning:', e.error);
         setIsSpeaking(false);
-
-        // Пробуем без указания голоса
-        if (utterance.voice) {
-          try {
-            const retryUtterance = new SpeechSynthesisUtterance(chunks[currentIndex]);
-            retryUtterance.lang = 'ru-RU';
-            retryUtterance.rate = 1;
-
-            retryUtterance.onend = () => {
-              currentIndex++;
-              setTimeout(() => speakChunk(), 100);
-            };
-            retryUtterance.onerror = () => {
-              setIsSpeaking(false);
-            };
-
-            synth.speak(retryUtterance);
-          } catch {
-            setIsSpeaking(false);
-          }
-          return;
+        if (e.error !== 'canceled' && e.error !== 'interrupted') {
+          console.warn('TTS error:', e.error);
         }
-
-        toast.error('Ошибка озвучки. Попробуйте ещё раз.');
       };
 
-      // Важный фикс для Chrome — нужно добавить задержку
-      setTimeout(() => {
-        synth.speak(utterance);
-      }, 50);
+      // Фикс для Chrome - resume если paused
+      if (synth.paused) {
+        synth.resume();
+      }
+
+      synth.speak(utterance);
+
+      // Фикс для Chrome - иногда speak не работает без этого
+      // Периодически проверяем и резюмируем если нужно
+      const keepAlive = setInterval(() => {
+        if (!synth.speaking) {
+          clearInterval(keepAlive);
+          return;
+        }
+        if (synth.paused) {
+          synth.resume();
+        }
+      }, 10000);
+
+      // Очищаем интервал через 5 минут максимум
+      setTimeout(() => clearInterval(keepAlive), 300000);
     };
 
-    setIsSpeaking(true);
-    speakChunk();
+    // Голоса могут загружаться асинхронно в некоторых браузерах
+    if (voices.length === 0 && synth.onvoiceschanged !== undefined) {
+      synth.onvoiceschanged = doSpeak;
+      // Fallback - ждём немного и запускаем
+      setTimeout(() => {
+        if (!isSpeaking) {
+          doSpeak();
+        }
+      }, 100);
+    } else {
+      doSpeak();
+    }
   };
 
   // Очистка чата
