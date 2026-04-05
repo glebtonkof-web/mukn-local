@@ -12,6 +12,7 @@ import {
   Zap,
   Bell,
   Brain,
+  Bot,
   DollarSign,
   TrendingUp,
   Globe,
@@ -72,8 +73,9 @@ const navSections = [
   {
     title: 'AI & Автоматизация',
     items: [
+      { id: 'ai-assistant', label: 'AI Ассистент', icon: Bot, badge: 'NEW' },
       { id: 'deepseek-free', label: 'DeepSeek Free', icon: Cpu, badge: 'PRO' },
-      { id: 'hunyuan', label: 'Hunyuan Studio', icon: Sparkles, badge: 'NEW' },
+      { id: 'hunyuan', label: 'Hunyuan Studio', icon: Sparkles },
       { id: 'ai-comments', label: 'AI Комментарии', icon: MessageSquare },
       { id: 'ai-pool', label: 'AI Pool', icon: Brain },
       { id: 'content', label: 'Контент', icon: Calendar },

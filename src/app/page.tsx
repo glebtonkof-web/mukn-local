@@ -20,6 +20,7 @@ import { SettingsView } from '@/components/views/settings-view';
 import { HunyuanView } from '@/components/views/hunyuan-view';
 import { AnalyticsView } from '@/components/views/analytics-view';
 import { InstagramWarmingView } from '@/components/views/instagram-warming-view';
+import { AIAssistantView } from '@/components/views/ai-assistant-view';
 import { TrafficPourView } from '@/components/views/traffic-pour-view';
 import { AntidetectView } from '@/components/views/antidetect-view';
 import { DeepSeekFreePanelPro } from '@/components/deepseek-free/deepseek-free-panel-pro';
@@ -305,6 +306,8 @@ export default function Page() {
         return <WarmingViewEnhanced />;
       case 'instagram-warming':
         return <InstagramWarmingView />;
+      case 'ai-assistant':
+        return <AIAssistantView />;
       case 'ai-comments':
         return <AICommentsView />;
       case 'monetization':
