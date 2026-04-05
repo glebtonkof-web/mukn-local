@@ -2844,16 +2844,16 @@ export function AIAssistantPanel() {
         </div>
 
         {/* Quick prompts */}
-        <div className="px-4 py-2 border-b border-[#2A2B32] flex gap-1 flex-wrap">
+        <div className="px-4 py-2 border-b border-[#2A2B32] flex gap-1 flex-wrap overflow-x-auto">
           {QUICK_PROMPTS.map((qp) => (
             <Button
               key={qp.id}
               variant="outline"
               size="sm"
               onClick={() => setInput(qp.prompt)}
-              className="h-7 text-xs border-[#2A2B32] text-[#8A8A8A] hover:text-white"
+              className="h-7 text-xs border-[#2A2B32] text-[#8A8A8A] hover:text-white shrink-0 min-w-fit whitespace-nowrap"
             >
-              {qp.label}
+              <span className="truncate max-w-[120px]">{qp.label}</span>
             </Button>
           ))}
         </div>

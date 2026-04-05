@@ -481,6 +481,42 @@ html {
   }
 }
 
+/* ==================== TEXT OVERFLOW UTILITIES ==================== */
+/* Prevent text overflow in all cards and containers */
+.no-overflow {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Responsive container that prevents overflow */
+.responsive-container {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Card content that wraps properly */
+.card-content-responsive {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/* Text truncation with min-width for flex children */
+.truncate-container {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Flex item that can shrink below content size */
+.flex-shrink-container {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
 /* ==================== AI PANEL RESPONSIVE ==================== */
 /* On screens < 1280px, AI panel becomes a drawer (handled by JS) */
 /* On screens >= 1280px, AI panel is a fixed side panel */
@@ -533,6 +569,105 @@ html {
   .ai-panel-drawer {
     width: 600px !important;
   }
+}
+
+/* ==================== TEXT OVERFLOW UTILITIES ==================== */
+/* Prevent text overflow in all cards and containers */
+.no-overflow {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Responsive container that prevents overflow */
+.responsive-container {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Card content that wraps properly */
+.card-content-responsive {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Text truncation for flex children */
+.truncate-container {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Flex item that can shrink below content size */
+.flex-shrink-container {
+  min-width: 0;
+  flex: 1 1 0%;
+  overflow: hidden;
+}
+
+/* ==================== SIDEBAR RESPONSIVE WIDTH ==================== */
+@media (max-width: 1279px) {
+  .sidebar-collapsible {
+    width: 100%;
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+  }
+  
+  .sidebar-collapsible.open {
+    transform: translateX(0);
+  }
+}
+
+/* ==================== CARD RESPONSIVE FIXES ==================== */
+/* Fix for cards in grid layouts */
+.card-responsive {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.card-responsive > * {
+  min-width: 0;
+}
+
+/* Card title truncation */
+.card-title-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+/* ==================== BUTTON TEXT FIXES ==================== */
+/* Prevent button text from causing overflow */
+.btn-text-responsive {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==================== INPUT FIELD FIXES ==================== */
+/* Input fields should not overflow containers */
+.input-responsive {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* ==================== TABLE RESPONSIVE ==================== */
+.table-responsive {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ==================== PRINT STYLES ==================== */

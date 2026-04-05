@@ -162,9 +162,9 @@ export function Sidebar({ unreadNotifications = 0, onNotificationsClick, onMobil
           <div key={section.title} className="mb-2">
             <button
               onClick={() => toggleSection(section.title)}
-              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-[#6C63FF] uppercase tracking-wider hover:text-[#8A8A8A] transition-colors"
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-[#6C63FF] uppercase tracking-wider hover:text-[#8A8A8A] transition-colors min-w-0"
             >
-              <span>{section.title}</span>
+              <span className="truncate">{section.title}</span>
               {collapsedSections.includes(section.title) ? (
                 <ChevronRight className="w-3 h-3" />
               ) : (
@@ -182,17 +182,17 @@ export function Sidebar({ unreadNotifications = 0, onNotificationsClick, onMobil
                       key={item.id}
                       onClick={() => setActiveTab(item.id)}
                       className={cn(
-                        'w-full flex items-center gap-3 px-3 rounded-lg font-medium transition-all duration-200',
+                        'w-full flex items-center gap-3 px-3 rounded-lg font-medium transition-all duration-200 min-w-0',
                         isExpert ? 'py-2 text-xs' : 'py-3 text-sm',
                         isActive
                           ? 'bg-[#6C63FF] text-white shadow-lg shadow-[#6C63FF]/25'
                           : 'text-[#8A8A8A] hover:bg-[#1E1F26] hover:text-white'
                       )}
                     >
-                      <Icon className="w-4 h-4" />
-                      <span className="flex-1 text-left">{item.label}</span>
+                      <Icon className="w-4 h-4 shrink-0" />
+                      <span className="flex-1 text-left truncate">{item.label}</span>
                       {item.badge && (
-                        <Badge className="bg-[#6C63FF]/20 text-[#6C63FF] text-xs px-1.5 py-0">
+                        <Badge className="bg-[#6C63FF]/20 text-[#6C63FF] text-xs px-1.5 py-0 shrink-0">
                           {item.badge}
                         </Badge>
                       )}

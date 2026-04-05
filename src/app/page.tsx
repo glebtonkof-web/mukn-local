@@ -366,7 +366,7 @@ export default function Page() {
 
         {/* Main content */}
         <div 
-          className="flex-1 flex flex-col overflow-hidden transition-all duration-300"
+          className="flex-1 flex flex-col overflow-hidden transition-all duration-300 min-w-0"
           style={mainContentStyle}
         >
           {/* Header */}
@@ -378,8 +378,8 @@ export default function Page() {
           />
 
           {/* Content area */}
-          <main className="flex-1 overflow-y-auto p-6 bg-[#0A0A0C]">
-            <div className="max-w-7xl mx-auto">
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#0A0A0C] min-w-0">
+            <div className="max-w-7xl mx-auto min-w-0">
               {renderContent()}
             </div>
           </main>
@@ -594,12 +594,12 @@ function DashboardView() {
       </div>
 
       {/* KPI карточки */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpiData.map((kpi, index) => (
-          <Card key={index} className="bg-[#14151A] border-[#2A2B32] hover:border-[#6C63FF]/50 transition-colors">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm text-[#8A8A8A]">{kpi.title}</p>
+          <Card key={index} className="bg-[#14151A] border-[#2A2B32] hover:border-[#6C63FF]/50 transition-colors min-w-0">
+            <CardContent className="p-4 sm:p-6 min-w-0">
+              <div className="flex items-center justify-between mb-4 min-w-0">
+                <p className="text-sm text-[#8A8A8A] truncate">{kpi.title}</p>
                 <div className={cn(
                   'w-10 h-10 rounded-lg flex items-center justify-center',
                   kpi.color === 'green' ? 'bg-[#00D26A]/20' : kpi.color === 'red' ? 'bg-[#FF4D4D]/20' : 'bg-[#6C63FF]/20'
@@ -623,22 +623,22 @@ function DashboardView() {
       </div>
 
       {/* График и лента активности */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-[#14151A] border-[#2A2B32]">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-white flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-[#6C63FF]" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+        <Card className="bg-[#14151A] border-[#2A2B32] min-w-0">
+          <CardHeader className="flex flex-row items-center justify-between min-w-0">
+            <div className="min-w-0">
+              <CardTitle className="text-white flex items-center gap-2 truncate">
+                <BarChart3 className="w-5 h-5 text-[#6C63FF] shrink-0" />
                 Доход за 7 дней
               </CardTitle>
               <CardDescription className="text-[#8A8A8A]">Динамика по дням</CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1 sm:gap-2 shrink-0">
               <Button
                 variant={chartType === 'line' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setChartType('line')}
-                className={chartType === 'line' ? 'bg-[#6C63FF]' : 'border-[#2A2B32] text-[#8A8A8A]'}
+                className={cn("h-8", chartType === 'line' ? 'bg-[#6C63FF]' : 'border-[#2A2B32] text-[#8A8A8A]')}
               >
                 Линия
               </Button>
@@ -646,7 +646,7 @@ function DashboardView() {
                 variant={chartType === 'bar' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setChartType('bar')}
-                className={chartType === 'bar' ? 'bg-[#6C63FF]' : 'border-[#2A2B32] text-[#8A8A8A]'}
+                className={cn("h-8", chartType === 'bar' ? 'bg-[#6C63FF]' : 'border-[#2A2B32] text-[#8A8A8A]')}
               >
                 Столбцы
               </Button>
@@ -654,7 +654,7 @@ function DashboardView() {
                 variant="outline"
                 size="sm"
                 onClick={handleExportReport}
-                className="border-[#2A2B32] text-[#8A8A8A]"
+                className="border-[#2A2B32] text-[#8A8A8A] h-8"
               >
                 <Download className="w-4 h-4" />
               </Button>
@@ -699,28 +699,28 @@ function DashboardView() {
           </CardContent>
         </Card>
 
-        <Card className="bg-[#14151A] border-[#2A2B32]">
+        <Card className="bg-[#14151A] border-[#2A2B32] min-w-0">
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
-              <Activity className="w-5 h-5 text-[#FFB800]" />
-              Лента активности
+              <Activity className="w-5 h-5 text-[#FFB800] shrink-0" />
+              <span className="truncate">Лента активности</span>
             </CardTitle>
             <CardDescription className="text-[#8A8A8A]">Последние 20 событий</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="min-w-0">
             <ScrollArea className="h-[250px]">
               {activities.length > 0 ? (
                 <div className="space-y-3">
                   {activities.map((activity) => (
                     <div
                       key={activity.id}
-                      className="flex items-start gap-3 p-3 rounded-lg bg-[#1E1F26] hover:bg-[#2A2B32] transition-colors"
+                      className="flex items-start gap-3 p-3 rounded-lg bg-[#1E1F26] hover:bg-[#2A2B32] transition-colors min-w-0"
                     >
                       <div className={cn('w-8 h-8 rounded-full flex items-center justify-center shrink-0', getActivityColor(activity.type))}>
                         {getActivityIcon(activity.type)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-white">{activity.message}</p>
+                        <p className="text-sm text-white break-words">{activity.message}</p>
                         <p className="text-xs text-[#8A8A8A] mt-1">{formatTime(activity.timestamp)}</p>
                       </div>
                     </div>
@@ -737,45 +737,45 @@ function DashboardView() {
       </div>
 
       {/* Быстрые действия */}
-      <Card className="bg-[#14151A] border-[#2A2B32]">
+      <Card className="bg-[#14151A] border-[#2A2B32] min-w-0">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
-            <Zap className="w-5 h-5 text-[#FFB800]" />
-            Быстрые действия
+            <Zap className="w-5 h-5 text-[#FFB800] shrink-0" />
+            <span className="truncate">Быстрые действия</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             <Button
               onClick={() => useAppStore.getState().setCampaignModalOpen(true)}
-              className="h-20 flex flex-col bg-[#6C63FF] hover:bg-[#6C63FF]/80"
+              className="h-16 sm:h-20 flex flex-col bg-[#6C63FF] hover:bg-[#6C63FF]/80 min-w-0"
             >
-              <Plus className="w-6 h-6 mb-2" />
-              Запустить кампанию
+              <Plus className="w-5 h-5 sm:w-6 sm:h-6 mb-1 sm:mb-2 shrink-0" />
+              <span className="text-xs sm:text-sm truncate px-1">Запустить кампанию</span>
             </Button>
             <Button
               variant="outline"
               onClick={handlePauseAll}
-              className="h-20 flex flex-col border-[#FFB800] text-[#FFB800] hover:bg-[#FFB800]/10"
+              className="h-16 sm:h-20 flex flex-col border-[#FFB800] text-[#FFB800] hover:bg-[#FFB800]/10 min-w-0"
             >
-              <Pause className="w-6 h-6 mb-2" />
-              Пауза всего
+              <Pause className="w-5 h-5 sm:w-6 sm:h-6 mb-1 sm:mb-2 shrink-0" />
+              <span className="text-xs sm:text-sm truncate px-1">Пауза всего</span>
             </Button>
             <Button
               variant="outline"
               onClick={handleExportReport}
-              className="h-20 flex flex-col border-[#00D26A] text-[#00D26A] hover:bg-[#00D26A]/10"
+              className="h-16 sm:h-20 flex flex-col border-[#00D26A] text-[#00D26A] hover:bg-[#00D26A]/10 min-w-0"
             >
-              <Download className="w-6 h-6 mb-2" />
-              Отчёт за сегодня
+              <Download className="w-5 h-5 sm:w-6 sm:h-6 mb-1 sm:mb-2 shrink-0" />
+              <span className="text-xs sm:text-sm truncate px-1">Отчёт за сегодня</span>
             </Button>
             <Button
               variant="outline"
               onClick={handleHealthCheck}
-              className="h-20 flex flex-col border-[#6C63FF] text-[#6C63FF] hover:bg-[#6C63FF]/10"
+              className="h-16 sm:h-20 flex flex-col border-[#6C63FF] text-[#6C63FF] hover:bg-[#6C63FF]/10 min-w-0"
             >
-              <Eye className="w-6 h-6 mb-2" />
-              Проверить всё
+              <Eye className="w-5 h-5 sm:w-6 sm:h-6 mb-1 sm:mb-2 shrink-0" />
+              <span className="text-xs sm:text-sm truncate px-1">Проверить всё</span>
             </Button>
           </div>
         </CardContent>
@@ -1091,7 +1091,7 @@ function CampaignsView() {
       </div>
 
       {/* Фильтры */}
-      <div className="flex gap-4">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#8A8A8A]" />
           <Input
@@ -1101,36 +1101,38 @@ function CampaignsView() {
             className="pl-10 bg-[#14151A] border-[#2A2B32] text-white"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40 bg-[#14151A] border-[#2A2B32] text-white">
-            <SelectValue placeholder="Статус" />
-          </SelectTrigger>
-          <SelectContent className="bg-[#14151A] border-[#2A2B32]">
-            <SelectItem value="all">Все</SelectItem>
-            <SelectItem value="active">Активные</SelectItem>
-            <SelectItem value="paused">На паузе</SelectItem>
-            <SelectItem value="error">С ошибкой</SelectItem>
-            <SelectItem value="draft">Черновики</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button
-          variant="outline"
-          onClick={fetchCampaigns}
-          disabled={loading}
-          className="border-[#2A2B32] text-[#8A8A8A] hover:text-white"
-        >
-          <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
-        </Button>
+        <div className="flex gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-40 bg-[#14151A] border-[#2A2B32] text-white">
+              <SelectValue placeholder="Статус" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#14151A] border-[#2A2B32]">
+              <SelectItem value="all">Все</SelectItem>
+              <SelectItem value="active">Активные</SelectItem>
+              <SelectItem value="paused">На паузе</SelectItem>
+              <SelectItem value="error">С ошибкой</SelectItem>
+              <SelectItem value="draft">Черновики</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            onClick={fetchCampaigns}
+            disabled={loading}
+            className="border-[#2A2B32] text-[#8A8A8A] hover:text-white shrink-0"
+          >
+            <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+          </Button>
+        </div>
       </div>
 
       {/* Карточки кампаний */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredCampaigns.map((campaign) => (
-          <Card key={campaign.id} className="bg-[#14151A] border-[#2A2B32] hover:border-[#6C63FF]/50 transition-colors">
-            <CardHeader className="flex flex-row items-start justify-between pb-2">
-              <div className="flex items-center gap-2">
-                <div className={cn('w-3 h-3 rounded-full', getStatusColor(campaign.status))} />
-                <CardTitle className="text-lg text-white">{campaign.name}</CardTitle>
+          <Card key={campaign.id} className="bg-[#14151A] border-[#2A2B32] hover:border-[#6C63FF]/50 transition-colors min-w-0">
+            <CardHeader className="flex flex-row items-start justify-between pb-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className={cn('w-3 h-3 rounded-full shrink-0', getStatusColor(campaign.status))} />
+                <CardTitle className="text-lg text-white truncate">{campaign.name}</CardTitle>
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
