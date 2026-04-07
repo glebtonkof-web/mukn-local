@@ -7,6 +7,8 @@ import { db } from '@/lib/db'
 import { generateSecureToken } from '@/lib/crypto'
 import { PlaywrightAutomation, type StealthConfig, type ProfileData, type RegistrationResult } from './playwright-automation'
 import { sessionManager, type Platform, PLATFORM_LIMITS } from './session-manager'
+import { startSmsListener, stopSmsListener, waitForCode, type VerificationResult } from './sms-reader'
+import { readSms, type SmsMessage } from './adb-client'
 
 // Registration status
 export type RegistrationStatus = 'pending' | 'registering' | 'verifying' | 'completed' | 'failed' | 'cancelled'
@@ -345,6 +347,12 @@ export class RegistrationManager {
   ): Promise<RegistrationResult> {
     const config = PLATFORM_CONFIGS[job.platform]
     let automation: PlaywrightAutomation | null = null
+    let deviceId: string | null = null
+
+    // Extract device ID from simCardId (format: deviceId_slotIndex)
+    if (job.simCardId.includes('_')) {
+      deviceId = job.simCardId.split('_')[0]
+    }
 
     for (let attempt = 0; attempt <= job.maxRetries; attempt++) {
       try {
@@ -354,9 +362,15 @@ export class RegistrationManager {
         job.startedAt = new Date()
         await this.updateRegistrationJob(job)
 
+        console.log(`[RegistrationManager] Starting ${job.platform} registration attempt ${attempt + 1}/${job.maxRetries + 1}`)
+
         // Launch browser with stealth
         automation = new PlaywrightAutomation(job.platform, { proxy })
+        
+        console.log(`[RegistrationManager] Launching browser for ${job.platform}...`)
         await automation.launchBrowser()
+        
+        console.log(`[RegistrationManager] Navigating to ${job.platform} registration page...`)
         await automation.navigateToRegistration()
 
         // Fill phone number
@@ -369,16 +383,24 @@ export class RegistrationManager {
         job.status = 'verifying'
         await this.updateRegistrationJob(job)
 
+        console.log(`[RegistrationManager] Phone number filled, waiting for SMS verification...`)
+
         // For platforms requiring SMS verification
         if (config.requiresPhoneVerification) {
-          // Wait for SMS code (to be provided via API)
-          const verificationResult = await this.waitForVerification(job.id, config.verificationTimeout)
+          // Wait for SMS code from ADB device
+          const verificationResult = await this.waitForVerification(
+            job.id, 
+            config.verificationTimeout,
+            deviceId || undefined,
+            job.platform
+          )
 
           if (!verificationResult.success) {
             throw new Error(verificationResult.error || 'Verification timeout')
           }
 
           if (verificationResult.code) {
+            console.log(`[RegistrationManager] Entering verification code: ${verificationResult.code}`)
             await automation.handleSmsVerification(verificationResult.code)
           }
         }
@@ -741,36 +763,117 @@ export class RegistrationManager {
     return { day, month, year }
   }
 
-  private async waitForVerification(jobId: string, timeout: number): Promise<{
+  /**
+   * Wait for SMS verification code from device
+   * Uses real ADB SMS reader
+   */
+  private async waitForVerification(
+    jobId: string, 
+    timeout: number,
+    deviceId?: string,
+    platform?: Platform
+  ): Promise<{
     success: boolean
     code?: string
     error?: string
   }> {
-    const verificationKey = `verification_${jobId}`
+    console.log(`[RegistrationManager] Waiting for SMS verification code... (timeout: ${timeout}ms, device: ${deviceId || 'unknown'})`)
+    
     const startTime = Date.now()
+    const pollInterval = 3000 // Check every 3 seconds
+    const platformKeywords: Record<string, string[]> = {
+      telegram: ['Telegram', 'telegram', 'TG'],
+      instagram: ['Instagram', 'insta'],
+      tiktok: ['TikTok', 'tiktok'],
+      twitter: ['Twitter', 'X.com', 'verify'],
+      youtube: ['Google', 'YouTube', 'YT'],
+      whatsapp: ['WhatsApp', 'whatsapp'],
+      viber: ['Viber', 'viber'],
+      signal: ['Signal', 'signal'],
+      discord: ['Discord', 'discord'],
+      reddit: ['Reddit', 'reddit']
+    }
 
-    return new Promise((resolve) => {
-      const checkInterval = setInterval(() => {
-        const verification = (global as unknown as Map<string, { code: string; timestamp: number }>).get(verificationKey)
-
-        if (verification) {
-          clearInterval(checkInterval)
-          ;(global as unknown as Map<string, unknown>).delete(verificationKey)
-          resolve({
-            success: true,
-            code: verification.code
-          })
+    // If we have a device ID, poll SMS directly from ADB
+    if (deviceId) {
+      try {
+        // Start SMS listener on device
+        await startSmsListener(deviceId)
+        
+        while (Date.now() - startTime < timeout) {
+          try {
+            // Read recent SMS messages
+            const messages = await readSms(deviceId, 10)
+            
+            // Look for verification code
+            for (const message of messages) {
+              const age = Date.now() - (message.timestamp?.getTime() || 0)
+              
+              // Only check messages from last 5 minutes
+              if (age < 300000) {
+                // Check if message is from our platform
+                const keywords = platformKeywords[platform || ''] || []
+                const isFromPlatform = keywords.some(kw => 
+                  message.sender?.toLowerCase().includes(kw.toLowerCase()) ||
+                  message.body?.toLowerCase().includes(kw.toLowerCase())
+                )
+                
+                if (isFromPlatform || !platform) {
+                  // Extract code (4-6 digits)
+                  const codeMatch = message.body?.match(/\b(\d{4,6})\b/)
+                  if (codeMatch) {
+                    console.log(`[RegistrationManager] Found verification code: ${codeMatch[1]}`)
+                    
+                    // Stop SMS listener
+                    await stopSmsListener(deviceId)
+                    
+                    return {
+                      success: true,
+                      code: codeMatch[1]
+                    }
+                  }
+                }
+              }
+            }
+          } catch (pollError) {
+            console.error('[RegistrationManager] Error polling SMS:', pollError)
+          }
+          
+          // Wait before next poll
+          await this.delay(pollInterval)
         }
+        
+        // Stop SMS listener on timeout
+        await stopSmsListener(deviceId)
+        
+      } catch (listenerError) {
+        console.error('[RegistrationManager] SMS listener error:', listenerError)
+      }
+    }
 
-        if (Date.now() - startTime > timeout) {
-          clearInterval(checkInterval)
-          resolve({
-            success: false,
-            error: 'Verification timeout'
-          })
+    // Fallback: Check global verification map (for manual code entry)
+    const verificationKey = `verification_${jobId}`
+    
+    while (Date.now() - startTime < timeout) {
+      const verification = (global as unknown as Map<string, { code: string; timestamp: number }>).get(verificationKey)
+      
+      if (verification) {
+        ;(global as unknown as Map<string, unknown>).delete(verificationKey)
+        console.log(`[RegistrationManager] Received manual verification code`)
+        return {
+          success: true,
+          code: verification.code
         }
-      }, 1000)
-    })
+      }
+      
+      await this.delay(1000)
+    }
+
+    console.log(`[RegistrationManager] Verification timeout after ${timeout}ms`)
+    return {
+      success: false,
+      error: 'Verification timeout - no SMS code received'
+    }
   }
 
   private async encryptPassword(password: string): Promise<string> {

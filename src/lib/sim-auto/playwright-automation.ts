@@ -207,12 +207,14 @@ export class PlaywrightAutomation {
           '--disable-extensions',
           '--disable-plugins',
           '--disable-images' // Optional: disable images for speed
-        ].filter(Boolean)
+        ].filter(Boolean),
+        timeout: 60000
       }
 
+      console.log(`[PlaywrightAutomation] Launching Chromium browser for ${this.platform}...`)
       this.browser = await chromium.launch(launchOptions)
 
-      console.log(`[PlaywrightAutomation] Browser launched for ${this.platform}`)
+      console.log(`[PlaywrightAutomation] Browser launched successfully for ${this.platform}`)
 
       return this.browser
     } catch (error) {
@@ -288,18 +290,54 @@ export class PlaywrightAutomation {
     }
 
     const url = PLATFORM_REGISTRATION_URLS[this.platform]
+    console.log(`[PlaywrightAutomation] Navigating to: ${url}`)
 
     try {
+      // Try with domcontentloaded first (faster)
+      console.log(`[PlaywrightAutomation] Loading page (domcontentloaded)...`)
       await this.page.goto(url, {
-        waitUntil: 'networkidle',
-        timeout: 60000
+        waitUntil: 'domcontentloaded',
+        timeout: 30000
       })
+      
+      // Then wait for network to settle
+      console.log(`[PlaywrightAutomation] Waiting for network idle...`)
+      await this.page.waitForLoadState('networkidle', { timeout: 30000 })
 
-      console.log(`[PlaywrightAutomation] Navigated to ${url}`)
+      // Check if page loaded correctly
+      const title = await this.page.title()
+      console.log(`[PlaywrightAutomation] Page loaded: ${title}`)
 
+      // Check for common error pages
+      const content = await this.page.content()
+      if (content.includes('404') && content.includes('Not Found')) {
+        throw new Error('Page returned 404 Not Found')
+      }
+      if (content.includes('Access Denied') || content.includes('403')) {
+        throw new Error('Access denied - possible IP block')
+      }
+      if (content.includes('Cloudflare') && content.includes('challenge')) {
+        console.warn(`[PlaywrightAutomation] Cloudflare challenge detected`)
+        // Wait for Cloudflare to resolve
+        await this.page.waitForTimeout(10000)
+      }
+
+      console.log(`[PlaywrightAutomation] Successfully navigated to ${url}`)
       return this.page
+      
     } catch (error) {
       console.error('[PlaywrightAutomation] Navigation error:', error)
+      
+      // Try to get more details
+      if (this.page) {
+        try {
+          const screenshot = await this.page.screenshot({ fullPage: false })
+          console.log(`[PlaywrightAutomation] Screenshot captured (${screenshot.length} bytes)`)
+        } catch {
+          // Ignore screenshot errors
+        }
+      }
+      
       throw new Error(`Failed to navigate to registration page: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
