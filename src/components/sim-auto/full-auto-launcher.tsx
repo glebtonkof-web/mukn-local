@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Rocket,
   Play,
@@ -20,9 +22,22 @@ import {
   Flame,
   TrendingUp,
   DollarSign,
+  Edit3,
+  Save,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
+interface SimCard {
+  id: string;
+  phoneNumber: string;
+  operator: string;
+  country: string;
+  status: string;
+  slotIndex?: number;
+}
 
 interface FullAutoProgress {
   step: number;
@@ -53,6 +68,24 @@ const STEPS = [
   { id: 7, name: 'Запуск заработка', icon: DollarSign },
 ];
 
+// Хранилище номеров в localStorage
+const PHONE_NUMBERS_KEY = 'sim_auto_phone_numbers';
+
+function getStoredPhoneNumbers(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const stored = localStorage.getItem(PHONE_NUMBERS_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
+function savePhoneNumbers(numbers: Record<string, string>) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(PHONE_NUMBERS_KEY, JSON.stringify(numbers));
+}
+
 export function FullAutoLauncher() {
   const [progress, setProgress] = useState<FullAutoProgress>({
     step: 0,
@@ -73,10 +106,21 @@ export function FullAutoLauncher() {
     },
   });
   const [loading, setLoading] = useState(false);
+  const [sims, setSims] = useState<SimCard[]>([]);
+  const [phoneNumbers, setPhoneNumbers] = useState<Record<string, string>>({});
+  const [editingSlot, setEditingSlot] = useState<string | null>(null);
+  const [showPhoneInput, setShowPhoneInput] = useState(false);
 
   useEffect(() => {
+    setPhoneNumbers(getStoredPhoneNumbers());
     fetchProgress();
-    const interval = setInterval(fetchProgress, 2000);
+    fetchSims();
+    const interval = setInterval(() => {
+      fetchProgress();
+      if (progress.status === 'running') {
+        fetchSims();
+      }
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
@@ -86,18 +130,43 @@ export function FullAutoLauncher() {
       if (response.ok) {
         const data = await response.json();
         setProgress(data.progress);
+        if (data.sims) {
+          setSims(data.sims);
+        }
       }
     } catch (error) {
       console.error('Error fetching progress:', error);
     }
   };
 
+  const fetchSims = async () => {
+    try {
+      const response = await fetch('/api/sim-auto/full-auto?action=sims');
+      if (response.ok) {
+        const data = await response.json();
+        setSims(data.sims || []);
+      }
+    } catch (error) {
+      console.error('Error fetching SIMs:', error);
+    }
+  };
+
   const startFullAuto = async () => {
+    // Проверяем, есть ли номера для всех SIM
+    const simsWithPhones = sims.filter(sim => phoneNumbers[sim.id]);
+    if (sims.length > 0 && simsWithPhones.length === 0) {
+      toast.error('Укажите номера телефонов для SIM-карт');
+      setShowPhoneInput(true);
+      return;
+    }
+
     setLoading(true);
     try {
+      // Отправляем номера вместе с запросом
       const response = await fetch('/api/sim-auto/full-auto', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumbers }),
       });
 
       if (!response.ok) throw new Error('Ошибка запуска');
@@ -159,6 +228,34 @@ export function FullAutoLauncher() {
     } catch (error) {
       toast.error('Ошибка остановки');
     }
+  };
+
+  const scanSims = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/sim-auto/full-auto', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'scan' }),
+      });
+
+      if (!response.ok) throw new Error('Ошибка сканирования');
+
+      const data = await response.json();
+      setSims(data.sims || []);
+      toast.success(`Найдено ${data.sims?.length || 0} SIM-карт`);
+    } catch (error) {
+      toast.error('Ошибка сканирования');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePhoneChange = (simId: string, phone: string) => {
+    const cleaned = phone.replace(/[^\d+]/g, '');
+    const newNumbers = { ...phoneNumbers, [simId]: cleaned };
+    setPhoneNumbers(newNumbers);
+    savePhoneNumbers(newNumbers);
   };
 
   const formatTime = (seconds: number) => {
@@ -225,20 +322,119 @@ export function FullAutoLauncher() {
       </CardHeader>
 
       <CardContent className="relative space-y-6">
-        {/* Main Button */}
+        {/* Phone Numbers Input Section */}
         {progress.status === 'idle' && (
-          <Button
-            onClick={startFullAuto}
-            disabled={loading}
-            className="w-full h-20 text-xl font-bold bg-gradient-to-r from-[#6C63FF] to-[#00D26A] hover:opacity-90 transition-all"
-          >
-            {loading ? (
-              <Loader2 className="w-6 h-6 mr-3 animate-spin" />
-            ) : (
-              <Rocket className="w-6 h-6 mr-3" />
+          <div className="space-y-4">
+            {/* Scan Button */}
+            <Button
+              onClick={scanSims}
+              disabled={loading}
+              variant="outline"
+              className="w-full border-[#6C63FF] text-[#6C63FF] hover:bg-[#6C63FF]/10"
+            >
+              {loading ? (
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              ) : (
+                <Smartphone className="w-5 h-5 mr-2" />
+              )}
+              Сканировать SIM-карты
+            </Button>
+
+            {/* Detected SIMs with phone input */}
+            {sims.length > 0 && (
+              <div className="bg-[#1E1F26] rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-white font-medium flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-[#6C63FF]" />
+                    Обнаруженные SIM-карты ({sims.length})
+                  </h4>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowPhoneInput(!showPhoneInput)}
+                    className="text-[#8A8A8A] hover:text-white"
+                  >
+                    <Edit3 className="w-4 h-4 mr-1" />
+                    {showPhoneInput ? 'Скрыть' : 'Ввести номера'}
+                  </Button>
+                </div>
+
+                {sims.map((sim, index) => (
+                  <div key={sim.id} className="flex items-center gap-3 p-3 bg-[#14151A] rounded-lg">
+                    <div className="flex-shrink-0 w-10 h-10 bg-[#6C63FF]/20 rounded-full flex items-center justify-center">
+                      <span className="text-[#6C63FF] font-bold">{index + 1}</span>
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-white font-medium">
+                        Слот {sim.slotIndex ?? index + 1}
+                      </div>
+                      <div className="text-[#8A8A8A] text-sm">
+                        {sim.operator || 'Оператор не определён'}
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      {showPhoneInput || !phoneNumbers[sim.id] ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="tel"
+                            placeholder="+7 XXX XXX XX XX"
+                            value={phoneNumbers[sim.id] || ''}
+                            onChange={(e) => handlePhoneChange(sim.id, e.target.value)}
+                            className="bg-[#2A2B32] border-[#3A3B42] text-white"
+                          />
+                          {phoneNumbers[sim.id] && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-[#00D26A]"
+                              onClick={() => setEditingSlot(null)}
+                            >
+                              <CheckCircle className="w-5 h-5" />
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        <div 
+                          className="text-[#00D26A] cursor-pointer hover:underline flex items-center gap-2"
+                          onClick={() => setShowPhoneInput(true)}
+                        >
+                          {phoneNumbers[sim.id]}
+                          <Edit3 className="w-4 h-4 text-[#8A8A8A]" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {sims.some(sim => !phoneNumbers[sim.id]) && showPhoneInput && (
+                  <div className="text-[#FFB800] text-sm flex items-center gap-2 mt-2">
+                    <Zap className="w-4 h-4" />
+                    Введите номера телефонов для регистрации
+                  </div>
+                )}
+              </div>
             )}
-            🚀 ПОЛНЫЙ АВТОЗАПУСК
-          </Button>
+
+            {/* Main Launch Button */}
+            <Button
+              onClick={startFullAuto}
+              disabled={loading || sims.length === 0}
+              className="w-full h-20 text-xl font-bold bg-gradient-to-r from-[#6C63FF] to-[#00D26A] hover:opacity-90 transition-all disabled:opacity-50"
+            >
+              {loading ? (
+                <Loader2 className="w-6 h-6 mr-3 animate-spin" />
+              ) : (
+                <Rocket className="w-6 h-6 mr-3" />
+              )}
+              🚀 ПОЛНЫЙ АВТОЗАПУСК
+            </Button>
+
+            {sims.length === 0 && (
+              <div className="text-center text-[#8A8A8A]">
+                Нажмите "Сканировать SIM-карты" для начала
+              </div>
+            )}
+          </div>
         )}
 
         {/* Progress Display */}

@@ -115,6 +115,7 @@ export interface FullAutoConfig {
   autoStartEarning?: boolean;
   skipRegistration?: boolean;
   skipWarming?: boolean;
+  phoneNumbers?: Record<string, string>; // Manually entered phone numbers
   proxyConfig?: {
     enabled: boolean;
     type: 'http' | 'https' | 'socks5';
@@ -655,14 +656,33 @@ export async function runFullAuto(config: FullAutoConfig = {}): Promise<FullAuto
     updateProgress(1, 'Сканирование SIM-карт', 2, 'Подключение к ADB устройствам...');
     
     const sims = await scanSimCards();
+    
+    // Apply manually entered phone numbers
+    if (config.phoneNumbers) {
+      logger.info('[FullAuto] Applying manually entered phone numbers');
+      for (const sim of sims) {
+        if (config.phoneNumbers[sim.id]) {
+          sim.phoneNumber = config.phoneNumbers[sim.id];
+          simStore.set(sim.id, sim);
+          logger.info(`[FullAuto] Set phone number for ${sim.id}: ${sim.phoneNumber}`);
+        }
+      }
+    }
+    
     currentProgress.details.simsDetected = sims.length;
     currentProgress.estimatedTimeRemaining = estimateTimeRemaining(1, 0, 0);
     
+    // Check if we have any SIMs with phone numbers
+    const simsWithPhones = sims.filter(s => s.phoneNumber);
     if (sims.length === 0) {
       throw new Error('SIM-карты не обнаружены. Проверьте подключение устройств через ADB.');
     }
     
-    updateProgress(1, 'Сканирование SIM-карт', 10, `Найдено ${sims.length} SIM-карт`);
+    if (simsWithPhones.length === 0) {
+      throw new Error('Не указаны номера телефонов. Введите номера в интерфейсе.');
+    }
+    
+    updateProgress(1, 'Сканирование SIM-карт', 10, `Найдено ${sims.length} SIM-карт, ${simsWithPhones.length} с номерами`);
     
     if (abortController.signal.aborted) throw new Error('Aborted');
     

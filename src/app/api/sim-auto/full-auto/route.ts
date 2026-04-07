@@ -50,8 +50,11 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Run full auto in background
-    fullAutoController.runFullAuto().catch(err => {
+    const body = await request.json().catch(() => ({}));
+    const { phoneNumbers } = body;
+
+    // Run full auto in background, passing phone numbers
+    fullAutoController.runFullAuto({ phoneNumbers }).catch(err => {
       console.error('Full auto error:', err);
     });
 
