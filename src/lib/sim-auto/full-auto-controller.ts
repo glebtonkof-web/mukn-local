@@ -30,6 +30,20 @@ import {
   completeVerification,
   type VerificationResult
 } from './sms-reader';
+// Import improved modules
+import { 
+  detectAllSimCards as detectAllSimCardsImproved,
+  type DetectedSimCard
+} from './improved-sim-scanner';
+import { 
+  startSmsMonitoring,
+  waitForVerificationCode,
+  type VerificationCode
+} from './improved-sms-reader';
+import { 
+  runRegistration as runRegistrationImproved,
+  type RegistrationResult
+} from './improved-registration';
 import { 
   registrationManager, 
   type RegistrationJob, 
@@ -190,28 +204,59 @@ function addError(error: string): void {
 
 /**
  * REAL SIM Card Scanner - uses ADB to detect connected devices and SIM cards
+ * Uses improved scanner for better dual-SIM detection
  */
 export async function scanSimCards(): Promise<SimCard[]> {
   logger.info('[FullAuto] Starting SIM card scan...');
   
   try {
-    // Use the real SIM scanner
-    const scanResult = await detectAllSimCards();
+    // First try the improved scanner for better dual-SIM detection
+    let simCards: DetectedSimCard[] = [];
     
-    if (!scanResult.success) {
-      throw new Error('SIM scan failed: ' + scanResult.errors.map(e => e.error).join(', '));
+    try {
+      simCards = await detectAllSimCardsImproved();
+      logger.info(`[FullAuto] Improved scanner found ${simCards.length} SIM cards`);
+    } catch (improvedError) {
+      logger.warn('[FullAuto] Improved scanner failed, falling back to standard scanner', improvedError as Error);
+    }
+    
+    // Fallback to standard scanner if improved found nothing
+    if (simCards.length === 0) {
+      const scanResult = await detectAllSimCards();
+      
+      if (!scanResult.success) {
+        throw new Error('SIM scan failed: ' + scanResult.errors.map(e => e.error).join(', '));
+      }
+      
+      // Convert to DetectedSimCard format
+      simCards = scanResult.simCards.map(sim => ({
+        id: `${sim.deviceId}_${sim.slotIndex}`,
+        deviceId: sim.deviceId,
+        slotIndex: sim.slotIndex,
+        phoneNumber: sim.phoneNumber || '',
+        operator: sim.operator || 'Unknown',
+        country: sim.countryCode || 'XX',
+        mcc: '',
+        mnc: '',
+        iccid: '',
+        isActive: sim.isActive,
+        networkType: '',
+        isRoaming: false
+      }));
     }
     
     // Clear and populate store
     simStore.clear();
     
-    for (const simInfo of scanResult.simCards) {
+    for (const simInfo of simCards) {
+      if (!simInfo.isActive) continue;
+      
       const sim: SimCard = {
-        id: `${simInfo.deviceId}_${simInfo.slotIndex}`,
+        id: simInfo.id,
         phoneNumber: simInfo.phoneNumber || '',
         operator: simInfo.operator || 'Unknown',
-        country: simInfo.countryCode || 'XX',
-        status: simInfo.isActive ? 'available' : 'error',
+        country: simInfo.country || 'XX',
+        status: 'available',
         registeredPlatforms: [],
         balance: 0,
         detectedAt: new Date(),
@@ -222,7 +267,7 @@ export async function scanSimCards(): Promise<SimCard[]> {
       simStore.set(sim.id, sim);
     }
     
-    logger.info(`[FullAuto] Detected ${simStore.size} SIM cards`);
+    logger.info(`[FullAuto] Detected ${simStore.size} active SIM cards`);
     return Array.from(simStore.values());
     
   } catch (error) {
@@ -323,6 +368,7 @@ export async function calculateRegistrationPlan(
 
 /**
  * REAL Account Registration with SMS Verification
+ * Uses improved registration module with enhanced anti-bot detection
  */
 export async function registerAccount(job: RegistrationJob): Promise<RegistrationJob> {
   logger.info(`[FullAuto] Registering ${job.platform} for ${job.phoneNumber}`);
@@ -331,17 +377,47 @@ export async function registerAccount(job: RegistrationJob): Promise<Registratio
   job.startedAt = new Date();
   job.updatedAt = new Date();
   
+  // Extract device ID from simCardId
+  const deviceId = job.simCardId.split('_')[0] || '';
+  
   try {
-    // Use the real registration manager
-    const result = await registrationManager.registerAccount(
-      job.platform,
-      job.phoneNumber,
-      job.simCardId
-    );
+    // First try the improved registration module
+    let result: RegistrationResult;
+    
+    try {
+      result = await runRegistrationImproved({
+        platform: job.platform,
+        phoneNumber: job.phoneNumber,
+        deviceId: deviceId,
+        profile: {
+          username: job.profileData?.username,
+          password: job.profileData?.password,
+          email: job.profileData?.email,
+          firstName: job.profileData?.firstName,
+          lastName: job.profileData?.lastName
+        }
+      });
+      
+      logger.info(`[FullAuto] Improved registration result: ${result.success ? 'success' : result.error}`);
+    } catch (improvedError) {
+      logger.warn('[FullAuto] Improved registration failed, falling back to standard', improvedError as Error);
+      
+      // Fallback to standard registration manager
+      const fallbackResult = await registrationManager.registerAccount(
+        job.platform,
+        job.phoneNumber,
+        job.simCardId
+      );
+      
+      result = {
+        success: fallbackResult.success,
+        error: fallbackResult.error,
+        username: fallbackResult.username
+      };
+    }
     
     if (result.success) {
       job.status = 'completed';
-      job.accountId = result.accountId;
       job.username = result.username;
       job.completedAt = new Date();
       
@@ -358,6 +434,12 @@ export async function registerAccount(job: RegistrationJob): Promise<Registratio
       job.status = 'failed';
       job.errorMessage = result.error || 'Registration failed';
       job.updatedAt = new Date();
+      
+      // Check if manual action is required
+      if (result.requiresManualAction) {
+        logger.warn(`[FullAuto] Manual action required (${result.manualActionType}) for ${job.platform}`);
+        job.errorMessage = `[MANUAL ACTION: ${result.manualActionType}] ${job.errorMessage}`;
+      }
       
       logger.error(`[FullAuto] Registration failed: ${job.errorMessage}`);
     }
