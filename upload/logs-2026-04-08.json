@@ -1,0 +1,1135 @@
+[
+  {
+    "id": "1775656483349-17zo42mt6",
+    "timestamp": "2026-04-08T13:54:43.349Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656483145-evw8od0np",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "204ms"
+    }
+  },
+  {
+    "id": "1775656483381-zu8d1kvi7",
+    "timestamp": "2026-04-08T13:54:43.381Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 204ms",
+    "context": {}
+  },
+  {
+    "id": "1775656483411-e44x1jid7",
+    "timestamp": "2026-04-08T13:54:43.411Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell getprop gsm.sim.count",
+    "context": {
+      "logId": "1775656483411-nhrhuyfj8",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656483436-6fbk4tqsi",
+    "timestamp": "2026-04-08T13:54:43.436Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell getprop gsm.sim.count",
+    "context": {}
+  },
+  {
+    "id": "1775656483567-t9kvf7ak3",
+    "timestamp": "2026-04-08T13:54:43.567Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656483411-nhrhuyfj8",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "156ms"
+    }
+  },
+  {
+    "id": "1775656483596-bylqb47zy",
+    "timestamp": "2026-04-08T13:54:43.596Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 156ms",
+    "context": {}
+  },
+  {
+    "id": "1775656483617-mjxngirg5",
+    "timestamp": "2026-04-08T13:54:43.617Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell service call iphonesubinfo 1",
+    "context": {
+      "logId": "1775656483617-swyor8rjw",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656483640-06fj7d61i",
+    "timestamp": "2026-04-08T13:54:43.640Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell service call iphonesubinfo 1",
+    "context": {}
+  },
+  {
+    "id": "1775656483773-n24txyxqz",
+    "timestamp": "2026-04-08T13:54:43.773Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656483617-swyor8rjw",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "155ms"
+    }
+  },
+  {
+    "id": "1775656483797-wauc53dsb",
+    "timestamp": "2026-04-08T13:54:43.797Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 155ms",
+    "context": {}
+  },
+  {
+    "id": "1775656483818-0stro8nvg",
+    "timestamp": "2026-04-08T13:54:43.818Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell service call iphonesubinfo 15",
+    "context": {
+      "logId": "1775656483818-lyrlxloik",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656483840-jran9s8q6",
+    "timestamp": "2026-04-08T13:54:43.840Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell service call iphonesubinfo 15",
+    "context": {}
+  },
+  {
+    "id": "1775656483991-bls1amfyy",
+    "timestamp": "2026-04-08T13:54:43.991Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656483818-lyrlxloik",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "172ms"
+    }
+  },
+  {
+    "id": "1775656484022-4uah7uf1i",
+    "timestamp": "2026-04-08T13:54:44.022Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 172ms",
+    "context": {}
+  },
+  {
+    "id": "1775656484050-vdvbcp1b3",
+    "timestamp": "2026-04-08T13:54:44.050Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell service call iphonesubinfo 11",
+    "context": {
+      "logId": "1775656484050-nkvkbdmn1",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656484073-9n0zmsczp",
+    "timestamp": "2026-04-08T13:54:44.073Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell service call iphonesubinfo 11",
+    "context": {}
+  },
+  {
+    "id": "1775656484210-i1jil0h7e",
+    "timestamp": "2026-04-08T13:54:44.210Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656484050-nkvkbdmn1",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "160ms"
+    }
+  },
+  {
+    "id": "1775656484237-au04meyzf",
+    "timestamp": "2026-04-08T13:54:44.237Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 160ms",
+    "context": {}
+  },
+  {
+    "id": "1775656484258-jp2kstjn3",
+    "timestamp": "2026-04-08T13:54:44.258Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell service call iphonesubinfo 7",
+    "context": {
+      "logId": "1775656484258-cgv0lb1lq",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656484278-divmz0ky3",
+    "timestamp": "2026-04-08T13:54:44.278Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell service call iphonesubinfo 7",
+    "context": {}
+  },
+  {
+    "id": "1775656484411-7a4f17akh",
+    "timestamp": "2026-04-08T13:54:44.411Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656484258-cgv0lb1lq",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "153ms"
+    }
+  },
+  {
+    "id": "1775656484447-hmxlhmuj8",
+    "timestamp": "2026-04-08T13:54:44.447Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 153ms",
+    "context": {}
+  },
+  {
+    "id": "1775656484473-7lfb9x9mu",
+    "timestamp": "2026-04-08T13:54:44.473Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "Service call found: 1 SIM(s)",
+    "context": {}
+  },
+  {
+    "id": "1775656484501-6ok0o91ju",
+    "timestamp": "2026-04-08T13:54:44.501Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "Creating entries for missing slots. Have 1, expected 2",
+    "context": {}
+  },
+  {
+    "id": "1775656484524-ok54y1i44",
+    "timestamp": "2026-04-08T13:54:44.525Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell getprop gsm.1.operator.alpha",
+    "context": {
+      "logId": "1775656484524-2a99byzkq",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656484550-wxk5z8mc2",
+    "timestamp": "2026-04-08T13:54:44.550Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell getprop gsm.sim.state1",
+    "context": {
+      "logId": "1775656484550-al6q0xxr4",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656484575-xpc6fd9dd",
+    "timestamp": "2026-04-08T13:54:44.575Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell getprop gsm.1.operator.alpha",
+    "context": {}
+  },
+  {
+    "id": "1775656484599-g2e44itwt",
+    "timestamp": "2026-04-08T13:54:44.599Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell getprop gsm.sim.state1",
+    "context": {}
+  },
+  {
+    "id": "1775656484725-ey9cwee5b",
+    "timestamp": "2026-04-08T13:54:44.725Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656484524-2a99byzkq",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "201ms"
+    }
+  },
+  {
+    "id": "1775656484756-c01ylmctu",
+    "timestamp": "2026-04-08T13:54:44.756Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 201ms",
+    "context": {}
+  },
+  {
+    "id": "1775656484809-fis4b334u",
+    "timestamp": "2026-04-08T13:54:44.809Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656484550-al6q0xxr4",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "258ms"
+    }
+  },
+  {
+    "id": "1775656484835-wpa9s33iv",
+    "timestamp": "2026-04-08T13:54:44.835Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 258ms",
+    "context": {}
+  },
+  {
+    "id": "1775656484863-5z2dxe44z",
+    "timestamp": "2026-04-08T13:54:44.863Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell getprop ro.product.model",
+    "context": {
+      "logId": "1775656484863-mdasfjegp",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656484884-gcu226p1c",
+    "timestamp": "2026-04-08T13:54:44.884Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell getprop ro.product.manufacturer",
+    "context": {
+      "logId": "1775656484884-msvq32n23",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656484907-02f5bu4tv",
+    "timestamp": "2026-04-08T13:54:44.907Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell getprop ro.product.brand",
+    "context": {
+      "logId": "1775656484907-op1kwuobn",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656484929-jy9kkvmak",
+    "timestamp": "2026-04-08T13:54:44.929Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell getprop ro.build.version.release",
+    "context": {
+      "logId": "1775656484929-zjw98406n",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656484950-zsix7vw9b",
+    "timestamp": "2026-04-08T13:54:44.950Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell getprop ro.build.version.sdk",
+    "context": {
+      "logId": "1775656484950-9cq4f3x0r",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656484972-ph03rr0oz",
+    "timestamp": "2026-04-08T13:54:44.972Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell getprop ro.build.id",
+    "context": {
+      "logId": "1775656484972-m8dtep98i",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656485000-jgxlszuoy",
+    "timestamp": "2026-04-08T13:54:45.000Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell getprop ro.bootloader",
+    "context": {
+      "logId": "1775656485000-btkugqq2y",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656485034-34vzpotg1",
+    "timestamp": "2026-04-08T13:54:45.034Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell \"if [ -f /system/bin/su ] || [ -f /system/xbin/su ] || [ -f /sbin/su ] || [ -f /vendor/bin/su ]; then echo rooted; else echo not_rooted; fi\"",
+    "context": {
+      "logId": "1775656485034-8j24ah5mm",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656485061-xff7fl1d8",
+    "timestamp": "2026-04-08T13:54:45.061Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell dumpsys battery",
+    "context": {
+      "logId": "1775656485061-gyvlzrmcb",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656485086-91kjfbxjz",
+    "timestamp": "2026-04-08T13:54:45.086Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell service call iphonesubinfo 1",
+    "context": {
+      "logId": "1775656485086-80u4csm1f",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656485110-2yq9zshvl",
+    "timestamp": "2026-04-08T13:54:45.110Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell getprop ro.boot.wifimacaddr",
+    "context": {
+      "logId": "1775656485110-cem1rpg4q",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656485132-vf5jij3qh",
+    "timestamp": "2026-04-08T13:54:45.132Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell getprop ro.boot.btmacaddr",
+    "context": {
+      "logId": "1775656485132-cubs6imb3",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656485154-j2ty67jn7",
+    "timestamp": "2026-04-08T13:54:45.154Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell getprop ro.serialno",
+    "context": {
+      "logId": "1775656485154-7wudkzrra",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656485180-0capapwqk",
+    "timestamp": "2026-04-08T13:54:45.180Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell getprop gsm.sim.count",
+    "context": {
+      "logId": "1775656485180-cyqli2kqs",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656485203-xnkc9o20l",
+    "timestamp": "2026-04-08T13:54:45.203Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing ADB command: adb -s A7UPBB5510103523 shell getprop gsm.operator.alpha",
+    "context": {
+      "logId": "1775656485203-44bpxewo7",
+      "deviceId": "A7UPBB5510103523",
+      "args": ""
+    }
+  },
+  {
+    "id": "1775656485226-50x2balxg",
+    "timestamp": "2026-04-08T13:54:45.226Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell getprop ro.product.model",
+    "context": {}
+  },
+  {
+    "id": "1775656485250-b3h0iwmdk",
+    "timestamp": "2026-04-08T13:54:45.250Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell getprop ro.product.manufacturer",
+    "context": {}
+  },
+  {
+    "id": "1775656485273-b3b4kbm81",
+    "timestamp": "2026-04-08T13:54:45.273Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell getprop ro.product.brand",
+    "context": {}
+  },
+  {
+    "id": "1775656485337-sayrpsce9",
+    "timestamp": "2026-04-08T13:54:45.337Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell getprop ro.build.version.release",
+    "context": {}
+  },
+  {
+    "id": "1775656485368-bsyoc1b6w",
+    "timestamp": "2026-04-08T13:54:45.368Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell getprop ro.build.version.sdk",
+    "context": {}
+  },
+  {
+    "id": "1775656485393-2aw5b0qzc",
+    "timestamp": "2026-04-08T13:54:45.393Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell getprop ro.build.id",
+    "context": {}
+  },
+  {
+    "id": "1775656485419-ln5kh0qky",
+    "timestamp": "2026-04-08T13:54:45.419Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell getprop ro.bootloader",
+    "context": {}
+  },
+  {
+    "id": "1775656485446-sbczib97k",
+    "timestamp": "2026-04-08T13:54:45.446Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell \"if [ -f /system/bin/su ] || [ -f /system/xbin/su ] || [ -f /sbin/su ] || [ -f /vendor/bin/su ]; then echo rooted; else echo not_rooted; fi\"",
+    "context": {}
+  },
+  {
+    "id": "1775656485470-u8t28ctai",
+    "timestamp": "2026-04-08T13:54:45.470Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell dumpsys battery",
+    "context": {}
+  },
+  {
+    "id": "1775656485494-ys3p649fc",
+    "timestamp": "2026-04-08T13:54:45.494Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell service call iphonesubinfo 1",
+    "context": {}
+  },
+  {
+    "id": "1775656485519-yi4r86mna",
+    "timestamp": "2026-04-08T13:54:45.519Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell getprop ro.boot.wifimacaddr",
+    "context": {}
+  },
+  {
+    "id": "1775656485543-wxq055g5m",
+    "timestamp": "2026-04-08T13:54:45.543Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell getprop ro.boot.btmacaddr",
+    "context": {}
+  },
+  {
+    "id": "1775656485566-77xcks1ci",
+    "timestamp": "2026-04-08T13:54:45.566Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell getprop ro.serialno",
+    "context": {}
+  },
+  {
+    "id": "1775656485589-mv8xvkrfo",
+    "timestamp": "2026-04-08T13:54:45.589Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell getprop gsm.sim.count",
+    "context": {}
+  },
+  {
+    "id": "1775656485612-v6e4vxx3r",
+    "timestamp": "2026-04-08T13:54:45.612Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Executing: adb -s A7UPBB5510103523 shell getprop gsm.operator.alpha",
+    "context": {}
+  },
+  {
+    "id": "1775656486451-ge9egb6pp",
+    "timestamp": "2026-04-08T13:54:46.451Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656485154-7wudkzrra",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "1296ms"
+    }
+  },
+  {
+    "id": "1775656486477-0gtfoabed",
+    "timestamp": "2026-04-08T13:54:46.477Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 1296ms",
+    "context": {}
+  },
+  {
+    "id": "1775656486506-7ynkr5jy8",
+    "timestamp": "2026-04-08T13:54:46.506Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656485132-cubs6imb3",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "1374ms"
+    }
+  },
+  {
+    "id": "1775656486531-arbex2x6y",
+    "timestamp": "2026-04-08T13:54:46.531Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 1374ms",
+    "context": {}
+  },
+  {
+    "id": "1775656486556-qk80hdxzx",
+    "timestamp": "2026-04-08T13:54:46.556Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656485110-cem1rpg4q",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "1446ms"
+    }
+  },
+  {
+    "id": "1775656486580-nfulswvtk",
+    "timestamp": "2026-04-08T13:54:46.580Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 1446ms",
+    "context": {}
+  },
+  {
+    "id": "1775656486604-3m0kyfqni",
+    "timestamp": "2026-04-08T13:54:46.604Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656485086-80u4csm1f",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "1518ms"
+    }
+  },
+  {
+    "id": "1775656486628-ce7pdw09f",
+    "timestamp": "2026-04-08T13:54:46.628Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 1518ms",
+    "context": {}
+  },
+  {
+    "id": "1775656486654-4jl08wgzp",
+    "timestamp": "2026-04-08T13:54:46.654Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656485061-gyvlzrmcb",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "1593ms"
+    }
+  },
+  {
+    "id": "1775656486681-ka1998n2t",
+    "timestamp": "2026-04-08T13:54:46.681Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 1593ms",
+    "context": {}
+  },
+  {
+    "id": "1775656486704-d46sy18pf",
+    "timestamp": "2026-04-08T13:54:46.704Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656485034-8j24ah5mm",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "1670ms"
+    }
+  },
+  {
+    "id": "1775656486729-nanschcdn",
+    "timestamp": "2026-04-08T13:54:46.729Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 1670ms",
+    "context": {}
+  },
+  {
+    "id": "1775656486752-gg6uggab6",
+    "timestamp": "2026-04-08T13:54:46.752Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656485000-btkugqq2y",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "1751ms"
+    }
+  },
+  {
+    "id": "1775656486779-2iccv38h5",
+    "timestamp": "2026-04-08T13:54:46.779Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 1751ms",
+    "context": {}
+  },
+  {
+    "id": "1775656486809-bt318xf41",
+    "timestamp": "2026-04-08T13:54:46.809Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656484972-m8dtep98i",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "1836ms"
+    }
+  },
+  {
+    "id": "1775656486838-i6t50yf91",
+    "timestamp": "2026-04-08T13:54:46.838Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 1836ms",
+    "context": {}
+  },
+  {
+    "id": "1775656486865-rvegfx5ck",
+    "timestamp": "2026-04-08T13:54:46.865Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656484950-9cq4f3x0r",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "1915ms"
+    }
+  },
+  {
+    "id": "1775656486891-lx8pix117",
+    "timestamp": "2026-04-08T13:54:46.891Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 1915ms",
+    "context": {}
+  },
+  {
+    "id": "1775656486917-rjsjg3ypo",
+    "timestamp": "2026-04-08T13:54:46.917Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656484929-zjw98406n",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "1988ms"
+    }
+  },
+  {
+    "id": "1775656486940-aovd6z2zz",
+    "timestamp": "2026-04-08T13:54:46.940Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 1988ms",
+    "context": {}
+  },
+  {
+    "id": "1775656486993-otuyeid8s",
+    "timestamp": "2026-04-08T13:54:46.993Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656484907-op1kwuobn",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "2086ms"
+    }
+  },
+  {
+    "id": "1775656487017-f0novf6dz",
+    "timestamp": "2026-04-08T13:54:47.017Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 2086ms",
+    "context": {}
+  },
+  {
+    "id": "1775656487040-wqsce02qo",
+    "timestamp": "2026-04-08T13:54:47.040Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656484884-msvq32n23",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "2156ms"
+    }
+  },
+  {
+    "id": "1775656487064-5pbe5xm6u",
+    "timestamp": "2026-04-08T13:54:47.064Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 2156ms",
+    "context": {}
+  },
+  {
+    "id": "1775656487086-00nztqqfn",
+    "timestamp": "2026-04-08T13:54:47.086Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656484863-mdasfjegp",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "2223ms"
+    }
+  },
+  {
+    "id": "1775656487108-outb3u2mq",
+    "timestamp": "2026-04-08T13:54:47.108Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 2223ms",
+    "context": {}
+  },
+  {
+    "id": "1775656487133-9e78vx2ys",
+    "timestamp": "2026-04-08T13:54:47.133Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656485203-44bpxewo7",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "1930ms"
+    }
+  },
+  {
+    "id": "1775656487162-ilkpgb0hq",
+    "timestamp": "2026-04-08T13:54:47.162Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 1930ms",
+    "context": {}
+  },
+  {
+    "id": "1775656487187-s01vzxavd",
+    "timestamp": "2026-04-08T13:54:47.187Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "ADB command completed",
+    "context": {
+      "logId": "1775656485180-cyqli2kqs",
+      "deviceId": "A7UPBB5510103523",
+      "exitCode": 0,
+      "duration": "2007ms"
+    }
+  },
+  {
+    "id": "1775656487211-c9lpppyyn",
+    "timestamp": "2026-04-08T13:54:47.211Z",
+    "level": "debug",
+    "category": "adb",
+    "service": "adb",
+    "message": "Command completed in 2007ms",
+    "context": {}
+  },
+  {
+    "id": "1775656487235-02mxgt1vm",
+    "timestamp": "2026-04-08T13:54:47.235Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "Device: ALT-LX1, Android: 14, Rooted: true",
+    "context": {}
+  },
+  {
+    "id": "1775656487256-v75wgrujg",
+    "timestamp": "2026-04-08T13:54:47.256Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "Found 2 SIM cards on device A7UPBB5510103523 (expected: 2)",
+    "context": {}
+  },
+  {
+    "id": "1775656487287-b8yglzxlu",
+    "timestamp": "2026-04-08T13:54:47.287Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "  SIM 0: Bezlimit,MTS RUS, phone: ..........., status: available",
+    "context": {}
+  },
+  {
+    "id": "1775656487316-grn1nxj3f",
+    "timestamp": "2026-04-08T13:54:47.316Z",
+    "level": "info",
+    "category": "adb",
+    "service": "adb",
+    "message": "  SIM 1: Unknown, NO PHONE NUMBER, status: available",
+    "context": {}
+  },
+  {
+    "id": "1775656532945-bu2q9uluj",
+    "timestamp": "2026-04-08T13:55:32.945Z",
+    "level": "info",
+    "category": "api",
+    "service": "api",
+    "message": "Manual phone number update request",
+    "context": {
+      "simCardId": "A7UPBB5510103523-sim-1",
+      "phoneNumber": "7905***",
+      "deviceId": "A7UPBB5510103523",
+      "simSlot": 1
+    },
+    "requestId": "KF1G2MpLHaw3D52Xig9GV"
+  },
+  {
+    "id": "1775656533509-huf1mz3g4",
+    "timestamp": "2026-04-08T13:55:33.509Z",
+    "level": "error",
+    "category": "api",
+    "service": "api",
+    "message": "Error updating SIM phone number",
+    "context": {
+      "requestId": "KF1G2MpLHaw3D52Xig9GV",
+      "duration": 565
+    },
+    "error": {
+      "name": "PrismaClientInitializationError",
+      "message": "\nInvalid `__TURBOPACK__imported__module__$5b$project$5d2f$MUKN$2d$Enterprise$2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__[\"db\"].simCard.findUnique()` invocation in\n/home/escobar/Desktop/MUKN-Enterprise/.next/dev/server/chunks/[root-of-the-server]__d3a2d86e._.js:929:190\n\n  926 // Если указан simCardId - обновляем конкретную SIM\n  927 if (simCardId) {\n  928     // Проверяем есть ли SIM в БД\n→ 929     const existingSim = await __TURBOPACK__imported__module__$5b$project$5d2f$MUKN$2d$Enterprise$2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__[\"db\"].simCard.findUnique(\nerror: Environment variable not found: DATABASE_URL.\n  -->  schema.prisma:7\n   | \n 6 |   provider = \"sqlite\"\n 7 |   url      = env(\"DATABASE_URL\")\n   | \n\nValidation Error Count: 1",
+      "stack": "PrismaClientInitializationError: \nInvalid `__TURBOPACK__imported__module__$5b$project$5d2f$MUKN$2d$Enterprise$2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__[\"db\"].simCard.findUnique()` invocation in\n/home/escobar/Desktop/MUKN-Enterprise/.next/dev/server/chunks/[root-of-the-server]__d3a2d86e._.js:929:190\n\n  926 // Если указан simCardId - обновляем конкретную SIM\n  927 if (simCardId) {\n  928     // Проверяем есть ли SIM в БД\n→ 929     const existingSim = await __TURBOPACK__imported__module__$5b$project$5d2f$MUKN$2d$Enterprise$2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__[\"db\"].simCard.findUnique(\nerror: Environment variable not found: DATABASE_URL.\n  -->  schema.prisma:7\n   | \n 6 |   provider = \"sqlite\"\n 7 |   url      = env(\"DATABASE_URL\")\n   | \n\nValidation Error Count: 1\n    at ei.handleRequestError (/home/escobar/Desktop/MUKN-Enterprise/node_modules/@prisma/client/runtime/library.js:121:7568)\n    at ei.handleAndLogRequestError (/home/escobar/Desktop/MUKN-Enterprise/node_modules/@prisma/client/runtime/library.js:121:6593)\n    at ei.request (/home/escobar/Desktop/MUKN-Enterprise/node_modules/@prisma/client/runtime/library.js:121:6300)\n    at async a (/home/escobar/Desktop/MUKN-Enterprise/node_modules/@prisma/client/runtime/library.js:130:9551)\n    at async POST (/home/escobar/Desktop/MUKN-Enterprise/.next/dev/server/chunks/[root-of-the-server]__d3a2d86e._.js:929:33)\n    at async AppRouteRouteModule.do (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:37866)\n    at async AppRouteRouteModule.handle (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:45156)\n    at async responseGenerator (/home/escobar/Desktop/MUKN-Enterprise/.next/dev/server/chunks/[root-of-the-server]__947fce66._.js:14921:38)\n    at async AppRouteRouteModule.handleResponse (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:1:187713)\n    at async handleResponse (/home/escobar/Desktop/MUKN-Enterprise/.next/dev/server/chunks/[root-of-the-server]__947fce66._.js:14984:32)\n    at async Module.handler (/home/escobar/Desktop/MUKN-Enterprise/.next/dev/server/chunks/[root-of-the-server]__947fce66._.js:15037:13)\n    at async DevServer.renderToResponseWithComponentsImpl (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/base-server.js:1422:9)\n    at async DevServer.renderPageComponent (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/base-server.js:1474:24)\n    at async DevServer.renderToResponseImpl (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/base-server.js:1524:32)\n    at async DevServer.pipeImpl (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/base-server.js:1018:25)\n    at async NextNodeServer.handleCatchallRenderRequest (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/next-server.js:395:17)\n    at async DevServer.handleRequestImpl (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/base-server.js:909:17)\n    at async /home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/dev/next-dev-server.js:387:20\n    at async Span.traceAsyncFn (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/trace/trace.js:157:20)\n    at async DevServer.handleRequest (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/dev/next-dev-server.js:383:24)\n    at async invokeRender (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/lib/router-server.js:248:21)\n    at async handleRequest (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/lib/router-server.js:447:24)\n    at async requestHandlerImpl (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/lib/router-server.js:496:13)\n    at async Server.requestListener (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/lib/start-server.js:226:13)"
+    },
+    "requestId": "KF1G2MpLHaw3D52Xig9GV"
+  },
+  {
+    "id": "1775656537098-gtqlpgjz4",
+    "timestamp": "2026-04-08T13:55:37.098Z",
+    "level": "info",
+    "category": "api",
+    "service": "api",
+    "message": "Manual phone number update request",
+    "context": {
+      "simCardId": "A7UPBB5510103523-sim-1",
+      "phoneNumber": "7905***",
+      "deviceId": "A7UPBB5510103523",
+      "simSlot": 1
+    },
+    "requestId": "zB3Q3vh0ScQ1yPdUmLBEn"
+  },
+  {
+    "id": "1775656537341-xg50m3goc",
+    "timestamp": "2026-04-08T13:55:37.341Z",
+    "level": "error",
+    "category": "api",
+    "service": "api",
+    "message": "Error updating SIM phone number",
+    "context": {
+      "requestId": "zB3Q3vh0ScQ1yPdUmLBEn",
+      "duration": 244
+    },
+    "error": {
+      "name": "PrismaClientInitializationError",
+      "message": "\nInvalid `__TURBOPACK__imported__module__$5b$project$5d2f$MUKN$2d$Enterprise$2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__[\"db\"].simCard.findUnique()` invocation in\n/home/escobar/Desktop/MUKN-Enterprise/.next/dev/server/chunks/[root-of-the-server]__d3a2d86e._.js:929:190\n\n  926 // Если указан simCardId - обновляем конкретную SIM\n  927 if (simCardId) {\n  928     // Проверяем есть ли SIM в БД\n→ 929     const existingSim = await __TURBOPACK__imported__module__$5b$project$5d2f$MUKN$2d$Enterprise$2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__[\"db\"].simCard.findUnique(\nerror: Environment variable not found: DATABASE_URL.\n  -->  schema.prisma:7\n   | \n 6 |   provider = \"sqlite\"\n 7 |   url      = env(\"DATABASE_URL\")\n   | \n\nValidation Error Count: 1",
+      "stack": "PrismaClientInitializationError: \nInvalid `__TURBOPACK__imported__module__$5b$project$5d2f$MUKN$2d$Enterprise$2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__[\"db\"].simCard.findUnique()` invocation in\n/home/escobar/Desktop/MUKN-Enterprise/.next/dev/server/chunks/[root-of-the-server]__d3a2d86e._.js:929:190\n\n  926 // Если указан simCardId - обновляем конкретную SIM\n  927 if (simCardId) {\n  928     // Проверяем есть ли SIM в БД\n→ 929     const existingSim = await __TURBOPACK__imported__module__$5b$project$5d2f$MUKN$2d$Enterprise$2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__[\"db\"].simCard.findUnique(\nerror: Environment variable not found: DATABASE_URL.\n  -->  schema.prisma:7\n   | \n 6 |   provider = \"sqlite\"\n 7 |   url      = env(\"DATABASE_URL\")\n   | \n\nValidation Error Count: 1\n    at ei.handleRequestError (/home/escobar/Desktop/MUKN-Enterprise/node_modules/@prisma/client/runtime/library.js:121:7568)\n    at ei.handleAndLogRequestError (/home/escobar/Desktop/MUKN-Enterprise/node_modules/@prisma/client/runtime/library.js:121:6593)\n    at ei.request (/home/escobar/Desktop/MUKN-Enterprise/node_modules/@prisma/client/runtime/library.js:121:6300)\n    at async a (/home/escobar/Desktop/MUKN-Enterprise/node_modules/@prisma/client/runtime/library.js:130:9551)\n    at async POST (/home/escobar/Desktop/MUKN-Enterprise/.next/dev/server/chunks/[root-of-the-server]__d3a2d86e._.js:929:33)\n    at async AppRouteRouteModule.do (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:37866)\n    at async AppRouteRouteModule.handle (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:45156)\n    at async responseGenerator (/home/escobar/Desktop/MUKN-Enterprise/.next/dev/server/chunks/[root-of-the-server]__947fce66._.js:14921:38)\n    at async AppRouteRouteModule.handleResponse (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:1:187713)\n    at async handleResponse (/home/escobar/Desktop/MUKN-Enterprise/.next/dev/server/chunks/[root-of-the-server]__947fce66._.js:14984:32)\n    at async Module.handler (/home/escobar/Desktop/MUKN-Enterprise/.next/dev/server/chunks/[root-of-the-server]__947fce66._.js:15037:13)\n    at async DevServer.renderToResponseWithComponentsImpl (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/base-server.js:1422:9)\n    at async DevServer.renderPageComponent (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/base-server.js:1474:24)\n    at async DevServer.renderToResponseImpl (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/base-server.js:1524:32)\n    at async DevServer.pipeImpl (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/base-server.js:1018:25)\n    at async NextNodeServer.handleCatchallRenderRequest (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/next-server.js:395:17)\n    at async DevServer.handleRequestImpl (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/base-server.js:909:17)\n    at async /home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/dev/next-dev-server.js:387:20\n    at async Span.traceAsyncFn (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/trace/trace.js:157:20)\n    at async DevServer.handleRequest (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/dev/next-dev-server.js:383:24)\n    at async invokeRender (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/lib/router-server.js:248:21)\n    at async handleRequest (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/lib/router-server.js:447:24)\n    at async requestHandlerImpl (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/lib/router-server.js:496:13)\n    at async Server.requestListener (/home/escobar/Desktop/MUKN-Enterprise/node_modules/next/dist/server/lib/start-server.js:226:13)"
+    },
+    "requestId": "zB3Q3vh0ScQ1yPdUmLBEn"
+  }
+]
