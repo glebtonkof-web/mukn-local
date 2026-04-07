@@ -1,479 +1,300 @@
-// Scheme Executor - Execute and manage monetization schemes
-// Handles scheme lifecycle: start, stop, performance tracking, account rotation
+/**
+ * Scheme Executor - Executes monetization schemes for SIM-registered accounts
+ */
 
 import { db } from '@/lib/db';
-import { MONETIZATION_SCHEMES, type MonetizationSchemeDefinition, type Platform } from './schemes-library';
-import { calculateRequirements, getSchemeDetails, type RankedScheme, type SimCardAccountInfo } from './scheme-ranker';
+import { logger } from '@/lib/logger';
 
-export type SchemeStatus = 'idle' | 'starting' | 'running' | 'paused' | 'stopping' | 'stopped' | 'error';
+// Types
+export type SchemeStatus = 'pending' | 'active' | 'paused' | 'completed' | 'failed';
+export type SchemeCategory = 'cpa' | 'affiliate' | 'farming' | 'direct' | 'arbitrage';
 
 export interface SchemeExecution {
   id: string;
   schemeId: string;
+  accountId: string;
   status: SchemeStatus;
-  accountIds: string[];
-  startedAt: Date | null;
-  stoppedAt: Date | null;
-  lastActivityAt: Date | null;
-  metrics: SchemeMetrics;
+  progress: number;
+  startedAt: Date;
+  updatedAt: Date;
+  completedAt?: Date;
   config: ExecutionConfig;
+  metrics: SchemeMetrics;
   errors: SchemeError[];
   logs: SchemeLog[];
 }
 
-export interface SchemeMetrics {
-  totalActions: number;
-  successfulActions: number;
-  failedActions: number;
-  revenue: number;
-  conversions: number;
-  clicks: number;
-  impressions: number;
-  avgRevenuePerAction: number;
-  successRate: number;
-  estimatedDailyRevenue: number;
-  lastCalculatedAt: Date;
+export interface ExecutionConfig {
+  workHoursStart: number;
+  workHoursEnd: number;
+  maxActionsPerHour: number;
+  pauseOnError: boolean;
+  pauseOnRisk: boolean;
+  maxRiskScore: number;
 }
 
-export interface ExecutionConfig {
-  maxActionsPerHour: number;
-  maxActionsPerDay: number;
-  actionDelayMin: number; // seconds
-  actionDelayMax: number; // seconds
-  workHoursStart: number; // 0-23
-  workHoursEnd: number; // 0-23
-  pauseOnHighRisk: boolean;
-  autoRotateAccounts: boolean;
-  rotationIntervalHours: number;
-  targetRevenue: number;
-  stopOnTarget: boolean;
+export interface SchemeMetrics {
+  actionsCompleted: number;
+  actionsFailed: number;
+  revenue: number;
+  conversionRate: number;
+  avgResponseTime: number;
 }
 
 export interface SchemeError {
   timestamp: Date;
-  accountId: string;
-  error: string;
-  action: string;
-  retryable: boolean;
+  message: string;
+  code: string;
+  recoverable: boolean;
 }
 
 export interface SchemeLog {
   timestamp: Date;
-  level: 'info' | 'warn' | 'error' | 'success';
-  message: string;
-  details?: Record<string, unknown>;
+  action: string;
+  result: string;
+  details?: string;
 }
 
 export interface SchemePerformance {
   schemeId: string;
-  executionId: string;
-  period: 'hour' | 'day' | 'week' | 'month';
-  metrics: SchemeMetrics;
-  trends: {
-    revenue: number; // percentage change
-    conversions: number;
-    successRate: number;
-  };
+  totalExecutions: number;
+  activeExecutions: number;
+  completedExecutions: number;
+  failedExecutions: number;
+  totalRevenue: number;
+  avgRevenue: number;
+  avgConversionRate: number;
+  avgDuration: number;
 }
 
-// Default execution configuration
-const DEFAULT_CONFIG: ExecutionConfig = {
-  maxActionsPerHour: 30,
-  maxActionsPerDay: 200,
-  actionDelayMin: 60,
-  actionDelayMax: 300,
-  workHoursStart: 9,
-  workHoursEnd: 21,
-  pauseOnHighRisk: true,
-  autoRotateAccounts: true,
-  rotationIntervalHours: 24,
-  targetRevenue: 0,
-  stopOnTarget: false
-};
-
-// In-memory storage for active executions
+// In-memory store for active executions
 const activeExecutions = new Map<string, SchemeExecution>();
+const executionIntervals = new Map<string, NodeJS.Timeout>();
 
 /**
- * Initialize a new scheme execution
- */
-export async function initSchemeExecution(
-  schemeId: string,
-  accountIds: string[],
-  customConfig?: Partial<ExecutionConfig>
-): Promise<SchemeExecution> {
-  const scheme = MONETIZATION_SCHEMES.find(s => s.id === schemeId);
-  if (!scheme) {
-    throw new Error(`Scheme ${schemeId} not found`);
-  }
-
-  // Validate accounts
-  const accounts = await db.simCardAccount.findMany({
-    where: { id: { in: accountIds } }
-  });
-
-  if (accounts.length < scheme.minAccounts) {
-    throw new Error(`Scheme requires at least ${scheme.minAccounts} accounts, got ${accounts.length}`);
-  }
-
-  // Check if accounts are properly warmed
-  const insufficientlyWarmed = accounts.filter(a => 
-    a.warmingProgress < scheme.minWarmingDays * 5
-  );
-  
-  if (insufficientlyWarmed.length > 0) {
-    console.warn(`Warning: ${insufficientlyWarmed.length} accounts may not be sufficiently warmed`);
-  }
-
-  const config = { ...DEFAULT_CONFIG, ...customConfig };
-  
-  const execution: SchemeExecution = {
-    id: `exec-${schemeId}-${Date.now()}`,
-    schemeId,
-    status: 'idle',
-    accountIds,
-    startedAt: null,
-    stoppedAt: null,
-    lastActivityAt: null,
-    metrics: {
-      totalActions: 0,
-      successfulActions: 0,
-      failedActions: 0,
-      revenue: 0,
-      conversions: 0,
-      clicks: 0,
-      impressions: 0,
-      avgRevenuePerAction: 0,
-      successRate: 0,
-      estimatedDailyRevenue: 0,
-      lastCalculatedAt: new Date()
-    },
-    config,
-    errors: [],
-    logs: []
-  };
-
-  // Log initialization
-  execution.logs.push({
-    timestamp: new Date(),
-    level: 'info',
-    message: `Scheme ${scheme.name} initialized with ${accountIds.length} accounts`,
-    details: { schemeId, accountCount: accountIds.length }
-  });
-
-  return execution;
-}
-
-/**
- * Start a scheme execution
+ * Start scheme execution for an account
  */
 export async function startScheme(
   schemeId: string,
-  accountIds: string[],
+  accountId: string,
   config?: Partial<ExecutionConfig>
 ): Promise<SchemeExecution> {
-  // Check if already running
-  const existing = activeExecutions.get(schemeId);
-  if (existing && existing.status === 'running') {
-    throw new Error(`Scheme ${schemeId} is already running`);
+  const id = `exec_${schemeId}_${accountId}_${Date.now()}`;
+  
+  const execution: SchemeExecution = {
+    id,
+    schemeId,
+    accountId,
+    status: 'active',
+    progress: 0,
+    startedAt: new Date(),
+    updatedAt: new Date(),
+    config: {
+      workHoursStart: 9,
+      workHoursEnd: 21,
+      maxActionsPerHour: 10,
+      pauseOnError: true,
+      pauseOnRisk: true,
+      maxRiskScore: 70,
+      ...config
+    },
+    metrics: {
+      actionsCompleted: 0,
+      actionsFailed: 0,
+      revenue: 0,
+      conversionRate: 0,
+      avgResponseTime: 0
+    },
+    errors: [],
+    logs: []
+  };
+  
+  activeExecutions.set(id, execution);
+  
+  // Start execution loop
+  const interval = setInterval(async () => {
+    await runExecutionTick(id);
+  }, 60000); // Every minute
+  
+  executionIntervals.set(id, interval);
+  
+  logger.info('Scheme execution started', { schemeId, accountId, executionId: id });
+  
+  return execution;
+}
+
+/**
+ * Stop scheme execution
+ */
+export async function stopScheme(executionId: string): Promise<void> {
+  const interval = executionIntervals.get(executionId);
+  if (interval) {
+    clearInterval(interval);
+    executionIntervals.delete(executionId);
   }
+  
+  const execution = activeExecutions.get(executionId);
+  if (execution) {
+    execution.status = 'completed';
+    execution.completedAt = new Date();
+    execution.updatedAt = new Date();
+  }
+  
+  logger.info('Scheme execution stopped', { executionId });
+}
 
-  const execution = await initSchemeExecution(schemeId, accountIds, config);
-  execution.status = 'starting';
-  execution.startedAt = new Date();
+/**
+ * Pause scheme execution
+ */
+export async function pauseScheme(executionId: string): Promise<void> {
+  const execution = activeExecutions.get(executionId);
+  if (execution) {
+    execution.status = 'paused';
+    execution.updatedAt = new Date();
+  }
+}
 
-  // Save to database
-  await db.monetizationScheme.update({
-    where: { id: schemeId },
-    data: {
-      usageCount: { increment: 1 },
-      updatedAt: new Date()
+/**
+ * Resume scheme execution
+ */
+export async function resumeScheme(executionId: string): Promise<void> {
+  const execution = activeExecutions.get(executionId);
+  if (execution && execution.status === 'paused') {
+    execution.status = 'active';
+    execution.updatedAt = new Date();
+  }
+}
+
+/**
+ * Rotate accounts between schemes
+ */
+export async function rotateAccounts(schemeId: string): Promise<number> {
+  // Get all executions for this scheme
+  const executions = Array.from(activeExecutions.values())
+    .filter(e => e.schemeId === schemeId && e.status === 'active');
+  
+  // Rotate logic - move low-performing accounts to other schemes
+  let rotated = 0;
+  
+  for (const execution of executions) {
+    if (execution.metrics.conversionRate < 0.01 && execution.metrics.actionsCompleted > 50) {
+      await pauseScheme(execution.id);
+      rotated++;
     }
-  });
-
-  execution.status = 'running';
-  execution.logs.push({
-    timestamp: new Date(),
-    level: 'success',
-    message: `Scheme execution started`
-  });
-
-  // Store in memory
-  activeExecutions.set(schemeId, execution);
-
-  return execution;
-}
-
-/**
- * Stop a scheme execution
- */
-export async function stopScheme(schemeId: string): Promise<SchemeExecution | null> {
-  const execution = activeExecutions.get(schemeId);
-  if (!execution) {
-    return null;
   }
-
-  execution.status = 'stopping';
-  execution.logs.push({
-    timestamp: new Date(),
-    level: 'info',
-    message: `Stopping scheme execution`
-  });
-
-  // Finalize metrics
-  execution.stoppedAt = new Date();
-  execution.status = 'stopped';
-
-  execution.logs.push({
-    timestamp: new Date(),
-    level: 'success',
-    message: `Scheme execution stopped. Total actions: ${execution.metrics.totalActions}, Revenue: $${execution.metrics.revenue.toFixed(2)}`
-  });
-
-  // Remove from active executions
-  activeExecutions.delete(schemeId);
-
-  return execution;
-}
-
-/**
- * Pause a scheme execution
- */
-export async function pauseScheme(schemeId: string): Promise<SchemeExecution | null> {
-  const execution = activeExecutions.get(schemeId);
-  if (!execution || execution.status !== 'running') {
-    return null;
-  }
-
-  execution.status = 'paused';
-  execution.logs.push({
-    timestamp: new Date(),
-    level: 'info',
-    message: `Scheme execution paused`
-  });
-
-  return execution;
-}
-
-/**
- * Resume a paused scheme
- */
-export async function resumeScheme(schemeId: string): Promise<SchemeExecution | null> {
-  const execution = activeExecutions.get(schemeId);
-  if (!execution || execution.status !== 'paused') {
-    return null;
-  }
-
-  execution.status = 'running';
-  execution.logs.push({
-    timestamp: new Date(),
-    level: 'info',
-    message: `Scheme execution resumed`
-  });
-
-  return execution;
+  
+  return rotated;
 }
 
 /**
  * Get scheme performance metrics
  */
-export async function getSchemePerformance(schemeId: string): Promise<SchemePerformance | null> {
-  const execution = activeExecutions.get(schemeId);
-  if (!execution) {
-    // Try to get from database history
-    const scheme = await db.monetizationScheme.findUnique({
-      where: { id: schemeId }
-    });
-
-    if (!scheme) return null;
-
-    // Calculate from profit logs
-    const profitLogs = await db.simCardProfitLog.findMany({
-      where: { schemeId },
-      orderBy: { createdAt: 'desc' },
-      take: 100
-    });
-
-    const revenue = profitLogs.reduce((sum, log) => sum + log.amount, 0);
-    const conversions = profitLogs.length;
-
-    return {
-      schemeId,
-      executionId: 'historical',
-      period: 'month',
-      metrics: {
-        totalActions: conversions,
-        successfulActions: conversions,
-        failedActions: 0,
-        revenue,
-        conversions,
-        clicks: conversions * 10, // Estimate
-        impressions: conversions * 100, // Estimate
-        avgRevenuePerAction: conversions > 0 ? revenue / conversions : 0,
-        successRate: 1,
-        estimatedDailyRevenue: revenue / 30,
-        lastCalculatedAt: new Date()
-      },
-      trends: {
-        revenue: 0,
-        conversions: 0,
-        successRate: 0
-      }
-    };
-  }
-
-  // Calculate trends (simplified)
-  const trends = {
-    revenue: 0,
-    conversions: 0,
-    successRate: 0
-  };
-
+export async function getSchemePerformance(schemeId: string): Promise<SchemePerformance> {
+  const executions = Array.from(activeExecutions.values())
+    .filter(e => e.schemeId === schemeId);
+  
+  const completed = executions.filter(e => e.status === 'completed');
+  const failed = executions.filter(e => e.status === 'failed');
+  const active = executions.filter(e => e.status === 'active');
+  
+  const totalRevenue = executions.reduce((sum, e) => sum + e.metrics.revenue, 0);
+  
   return {
     schemeId,
-    executionId: execution.id,
-    period: 'day',
-    metrics: execution.metrics,
-    trends
+    totalExecutions: executions.length,
+    activeExecutions: active.length,
+    completedExecutions: completed.length,
+    failedExecutions: failed.length,
+    totalRevenue,
+    avgRevenue: executions.length > 0 ? totalRevenue / executions.length : 0,
+    avgConversionRate: executions.length > 0 
+      ? executions.reduce((sum, e) => sum + e.metrics.conversionRate, 0) / executions.length 
+      : 0,
+    avgDuration: 0
   };
 }
 
 /**
- * Rotate accounts for a scheme
- */
-export async function rotateAccounts(
-  schemeId: string,
-  newAccountIds?: string[]
-): Promise<SchemeExecution | null> {
-  const execution = activeExecutions.get(schemeId);
-  if (!execution) {
-    return null;
-  }
-
-  const scheme = MONETIZATION_SCHEMES.find(s => s.id === schemeId);
-  if (!scheme) return null;
-
-  let accountsToUse: string[];
-
-  if (newAccountIds && newAccountIds.length >= scheme.minAccounts) {
-    accountsToUse = newAccountIds;
-  } else {
-    // Auto-select new accounts
-    const availableAccounts = await db.simCardAccount.findMany({
-      where: {
-        platform: { in: scheme.platforms.map(p => p.toLowerCase()) },
-        status: 'active',
-        warmingProgress: { gte: scheme.minWarmingDays * 5 },
-        id: { notIn: execution.accountIds }
-      },
-      take: scheme.minAccounts
-    });
-
-    if (availableAccounts.length < scheme.minAccounts) {
-      execution.logs.push({
-        timestamp: new Date(),
-        level: 'warn',
-        message: `Not enough accounts available for rotation. Need ${scheme.minAccounts}, found ${availableAccounts.length}`
-      });
-      return execution;
-    }
-
-    accountsToUse = availableAccounts.map(a => a.id);
-  }
-
-  const oldAccountIds = [...execution.accountIds];
-  execution.accountIds = accountsToUse;
-
-  execution.logs.push({
-    timestamp: new Date(),
-    level: 'info',
-    message: `Rotated accounts. Old: ${oldAccountIds.length}, New: ${accountsToUse.length}`,
-    details: { oldAccountIds, newAccountIds: accountsToUse }
-  });
-
-  return execution;
-}
-
-/**
- * Record an action result
+ * Record action result
  */
 export async function recordAction(
-  schemeId: string,
-  accountId: string,
+  executionId: string,
   action: string,
-  success: boolean,
-  revenue: number = 0,
-  details?: Record<string, unknown>
+  result: 'success' | 'failure',
+  revenue?: number
 ): Promise<void> {
-  const execution = activeExecutions.get(schemeId);
+  const execution = activeExecutions.get(executionId);
   if (!execution) return;
-
-  execution.metrics.totalActions++;
-  execution.lastActivityAt = new Date();
-
-  if (success) {
-    execution.metrics.successfulActions++;
-    execution.metrics.revenue += revenue;
-    
-    if (revenue > 0) {
-      execution.metrics.conversions++;
+  
+  execution.logs.push({
+    timestamp: new Date(),
+    action,
+    result,
+    details: revenue ? `Revenue: ${revenue}` : undefined
+  });
+  
+  if (result === 'success') {
+    execution.metrics.actionsCompleted++;
+    if (revenue) {
+      execution.metrics.revenue += revenue;
     }
-
-    execution.logs.push({
-      timestamp: new Date(),
-      level: revenue > 0 ? 'success' : 'info',
-      message: `Action completed: ${action}`,
-      details: { accountId, revenue, ...details }
-    });
   } else {
-    execution.metrics.failedActions++;
-    
-    execution.errors.push({
-      timestamp: new Date(),
-      accountId,
-      error: 'Action failed',
-      action,
-      retryable: true
-    });
-
-    execution.logs.push({
-      timestamp: new Date(),
-      level: 'error',
-      message: `Action failed: ${action}`,
-      details: { accountId, ...details }
-    });
+    execution.metrics.actionsFailed++;
   }
-
-  // Update calculated metrics
-  execution.metrics.successRate = 
-    execution.metrics.totalActions > 0 
-      ? execution.metrics.successfulActions / execution.metrics.totalActions 
-      : 0;
-
-  execution.metrics.avgRevenuePerAction = 
-    execution.metrics.totalActions > 0 
-      ? execution.metrics.revenue / execution.metrics.totalActions 
-      : 0;
-
-  // Save profit log if revenue
-  if (revenue > 0) {
-    await db.simCardProfitLog.create({
-      data: {
-        id: `profit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        accountId,
-        schemeId,
-        revenueType: schemeId.includes('cpa') ? 'cpa' : 'referral',
-        amount: revenue,
-        currency: 'USD',
-        description: action,
-        metadata: JSON.stringify(details || {})
-      }
-    });
-  }
+  
+  execution.metrics.conversionRate = 
+    execution.metrics.actionsCompleted / 
+    (execution.metrics.actionsCompleted + execution.metrics.actionsFailed);
+  
+  execution.updatedAt = new Date();
 }
 
 /**
- * Check if within working hours
+ * Get active executions
+ */
+export function getActiveExecutions(): SchemeExecution[] {
+  return Array.from(activeExecutions.values()).filter(e => e.status === 'active');
+}
+
+/**
+ * Get execution by ID
+ */
+export function getExecution(executionId: string): SchemeExecution | undefined {
+  return activeExecutions.get(executionId);
+}
+
+/**
+ * Estimate revenue for a scheme
+ */
+export async function estimateRevenue(schemeId: string): Promise<number> {
+  const performance = await getSchemePerformance(schemeId);
+  const activeCount = performance.activeExecutions;
+  
+  // Estimate based on average performance
+  return activeCount * performance.avgRevenue * 30; // Monthly estimate
+}
+
+/**
+ * Get execution summary
+ */
+export function getExecutionSummary(executionId: string): string {
+  const execution = activeExecutions.get(executionId);
+  if (!execution) return 'Execution not found';
+  
+  return `
+Scheme: ${execution.schemeId}
+Account: ${execution.accountId}
+Status: ${execution.status}
+Progress: ${execution.progress}%
+Actions: ${execution.metrics.actionsCompleted} completed, ${execution.metrics.actionsFailed} failed
+Revenue: $${execution.metrics.revenue.toFixed(2)}
+Conversion: ${(execution.metrics.conversionRate * 100).toFixed(1)}%
+Errors: ${execution.errors.length}
+  `.trim();
+}
+
+/**
+ * Check if within work hours
  */
 export function isWithinWorkHours(config: ExecutionConfig): boolean {
   const now = new Date();
@@ -482,97 +303,49 @@ export function isWithinWorkHours(config: ExecutionConfig): boolean {
 }
 
 /**
- * Get random delay for actions
+ * Get delay for next action
  */
 export function getActionDelay(config: ExecutionConfig): number {
-  const { actionDelayMin, actionDelayMax } = config;
-  return Math.floor(Math.random() * (actionDelayMax - actionDelayMin + 1)) + actionDelayMin;
+  const baseDelay = 3600000 / config.maxActionsPerHour; // ms per action
+  const jitter = Math.random() * 0.3 * baseDelay; // 30% jitter
+  return baseDelay + jitter;
 }
 
-/**
- * Get all active executions
- */
-export function getActiveExecutions(): SchemeExecution[] {
-  return Array.from(activeExecutions.values());
-}
-
-/**
- * Get execution by scheme ID
- */
-export function getExecution(schemeId: string): SchemeExecution | undefined {
-  return activeExecutions.get(schemeId);
-}
-
-/**
- * Calculate estimated revenue for time period
- */
-export function estimateRevenue(
-  scheme: MonetizationSchemeDefinition,
-  accountsCount: number,
-  days: number = 30
-): { min: number; max: number } {
-  const match = scheme.expectedRevenue.match(/\$(\d+)-(\d+)/);
-  if (!match) return { min: 0, max: 0 };
-
-  const monthlyMin = parseInt(match[1]);
-  const monthlyMax = parseInt(match[2]);
-
-  // Adjust for number of accounts
-  const accountMultiplier = Math.min(accountsCount / scheme.minAccounts, 3);
+// Internal execution tick
+async function runExecutionTick(executionId: string): Promise<void> {
+  const execution = activeExecutions.get(executionId);
+  if (!execution || execution.status !== 'active') return;
   
-  // Adjust for time period
-  const dayMultiplier = days / 30;
-
-  return {
-    min: Math.round(monthlyMin * accountMultiplier * dayMultiplier),
-    max: Math.round(monthlyMax * accountMultiplier * dayMultiplier)
-  };
-}
-
-/**
- * Get scheme execution summary
- */
-export async function getExecutionSummary(): Promise<{
-  activeSchemes: number;
-  totalRevenue: number;
-  totalActions: number;
-  avgSuccessRate: number;
-  schemesByCategory: Record<string, number>;
-}> {
-  const executions = getActiveExecutions();
+  if (!isWithinWorkHours(execution.config)) {
+    return; // Skip if outside work hours
+  }
   
-  let totalRevenue = 0;
-  let totalActions = 0;
-  let successSum = 0;
-  const schemesByCategory: Record<string, number> = {};
-
-  for (const exec of executions) {
-    totalRevenue += exec.metrics.revenue;
-    totalActions += exec.metrics.totalActions;
-    successSum += exec.metrics.successRate;
-
-    const scheme = MONETIZATION_SCHEMES.find(s => s.id === exec.schemeId);
-    if (scheme) {
-      schemesByCategory[scheme.category] = (schemesByCategory[scheme.category] || 0) + 1;
+  // Execute scheme action
+  try {
+    // This would integrate with the actual scheme execution logic
+    execution.progress = Math.min(100, execution.progress + 1);
+    execution.updatedAt = new Date();
+  } catch (error) {
+    execution.errors.push({
+      timestamp: new Date(),
+      message: error instanceof Error ? error.message : 'Unknown error',
+      code: 'EXECUTION_ERROR',
+      recoverable: true
+    });
+    
+    if (execution.config.pauseOnError) {
+      execution.status = 'paused';
     }
   }
-
-  return {
-    activeSchemes: executions.length,
-    totalRevenue,
-    totalActions,
-    avgSuccessRate: executions.length > 0 ? successSum / executions.length : 0,
-    schemesByCategory
-  };
 }
 
-const schemeExecutor = {
+export default {
   startScheme,
   stopScheme,
   pauseScheme,
   resumeScheme,
-  getSchemePerformance,
   rotateAccounts,
+  getSchemePerformance,
   recordAction,
   getActiveExecutions,
   getExecution,
@@ -581,5 +354,3 @@ const schemeExecutor = {
   isWithinWorkHours,
   getActionDelay
 };
-
-export default schemeExecutor;

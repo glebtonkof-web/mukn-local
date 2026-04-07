@@ -11,7 +11,7 @@ import {
   stopSmsListener,
   waitForCode,
   getPendingVerifications,
-  getActiveSmsListeners,
+  getActiveListeners,
   cancelVerification,
   getVerification,
   startVerification,
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
         
       case 'listeners':
         // Get active SMS listeners
-        const listeners = getActiveSmsListeners();
+        const listeners = getActiveListeners();
         return NextResponse.json({
           success: true,
           listeners,
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
       case 'status':
       default:
         // Return overall status
-        const activeListeners = getActiveSmsListeners();
+        const activeListeners = getActiveListeners();
         const pendingVerifications = await getPendingVerifications();
         
         return NextResponse.json({

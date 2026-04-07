@@ -1,38 +1,98 @@
-// Database Seeder for Monetization Schemes
-// Seeds 200+ monetization schemes into the database
+/**
+ * Seed Schemes - Database seeding for monetization schemes
+ */
 
 import { db } from '@/lib/db';
-import { MONETIZATION_SCHEMES } from './schemes-library';
+import { MONETIZATION_SCHEMES, type MonetizationSchemeDefinition } from './schemes-library';
+import { logger } from '@/lib/logger';
+
+export interface SeedingStatus {
+  total: number;
+  seeded: number;
+  lastSeededAt: Date | null;
+  isSeeding: boolean;
+}
+
+let seedingInProgress = false;
+let lastSeededAt: Date | null = null;
 
 /**
- * Seed all monetization schemes to database
+ * Seed all schemes to database
  */
-export async function seedSchemes(): Promise<{
-  success: boolean;
-  total: number;
-  created: number;
-  updated: number;
-  errors: string[];
-}> {
-  const result = {
-    success: true,
+export async function seedSchemes(): Promise<{ success: boolean; count: number; errors: string[] }> {
+  if (seedingInProgress) {
+    return { success: false, count: 0, errors: ['Seeding already in progress'] };
+  }
+  
+  seedingInProgress = true;
+  const errors: string[] = [];
+  let count = 0;
+  
+  try {
+    for (const scheme of MONETIZATION_SCHEMES) {
+      try {
+        await seedScheme(scheme);
+        count++;
+      } catch (error) {
+        errors.push(`Failed to seed ${scheme.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+    
+    lastSeededAt = new Date();
+    logger.info('Schemes seeded successfully', { count, errors: errors.length });
+    
+    return { success: true, count, errors };
+  } finally {
+    seedingInProgress = false;
+  }
+}
+
+/**
+ * Clear all schemes from database
+ */
+export async function clearSchemes(): Promise<{ success: boolean; count: number }> {
+  try {
+    const result = await db.monetizationScheme.deleteMany({});
+    logger.info('Schemes cleared', { count: result.count });
+    return { success: true, count: result.count };
+  } catch (error) {
+    logger.error('Failed to clear schemes', error as Error);
+    return { success: false, count: 0 };
+  }
+}
+
+/**
+ * Reseed schemes (clear and seed)
+ */
+export async function reseedSchemes(): Promise<{ success: boolean; count: number; errors: string[] }> {
+  const clearResult = await clearSchemes();
+  if (!clearResult.success) {
+    return { success: false, count: 0, errors: ['Failed to clear existing schemes'] };
+  }
+  
+  return seedSchemes();
+}
+
+/**
+ * Get seeding status
+ */
+export function getSeedingStatus(): SeedingStatus {
+  return {
     total: MONETIZATION_SCHEMES.length,
-    created: 0,
-    updated: 0,
-    errors: [] as string[]
+    seeded: 0, // Would need to query database
+    lastSeededAt,
+    isSeeding: seedingInProgress
   };
+}
 
-  console.log(`Starting to seed ${MONETIZATION_SCHEMES.length} monetization schemes...`);
-
-  for (const scheme of MONETIZATION_SCHEMES) {
-    try {
-      // Check if scheme already exists
-      const existing = await db.monetizationScheme.findUnique({
-        where: { id: scheme.id }
-      });
-
-      const schemeData = {
-        id: scheme.id,
+/**
+ * Seed a single scheme
+ */
+export async function seedScheme(scheme: MonetizationSchemeDefinition): Promise<boolean> {
+  try {
+    await db.monetizationScheme.upsert({
+      where: { id: scheme.id },
+      update: {
         name: scheme.name,
         description: scheme.description,
         category: scheme.category,
@@ -49,229 +109,100 @@ export async function seedSchemes(): Promise<{
         instructions: scheme.instructions ? JSON.stringify(scheme.instructions) : null,
         isActive: true,
         updatedAt: new Date()
-      };
-
-      if (existing) {
-        // Update existing scheme
-        await db.monetizationScheme.update({
-          where: { id: scheme.id },
-          data: schemeData
-        });
-        result.updated++;
-      } else {
-        // Create new scheme
-        await db.monetizationScheme.create({
-          data: {
-            ...schemeData,
-            usageCount: 0,
-            successRate: 0,
-            avgROI: 0,
-            createdAt: new Date()
-          }
-        });
-        result.created++;
+      },
+      create: {
+        id: scheme.id,
+        name: scheme.name,
+        description: scheme.description,
+        category: scheme.category,
+        platforms: JSON.stringify(scheme.platforms),
+        minAccounts: scheme.minAccounts,
+        minWarmingDays: scheme.minWarmingDays,
+        riskLevel: scheme.riskLevel,
+        automationLevel: scheme.automationLevel,
+        expectedRevenue: scheme.expectedRevenue,
+        timeToProfit: scheme.timeToProfit,
+        isFree: scheme.isFree,
+        requirements: scheme.requirements ? JSON.stringify(scheme.requirements) : null,
+        config: scheme.config ? JSON.stringify(scheme.config) : null,
+        instructions: scheme.instructions ? JSON.stringify(scheme.instructions) : null,
+        isActive: true
       }
-    } catch (error) {
-      result.errors.push(`Failed to seed scheme ${scheme.id}: ${error}`);
-      console.error(`Failed to seed scheme ${scheme.id}:`, error);
-    }
-  }
-
-  console.log(`Seeding complete. Created: ${result.created}, Updated: ${result.updated}, Errors: ${result.errors.length}`);
-
-  return result;
-}
-
-/**
- * Clear all schemes from database
- */
-export async function clearSchemes(): Promise<void> {
-  console.log('Clearing all monetization schemes...');
-  
-  await db.monetizationScheme.deleteMany({});
-  
-  console.log('All schemes cleared');
-}
-
-/**
- * Reseed schemes (clear and re-populate)
- */
-export async function reseedSchemes(): Promise<{
-  success: boolean;
-  total: number;
-  created: number;
-  updated: number;
-  errors: string[];
-}> {
-  await clearSchemes();
-  return seedSchemes();
-}
-
-/**
- * Get seeding status
- */
-export async function getSeedingStatus(): Promise<{
-  totalInCode: number;
-  totalInDb: number;
-  synced: boolean;
-  missing: string[];
-}> {
-  const dbSchemes = await db.monetizationScheme.findMany({
-    select: { id: true }
-  });
-
-  const dbIds = new Set(dbSchemes.map(s => s.id));
-  const codeIds = MONETIZATION_SCHEMES.map(s => s.id);
-
-  const missing = codeIds.filter(id => !dbIds.has(id));
-
-  return {
-    totalInCode: MONETIZATION_SCHEMES.length,
-    totalInDb: dbSchemes.length,
-    synced: missing.length === 0,
-    missing
-  };
-}
-
-/**
- * Seed individual scheme
- */
-export async function seedScheme(schemeId: string): Promise<boolean> {
-  const scheme = MONETIZATION_SCHEMES.find(s => s.id === schemeId);
-  if (!scheme) {
-    console.error(`Scheme ${schemeId} not found in library`);
-    return false;
-  }
-
-  try {
-    const existing = await db.monetizationScheme.findUnique({
-      where: { id: scheme.id }
     });
-
-    const schemeData = {
-      id: scheme.id,
-      name: scheme.name,
-      description: scheme.description,
-      category: scheme.category,
-      platforms: JSON.stringify(scheme.platforms),
-      minAccounts: scheme.minAccounts,
-      minWarmingDays: scheme.minWarmingDays,
-      riskLevel: scheme.riskLevel,
-      automationLevel: scheme.automationLevel,
-      expectedRevenue: scheme.expectedRevenue,
-      timeToProfit: scheme.timeToProfit,
-      isFree: scheme.isFree,
-      requirements: scheme.requirements ? JSON.stringify(scheme.requirements) : null,
-      config: scheme.config ? JSON.stringify(scheme.config) : null,
-      instructions: scheme.instructions ? JSON.stringify(scheme.instructions) : null,
-      isActive: true,
-      updatedAt: new Date()
-    };
-
-    if (existing) {
-      await db.monetizationScheme.update({
-        where: { id: scheme.id },
-        data: schemeData
-      });
-    } else {
-      await db.monetizationScheme.create({
-        data: {
-          ...schemeData,
-          usageCount: 0,
-          successRate: 0,
-          avgROI: 0,
-          createdAt: new Date()
-        }
-      });
-    }
-
+    
     return true;
   } catch (error) {
-    console.error(`Failed to seed scheme ${schemeId}:`, error);
+    logger.error('Failed to seed scheme', error as Error, { schemeId: scheme.id });
     return false;
   }
 }
 
 /**
- * Update scheme statistics from database
+ * Update scheme statistics
  */
-export async function updateSchemeStats(): Promise<void> {
-  console.log('Updating scheme statistics...');
-
-  const schemes = await db.monetizationScheme.findMany();
-
-  for (const scheme of schemes) {
-    // Get profit logs for this scheme
-    const profitLogs = await db.simCardProfitLog.findMany({
-      where: { schemeId: scheme.id }
-    });
-
-    if (profitLogs.length === 0) continue;
-
-    const totalRevenue = profitLogs.reduce((sum, log) => sum + log.amount, 0);
-    const avgROI = profitLogs.length > 0 ? totalRevenue / profitLogs.length : 0;
-    const successRate = 1; // Would need more data to calculate properly
-
+export async function updateSchemeStats(
+  schemeId: string,
+  stats: { usageCount?: number; successRate?: number; avgROI?: number }
+): Promise<boolean> {
+  try {
     await db.monetizationScheme.update({
-      where: { id: scheme.id },
+      where: { id: schemeId },
       data: {
-        successRate,
-        avgROI,
+        usageCount: stats.usageCount,
+        successRate: stats.successRate,
+        avgROI: stats.avgROI,
         updatedAt: new Date()
       }
     });
+    
+    return true;
+  } catch (error) {
+    logger.error('Failed to update scheme stats', error as Error, { schemeId });
+    return false;
   }
-
-  console.log('Scheme statistics updated');
 }
 
 /**
- * Export schemes to JSON for backup
+ * Export schemes to JSON
  */
-export function exportSchemesToJson(): string {
-  return JSON.stringify(MONETIZATION_SCHEMES, null, 2);
+export async function exportSchemesToJson(): Promise<string> {
+  const schemes = await db.monetizationScheme.findMany({
+    where: { isActive: true }
+  });
+  
+  return JSON.stringify(schemes, null, 2);
 }
 
 /**
  * Import schemes from JSON
  */
-export function importSchemesFromJson(jsonStr: string): {
-  success: boolean;
-  count: number;
-  errors: string[];
-} {
+export async function importSchemesFromJson(jsonData: string): Promise<{ success: boolean; count: number; errors: string[] }> {
+  const errors: string[] = [];
+  let count = 0;
+  
   try {
-    const schemes = JSON.parse(jsonStr);
+    const schemes = JSON.parse(jsonData);
     
-    if (!Array.isArray(schemes)) {
-      return { success: false, count: 0, errors: ['Invalid JSON format'] };
-    }
-
-    // Validate schemes
-    const errors: string[] = [];
     for (const scheme of schemes) {
-      if (!scheme.id || !scheme.name || !scheme.category) {
-        errors.push(`Invalid scheme: ${JSON.stringify(scheme)}`);
+      try {
+        await db.monetizationScheme.upsert({
+          where: { id: scheme.id },
+          update: scheme,
+          create: scheme
+        });
+        count++;
+      } catch (error) {
+        errors.push(`Failed to import ${scheme.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
-
-    if (errors.length > 0) {
-      return { success: false, count: 0, errors };
-    }
-
-    // Note: This only validates and returns count
-    // Use seedSchemes() to actually populate database
-    return { success: true, count: schemes.length, errors: [] };
+    
+    return { success: true, count, errors };
   } catch (error) {
-    return { 
-      success: false, 
-      count: 0, 
-      errors: [`Failed to parse JSON: ${error}`] 
-    };
+    return { success: false, count: 0, errors: ['Invalid JSON data'] };
   }
 }
 
-const seedSchemesModule = {
+export default {
   seedSchemes,
   clearSchemes,
   reseedSchemes,
@@ -281,5 +212,3 @@ const seedSchemesModule = {
   exportSchemesToJson,
   importSchemesFromJson
 };
-
-export default seedSchemesModule;

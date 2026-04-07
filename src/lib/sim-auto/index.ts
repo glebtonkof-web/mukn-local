@@ -42,38 +42,48 @@ export {
   parseVerificationCode,
   waitForCode,
   getPendingVerifications,
-  createVerificationRequest,
-  getVerificationRequest,
-  expireOldVerifications
+  startVerification,
+  completeVerification,
+  cancelVerification,
+  getVerification,
+  getRecentSms,
+  searchVerificationCodes,
+  onSmsEvent,
+  setWaitingForCode,
+  failVerification,
+  getActiveListeners
 } from './sms-reader';
 
 // Session Manager
 export {
+  sessionManager,
   saveSession,
   loadSession,
-  deleteSession,
   validateSession,
   encryptData,
   decryptData,
-  exportSession,
-  importSession
+  type PlatformSession,
+  PLATFORM_LIMITS,
+  PLATFORM_REGISTRATION_URLS
 } from './session-manager';
 
 // Playwright Automation
 export {
+  PlaywrightAutomation,
   launchBrowser,
   navigateToRegistration,
   fillPhoneNumber,
   handleSmsVerification,
   completeProfile,
-  saveBrowserSession,
-  closeBrowser,
-  type BrowserSession,
-  type ProfileData
+  saveSession as saveBrowserSession,
+  type ProfileData,
+  type StealthConfig,
+  type RegistrationResult
 } from './playwright-automation';
 
 // Registration Manager
 export {
+  registrationManager,
   registerTelegram,
   registerInstagram,
   registerTikTok,
@@ -84,13 +94,9 @@ export {
   registerSignal,
   registerDiscord,
   registerReddit,
-  getRegistrationQueue,
-  getRegistrationStatus,
-  cancelRegistration,
-  getPlatformLimits,
-  calculateRegistrationPlan,
   type RegistrationJob,
-  type RegistrationResult
+  type RegistrationStatus,
+  type PlatformRegistrationConfig
 } from './registration-manager';
 
 // Warming Strategies
@@ -98,12 +104,20 @@ export {
   TELEGRAM_WARMING,
   INSTAGRAM_WARMING,
   TIKTOK_WARMING,
-  TWITTER_WARMING,
-  YOUTUBE_WARMING,
-  WHATSAPP_WARMING,
+  PLATFORM_STRATEGIES,
   getWarmingStrategy,
-  getActionsForDay,
-  getPhaseForDay
+  getCurrentPhase,
+  calculateProgress,
+  isTrafficReady,
+  getAllowedActions,
+  getActionLimits,
+  getRandomActionCount,
+  isActionAllowed,
+  getPhaseRiskLevel,
+  generateDailyActionPlan,
+  type WarmingActionLimit,
+  type WarmingPhase as WarmingPhaseConfig,
+  type PlatformWarmingStrategy
 } from './warming-strategies';
 
 // Behavior Simulator
@@ -112,28 +126,21 @@ export {
   simulateTyping,
   simulateReading,
   simulateMouseMovements,
+  simulateScroll,
   generateRandomSchedule,
-  generateBurstPattern,
-  randomChoice,
-  randomInt,
-  gaussianRandom
+  generateSessionGap,
+  generateActionGap,
+  generateBurstPattern
 } from './behavior-simulator';
 
 // Action Executor
 export {
-  executeLogin,
-  executeView,
-  executeLike,
-  executeSubscribe,
-  executeComment,
-  executeReply,
-  executePost,
-  executeDM,
-  executeInvite,
+  executeWarmingAction,
   executeActionBatch,
   checkSuspiciousActivity,
   type WarmingAction,
-  type ActionResult
+  type ActionResult,
+  type ActionContext
 } from './action-executor';
 
 // Warming Manager
@@ -142,13 +149,13 @@ export {
   stopWarming,
   getWarmingStatus,
   calculatePhase,
-  executeWarmingAction,
-  runWarmingLoop,
+  executeWarmingActionWithCheck,
   getActiveWarmingSessions,
   pauseWarming,
   resumeWarming,
-  type WarmingSession,
-  type WarmingStatus
+  getWarmingLogs,
+  type WarmingStatus,
+  type WarmingConfig
 } from './warming-manager';
 
 // Schemes Library
@@ -161,8 +168,7 @@ export {
   getSchemeStats,
   type MonetizationSchemeDefinition,
   type SchemeCategory,
-  type RiskLevel,
-  type Platform
+  type RiskLevel
 } from './schemes-library';
 
 // Scheme Ranker
@@ -181,7 +187,7 @@ export {
 export {
   startScheme,
   stopScheme,
-  pauseScheme,
+  pauseScheme as pauseSchemeExecution,
   resumeScheme,
   rotateAccounts,
   getSchemePerformance,
@@ -203,29 +209,47 @@ export {
 
 // Profit Executor
 export {
+  profitExecutor,
   startProfitExecution,
   stopProfitExecution,
   trackRevenue,
   getDailyRevenue,
   getWeeklyRevenue,
-  getMonthlyRevenue,
-  rotateAccountsForProfit,
+  getSchemes,
+  getSchemeById,
+  applyScheme,
+  pauseScheme as pauseProfitScheme,
+  addScheme,
+  rotateAccounts as rotateAccountsForProfit,
   monitorPerformance,
-  getProfitDashboard,
-  type ProfitMetrics
+  type Scheme,
+  type RevenueEntry,
+  type DailyRevenue,
+  type WeeklyRevenue,
+  type PerformanceMetrics
 } from './profit-executor';
 
 // Full Auto Controller
 export {
+  fullAutoController,
   runFullAuto,
-  getFullAutoStatus,
   pauseFullAuto,
   resumeFullAuto,
   stopFullAuto,
+  getProgress,
   subscribeToProgress,
-  unsubscribeFromProgress,
+  scanSimCards,
+  calculateRegistrationPlan,
+  startAllWarming,
+  rankSchemesForUse,
+  applyTopSchemes,
+  getSimCards,
+  getRegistrationQueue,
+  getStatistics,
+  checkAdbStatus,
+  type SimCard,
   type FullAutoProgress,
-  type FullAutoStatus
+  type FullAutoConfig
 } from './full-auto-controller';
 
 // Database Seeder
@@ -237,5 +261,6 @@ export {
   seedScheme,
   updateSchemeStats,
   exportSchemesToJson,
-  importSchemesFromJson
+  importSchemesFromJson,
+  type SeedingStatus
 } from './seed-schemes';
