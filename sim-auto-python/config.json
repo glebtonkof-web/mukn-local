@@ -1,0 +1,25 @@
+{
+  "headless": false,
+  "proxy": {
+    "enabled": false,
+    "server": "",
+    "username": "",
+    "password": ""
+  },
+  "registration": {
+    "platforms": [],
+    "max_accounts_per_sim": 3,
+    "delay_between_services": [180, 360],
+    "retry_attempts": 3
+  },
+  "warming": {
+    "enabled": true,
+    "auto_start": true,
+    "risk_tolerance": "medium"
+  },
+  "monetization": {
+    "enabled": true,
+    "auto_select": true,
+    "min_warming_days": 14
+  }
+}

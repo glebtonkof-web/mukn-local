@@ -1,0 +1,15 @@
+# SIM Auto-Registration PRO
+# Requirements
+
+# Browser Automation
+playwright>=1.40.0
+
+# Async
+asyncio-compat>=0.1.0
+
+# Optional: Proxy support
+# pysocks>=1.7.1
+
+# Development
+# pytest>=7.0.0
+# black>=23.0.0
