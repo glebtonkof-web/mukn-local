@@ -71,14 +71,22 @@ export async function executeAdbCommand(
  */
 function executeCommandOnce(command: string[], timeout: number): Promise<string> {
   return new Promise((resolve, reject) => {
-    const adbPath = process.env.ADB_PATH || DEFAULT_CONFIG.adb.path;
+    // Get ADB path - use explicit variable to avoid bundler issues
+    const envPath = typeof process !== 'undefined' && process.env ? process.env.ADB_PATH : undefined;
+    const adbPath = envPath || DEFAULT_CONFIG.adb.path;
     const fullCommand = [adbPath, ...command];
     
     logger.debug('Executing ADB command', { command: fullCommand.join(' ') });
     
+    // Create clean environment object for spawn
+    const spawnEnv: Record<string, string> = {};
+    if (typeof process !== 'undefined' && process.env) {
+      Object.assign(spawnEnv, process.env);
+    }
+    
     const childProcess = spawn(fullCommand[0], fullCommand.slice(1), {
       shell: false,
-      env: process.env
+      env: spawnEnv
     });
 
     let stdout = '';
@@ -743,7 +751,9 @@ export async function startSmsListenerRealtime(
     return { success: false, error: 'Listener already active for this device' };
   }
   
-  const adbPath = process.env.ADB_PATH || DEFAULT_CONFIG.adb.path;
+  // Get ADB path safely
+  const envPath = typeof process !== 'undefined' && process.env ? process.env.ADB_PATH : undefined;
+  const adbPath = envPath || DEFAULT_CONFIG.adb.path;
   
   try {
     const childProcess = spawn(adbPath, [
@@ -907,13 +917,15 @@ export function getActiveListeners(): string[] {
 }
 
 // Clean up all listeners on process exit
-process.on('SIGINT', () => {
-  for (const [deviceId, listenerProcess] of activeListeners) {
-    try {
-      listenerProcess.kill('SIGTERM');
-      logger.info('Cleaned up SMS listener', { deviceId });
-    } catch (e) {
-      // Ignore errors during cleanup
+if (typeof process !== 'undefined' && process.on) {
+  process.on('SIGINT', () => {
+    for (const [deviceId, listenerProcess] of activeListeners) {
+      try {
+        listenerProcess.kill('SIGTERM');
+        logger.info('Cleaned up SMS listener', { deviceId });
+      } catch (e) {
+        // Ignore errors during cleanup
+      }
     }
-  }
-});
+  });
+}
