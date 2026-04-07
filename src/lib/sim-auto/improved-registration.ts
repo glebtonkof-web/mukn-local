@@ -498,60 +498,69 @@ async function launchStealthBrowser(platform: string): Promise<{
  * Navigate to registration page
  */
 async function navigateToRegistration(page: Page, config: typeof PLATFORM_CONFIGS.telegram): Promise<boolean> {
-  try {
-    // First try main URL with extended timeout
-    logger.info(`[${config.name}] Navigating to ${config.url}...`)
-    await page.goto(config.url, {
-      waitUntil: 'load', // Simpler wait condition
-      timeout: 60000 // Increased timeout
-    })
-    
-    // Wait a bit for dynamic content
-    await delay(3000)
-    
-    // Check if page loaded
-    const title = await page.title()
-    logger.debug(`Page loaded: ${title}`)
-    
-    // Check for Cloudflare
-    const content = await page.content()
-    if (content.includes('Cloudflare') && content.includes('challenge')) {
-      logger.info('Cloudflare challenge detected, waiting...')
-      await delay(15000)
-      
-      // Try alternative URL if available
-      if (config.alternativeUrl) {
-        logger.info(`Trying alternative URL: ${config.alternativeUrl}`)
-        await page.goto(config.alternativeUrl, {
-          waitUntil: 'load',
-          timeout: 60000
-        })
-        await delay(3000)
-      }
-    }
-    
-    return true
-    
-  } catch (error) {
-    logger.error(`Navigation failed: ${error}`)
-    
-    // Try alternative URL
-    if (config.alternativeUrl) {
-      try {
-        logger.info(`Retrying with alternative URL: ${config.alternativeUrl}`)
-        await page.goto(config.alternativeUrl, {
-          waitUntil: 'load',
-          timeout: 60000
-        })
-        await delay(3000)
-        return true
-      } catch {
-        return false
-      }
-    }
-    
-    return false
+  const urls = [config.url]
+  if (config.alternativeUrl) {
+    urls.push(config.alternativeUrl)
   }
+  
+  for (const url of urls) {
+    for (const waitStrategy of ['domcontentloaded', 'load', 'commit']) {
+      try {
+        logger.info(`[${config.name}] Navigating to ${url} (wait: ${waitStrategy})...`)
+        
+        // Set default timeout for this page
+        page.setDefaultTimeout(90000)
+        page.setDefaultNavigationTimeout(90000)
+        
+        const response = await page.goto(url, {
+          waitUntil: waitStrategy as 'domcontentloaded' | 'load' | 'commit',
+          timeout: 90000
+        })
+        
+        // Check response
+        if (response && response.ok()) {
+          logger.info(`[${config.name}] Page loaded successfully: ${response.status()}`)
+        } else if (response) {
+          logger.warn(`[${config.name}] Page loaded with status: ${response.status()}`)
+        }
+        
+        // Wait for initial content
+        await delay(2000)
+        
+        // Check if page loaded
+        const title = await page.title()
+        logger.debug(`Page title: ${title}`)
+        
+        // Check for Cloudflare
+        const content = await page.content()
+        if (content.includes('Cloudflare') && content.includes('challenge')) {
+          logger.info('Cloudflare challenge detected, waiting...')
+          await delay(10000)
+          
+          // Check if challenge resolved
+          const newContent = await page.content()
+          if (!newContent.includes('Cloudflare') || !newContent.includes('challenge')) {
+            logger.info('Cloudflare challenge passed')
+          }
+        }
+        
+        return true
+        
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+        logger.warn(`Navigation to ${url} with ${waitStrategy} failed: ${errorMsg}`)
+        
+        // If this was the last strategy for this URL, try next URL
+        if (waitStrategy === 'commit') {
+          continue
+        }
+      }
+    }
+  }
+  
+  // All attempts failed
+  logger.error('All navigation attempts failed')
+  return false
 }
 
 /**

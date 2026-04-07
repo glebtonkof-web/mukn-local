@@ -4007,9 +4007,13 @@ model SimCardDetected {
   phoneNumber     String?
   operator        String?
   country         String                   @default("RU")
+  mcc             String?
+  mnc             String?
+  iccid           String?
   imei            String?
   isActive        Boolean                  @default(true)
-  lastScannedAt   DateTime                 @default(now())
+  lastChecked     DateTime                 @default(now())
+  detectedAt      DateTime                 @default(now())
   createdAt       DateTime                 @default(now())
   updatedAt       DateTime                 @default(now())
   SimCardAccount  SimCardAccount[]

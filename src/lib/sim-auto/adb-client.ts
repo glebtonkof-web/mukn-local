@@ -703,7 +703,13 @@ function parseSmsContent(output: string, deviceId: string): SmsMessage[] {
           message.sender = value.replace(/['"]/g, '');
           break;
         case 'body':
-          message.body = decodeURIComponent(value.replace(/['"]/g, '').replace(/\+/g, ' '));
+          try {
+            // Try to decode URI-encoded text
+            message.body = decodeURIComponent(value.replace(/['"]/g, '').replace(/\+/g, ' '));
+          } catch {
+            // If decoding fails, use raw value with basic cleanup
+            message.body = value.replace(/['"]/g, '').replace(/\+/g, ' ');
+          }
           break;
         case 'date':
           const timestamp = parseInt(value);

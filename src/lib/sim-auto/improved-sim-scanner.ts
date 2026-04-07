@@ -442,7 +442,9 @@ async function storeSimCardInDb(simCard: DetectedSimCard): Promise<void> {
         phoneNumber: simCard.phoneNumber,
         operator: simCard.operator,
         country: simCard.country,
-        iccid: simCard.iccid,
+        mcc: simCard.mcc || null,
+        mnc: simCard.mnc || null,
+        iccid: simCard.iccid || null,
         isActive: simCard.isActive,
         detectedAt: new Date(),
         lastChecked: new Date()
@@ -450,6 +452,9 @@ async function storeSimCardInDb(simCard: DetectedSimCard): Promise<void> {
       update: {
         phoneNumber: simCard.phoneNumber,
         operator: simCard.operator,
+        mcc: simCard.mcc || null,
+        mnc: simCard.mnc || null,
+        iccid: simCard.iccid || null,
         lastChecked: new Date(),
         isActive: true
       }
