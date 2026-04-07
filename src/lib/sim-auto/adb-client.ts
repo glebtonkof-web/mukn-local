@@ -378,17 +378,140 @@ export async function executeCommand(
 export async function readSimSlots(deviceId: string): Promise<SimCardSlot[]> {
   const slots: SimCardSlot[] = [];
   
-  // Method 1: Try using service call (requires root)
-  const serviceResult = await executeCommand(deviceId, 
-    'su -c "service call phone 27"'
+  logger.info('Reading SIM slots for device', { deviceId });
+  
+  // Method 1: Use content provider (most reliable for multi-SIM)
+  const contentResult = await executeCommand(deviceId,
+    'content query --uri content://telephony/siminfo --projection _id:sim_id:slot_index:icc_id:number:carrier_name:mcc:mnc'
   );
   
-  if (serviceResult.success && serviceResult.output.includes('parcel')) {
-    // Parse service call output for SIM info
-    // This is device-specific and complex
+  if (contentResult.success && contentResult.output.trim()) {
+    logger.debug('Content provider output', { output: contentResult.output });
+    const simInfo = parseSimInfoContent(contentResult.output);
+    
+    for (const info of simInfo) {
+      slots.push(info);
+      logger.info('Found SIM from content provider', { 
+        slotIndex: info.slotIndex, 
+        phoneNumber: info.phoneNumber,
+        iccid: info.iccid 
+      });
+    }
   }
   
-  // Method 2: Use telephony commands (works on most devices)
+  // Method 2: Check each slot individually using getprop
+  for (let slotIndex = 0; slotIndex < 2; slotIndex++) {
+    // Skip if already found from content provider
+    if (slots.find(s => s.slotIndex === slotIndex && s.isActive)) {
+      continue;
+    }
+    
+    // Check slot state
+    const stateResult = await executeCommand(deviceId,
+      `getprop gsm.sim.state.${slotIndex}`
+    );
+    
+    const state = stateResult.success ? stateResult.output.trim() : '';
+    const isActive = state === 'READY' || state === 'IMSI' || state === 'LOADED';
+    
+    if (isActive || !slots.find(s => s.slotIndex === slotIndex)) {
+      const slot: SimCardSlot = {
+        slotIndex,
+        isActive
+      };
+      
+      if (isActive) {
+        // Get phone number for this slot
+        const line1NumberResult = await executeCommand(deviceId,
+          `getprop gsm.line1.number.${slotIndex}`
+        );
+        
+        if (line1NumberResult.success && line1NumberResult.output.trim() && 
+            line1NumberResult.output.trim() !== 'unknown') {
+          slot.phoneNumber = formatPhoneNumber(line1NumberResult.output.trim());
+        }
+        
+        // Alternative: Try service call
+        if (!slot.phoneNumber) {
+          const serviceResult = await executeCommand(deviceId,
+            `service call iphonesubinfo 5 s16 ${slotIndex}`
+          );
+          
+          if (serviceResult.success && serviceResult.output.includes('(')) {
+            const phone = parseServiceCallString(serviceResult.output);
+            if (phone) {
+              slot.phoneNumber = formatPhoneNumber(phone);
+            }
+          }
+        }
+        
+        // Get ICCID
+        const iccidResult = await executeCommand(deviceId,
+          `getprop persist.radio.iccid.sim${slotIndex + 1}`
+        );
+        
+        if (iccidResult.success && iccidResult.output.trim()) {
+          slot.iccid = iccidResult.output.trim();
+        }
+        
+        // Alternative ICCID methods
+        if (!slot.iccid) {
+          const iccidResult2 = await executeCommand(deviceId,
+            `getprop ril.iccid.sim${slotIndex + 1}`
+          );
+          
+          if (iccidResult2.success && iccidResult2.output.trim()) {
+            slot.iccid = iccidResult2.output.trim();
+          }
+        }
+        
+        // Get operator
+        const operatorResult = await executeCommand(deviceId,
+          `getprop gsm.operator.numeric`
+        );
+        
+        if (operatorResult.success && operatorResult.output.trim()) {
+          slot.operator = operatorResult.output.trim();
+        }
+        
+        // Alternative operator
+        if (!slot.operator) {
+          const operatorResult2 = await executeCommand(deviceId,
+            `getprop gsm.operator.alpha.${slotIndex}`
+          );
+          
+          if (operatorResult2.success && operatorResult2.output.trim()) {
+            slot.operator = operatorResult2.output.trim();
+          }
+        }
+        
+        // Get network type
+        const networkResult = await executeCommand(deviceId,
+          `getprop gsm.network.type`
+        );
+        
+        if (networkResult.success && networkResult.output.trim()) {
+          slot.networkType = networkResult.output.trim();
+        }
+      }
+      
+      // Merge with existing slot info or add new
+      const existing = slots.findIndex(s => s.slotIndex === slotIndex);
+      if (existing >= 0) {
+        slots[existing] = { ...slots[existing], ...slot };
+      } else {
+        slots.push(slot);
+      }
+      
+      logger.info('Found SIM from getprop', { 
+        slotIndex, 
+        isActive,
+        phoneNumber: slot.phoneNumber 
+      });
+    }
+  }
+  
+  // Method 3: Check combined sim state (fallback)
   const simStateResult = await executeCommand(deviceId, 
     'getprop gsm.sim.state'
   );
@@ -397,69 +520,68 @@ export async function readSimSlots(deviceId: string): Promise<SimCardSlot[]> {
     const states = simStateResult.output.split(',');
     
     for (let i = 0; i < states.length; i++) {
-      const slot: SimCardSlot = {
-        slotIndex: i,
-        isActive: states[i]?.trim() === 'READY'
-      };
-      
-      if (slot.isActive) {
-        // Get phone number for this slot
-        const phoneNumberResult = await executeCommand(deviceId,
-          `service call iphonesubinfo ${i + 1}`
-        );
+      const existingSlot = slots.find(s => s.slotIndex === i);
+      if (!existingSlot) {
+        const isActive = states[i]?.trim() === 'READY' || 
+                        states[i]?.trim() === 'IMSI' ||
+                        states[i]?.trim() === 'LOADED';
         
-        // Try alternative method to get phone number
-        const line1NumberResult = await executeCommand(deviceId,
-          `settings get global line1_number_${i}`
-        );
+        slots.push({
+          slotIndex: i,
+          isActive
+        });
         
-        if (line1NumberResult.success && line1NumberResult.output.trim()) {
-          slot.phoneNumber = formatPhoneNumber(line1NumberResult.output.trim());
-        }
-        
-        // Get operator
-        const operatorResult = await executeCommand(deviceId,
-          `getprop gsm.operator.numeric.${i}`
-        );
-        
-        if (operatorResult.success && operatorResult.output.trim()) {
-          slot.operator = operatorResult.output.trim();
-        }
-        
-        // Get network type
-        const networkResult = await executeCommand(deviceId,
-          `getprop gsm.network.type.${i}`
-        );
-        
-        if (networkResult.success && networkResult.output.trim()) {
-          slot.networkType = networkResult.output.trim();
-        }
+        logger.info('Found SIM from combined state', { 
+          slotIndex: i, 
+          state: states[i]?.trim(),
+          isActive 
+        });
       }
-      
-      slots.push(slot);
     }
   }
   
-  // Method 3: Use content provider (may require permissions)
-  if (slots.length === 0 || slots.every(s => !s.phoneNumber)) {
-    const contentResult = await executeCommand(deviceId,
-      'content query --uri content://telephony/siminfo'
-    );
-    
-    if (contentResult.success) {
-      const simInfo = parseSimInfoContent(contentResult.output);
-      for (const info of simInfo) {
-        const existing = slots.find(s => s.slotIndex === info.slotIndex);
-        if (existing) {
-          Object.assign(existing, info);
-        } else {
-          slots.push(info);
-        }
-      }
-    }
-  }
+  // Sort slots by index
+  slots.sort((a, b) => a.slotIndex - b.slotIndex);
+  
+  // Filter only active SIMs
+  const activeSlots = slots.filter(s => s.isActive);
+  
+  logger.info('SIM scan complete', { 
+    totalSlots: slots.length, 
+    activeSlots: activeSlots.length,
+    slots: slots.map(s => ({ index: s.slotIndex, active: s.isActive, phone: s.phoneNumber }))
+  });
   
   return slots;
+}
+
+/**
+ * Parse service call string output (for phone number extraction)
+ */
+function parseServiceCallString(output: string): string | null {
+  // Output format: Result: Parcel(00000000 0000000n '....phone..')
+  // or: Result: Parcel(00000000 "phone_number")
+  try {
+    // Try to extract string between quotes
+    const match = output.match(/"([^"]+)"/);
+    if (match) {
+      return match[1];
+    }
+    
+    // Try to extract from parcel format
+    const parcelMatch = output.match(/'([^']+)'/);
+    if (parcelMatch) {
+      // Extract phone number from the string
+      const phone = parcelMatch[1].replace(/[^\d+]/g, '');
+      if (phone.length >= 10) {
+        return phone;
+      }
+    }
+    
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -470,44 +592,73 @@ function parseSimInfoContent(output: string): SimCardSlot[] {
   const lines = output.split('\n');
   
   for (const line of lines) {
-    const slot: Partial<SimCardSlot> = {};
+    if (!line.trim()) continue;
     
-    // Parse key=value pairs
-    const matches = line.matchAll(/(\w+)=([^\s,]+)/g);
+    const slot: Partial<SimCardSlot> = { isActive: true };
+    
+    // Parse key=value pairs with better regex for quoted values
+    const matches = line.matchAll(/(\w+)=([^\s,]+(?:\s+[^\s,=]+)*?)(?=\s+\w+=|$)/g);
+    
     for (const match of matches) {
       const [, key, value] = match;
+      const cleanValue = value.replace(/^["']|["']$/g, '');
       
-      switch (key) {
+      switch (key.toLowerCase()) {
         case 'slot_index':
         case 'slot':
-          slot.slotIndex = parseInt(value);
+        case 'sim_id':
+          slot.slotIndex = parseInt(cleanValue) || 0;
           break;
         case 'number':
-          slot.phoneNumber = formatPhoneNumber(value);
+          if (cleanValue && cleanValue !== 'null' && cleanValue !== 'unknown') {
+            slot.phoneNumber = formatPhoneNumber(cleanValue);
+          }
           break;
         case 'icc_id':
-        case 'iccId':
-          slot.iccid = value;
+        case 'iccid':
+          slot.iccid = cleanValue;
           break;
         case 'imsi':
-          slot.imsi = value;
+          slot.imsi = cleanValue;
           break;
         case 'mcc':
+          if (slot.operator) {
+            slot.operator = cleanValue + (slot.operator.length > 3 ? '' : slot.operator);
+          } else {
+            slot.operator = cleanValue;
+          }
+          break;
         case 'mnc':
           if (slot.operator) {
-            slot.operator += value;
+            slot.operator = slot.operator.length <= 3 ? slot.operator + cleanValue : slot.operator;
           } else {
-            slot.operator = value;
+            slot.operator = cleanValue;
+          }
+          break;
+        case 'carrier_name':
+        case 'carrier':
+          if (cleanValue && cleanValue !== 'null') {
+            slot.operator = cleanValue;
           }
           break;
       }
     }
     
+    // Only add if we found a valid slot index
     if (slot.slotIndex !== undefined) {
-      slot.isActive = true;
-      slots.push(slot as SimCardSlot);
+      // Check if slot already exists
+      const existingIndex = slots.findIndex(s => s.slotIndex === slot.slotIndex);
+      if (existingIndex >= 0) {
+        // Merge with existing
+        slots[existingIndex] = { ...slots[existingIndex], ...slot } as SimCardSlot;
+      } else {
+        slots.push(slot as SimCardSlot);
+      }
     }
   }
+  
+  // Sort by slot index
+  slots.sort((a, b) => a.slotIndex - b.slotIndex);
   
   return slots;
 }
