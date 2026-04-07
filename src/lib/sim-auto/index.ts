@@ -81,6 +81,13 @@ export {
   type RegistrationResult
 } from './playwright-automation';
 
+// Registration Automation (New)
+export {
+  RegistrationAutomation,
+  runRegistration,
+  type PlatformConfig
+} from './registration-automation';
+
 // Registration Manager
 export {
   registrationManager,

@@ -62,18 +62,18 @@ export const PLATFORM_LIMITS: Record<Platform, number> = {
   reddit: 1
 }
 
-// Platform registration URLs
+// Platform registration URLs - Mobile versions for phone registration
 export const PLATFORM_REGISTRATION_URLS: Record<Platform, string> = {
-  telegram: 'https://web.telegram.org/',
-  instagram: 'https://www.instagram.com/accounts/emailsignup/',
-  tiktok: 'https://www.tiktok.com/signup',
-  twitter: 'https://twitter.com/i/flow/signup',
-  youtube: 'https://accounts.google.com/signup',
-  whatsapp: 'https://web.whatsapp.com/',
-  viber: 'https://www.viber.com/en/',
-  signal: 'https://signal.org/install',
-  discord: 'https://discord.com/register',
-  reddit: 'https://www.reddit.com/register/'
+  telegram: 'https://web.telegram.org/a/',  // Telegram Web A supports phone login
+  instagram: 'https://www.instagram.com/accounts/signup/phone',  // Phone signup page
+  tiktok: 'https://www.tiktok.com/signup/phone',  // Phone signup
+  twitter: 'https://twitter.com/i/flow/signup',  // Twitter signup flow
+  youtube: 'https://accounts.google.com/signup/v2/webcreateaccount?service=youtube',  // Google account for YouTube
+  whatsapp: 'https://web.whatsapp.com/',  // WhatsApp Web (requires phone link)
+  viber: 'https://www.viber.com/en/download/',  // Viber download page
+  signal: 'https://signal.org/install',  // Signal install page
+  discord: 'https://discord.com/register',  // Discord registration
+  reddit: 'https://www.reddit.com/register/'  // Reddit registration
 }
 
 // Platform session validation endpoints

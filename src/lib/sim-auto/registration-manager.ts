@@ -6,6 +6,7 @@
 import { db } from '@/lib/db'
 import { generateSecureToken } from '@/lib/crypto'
 import { PlaywrightAutomation, type StealthConfig, type ProfileData, type RegistrationResult } from './playwright-automation'
+import { RegistrationAutomation, runRegistration } from './registration-automation'
 import { sessionManager, type Platform, PLATFORM_LIMITS } from './session-manager'
 import { startSmsListener, stopSmsListener, waitForCode, type VerificationResult } from './sms-reader'
 import { readSms, type SmsMessage } from './adb-client'
@@ -339,14 +340,13 @@ export class RegistrationManager {
   }
 
   /**
-   * Execute registration with retry logic
+   * Execute registration with retry logic using new automation
    */
   private async executeRegistration(
     job: RegistrationJob,
     proxy?: StealthConfig['proxy']
   ): Promise<RegistrationResult> {
     const config = PLATFORM_CONFIGS[job.platform]
-    let automation: PlaywrightAutomation | null = null
     let deviceId: string | null = null
 
     // Extract device ID from simCardId (format: deviceId_slotIndex)
@@ -363,52 +363,27 @@ export class RegistrationManager {
         await this.updateRegistrationJob(job)
 
         console.log(`[RegistrationManager] Starting ${job.platform} registration attempt ${attempt + 1}/${job.maxRetries + 1}`)
+        console.log(`[RegistrationManager] Phone: ${job.phoneNumber}, Device: ${deviceId}`)
 
-        // Launch browser with stealth
-        automation = new PlaywrightAutomation(job.platform, { proxy })
-        
-        console.log(`[RegistrationManager] Launching browser for ${job.platform}...`)
-        await automation.launchBrowser()
-        
-        console.log(`[RegistrationManager] Navigating to ${job.platform} registration page...`)
-        await automation.navigateToRegistration()
-
-        // Fill phone number
-        await automation.fillPhoneNumber(job.phoneNumber)
-
-        // Generate profile data if not provided
+        // Generate profile data
         const profileData = job.profileData || await this.generateProfileData(job.platform)
 
-        // Wait for SMS verification
-        job.status = 'verifying'
-        await this.updateRegistrationJob(job)
-
-        console.log(`[RegistrationManager] Phone number filled, waiting for SMS verification...`)
-
-        // For platforms requiring SMS verification
-        if (config.requiresPhoneVerification) {
-          // Wait for SMS code from ADB device
-          const verificationResult = await this.waitForVerification(
-            job.id, 
-            config.verificationTimeout,
-            deviceId || undefined,
-            job.platform
-          )
-
-          if (!verificationResult.success) {
-            throw new Error(verificationResult.error || 'Verification timeout')
+        // Use new registration automation
+        const result = await runRegistration({
+          platform: job.platform,
+          phoneNumber: job.phoneNumber,
+          deviceId: deviceId || '',
+          profile: {
+            username: profileData.username,
+            password: generateSecureToken(12),
+            email: profileData.email,
+            firstName: profileData.firstName,
+            lastName: profileData.lastName
           }
+        })
 
-          if (verificationResult.code) {
-            console.log(`[RegistrationManager] Entering verification code: ${verificationResult.code}`)
-            await automation.handleSmsVerification(verificationResult.code)
-          }
-        }
-
-        // Complete profile
-        if (config.requiresUsername || config.requiresPassword) {
-          await automation.completeProfile(profileData)
-          job.username = profileData.username
+        if (!result.success) {
+          throw new Error(result.error || 'Registration failed')
         }
 
         // Create account record
@@ -421,15 +396,12 @@ export class RegistrationManager {
             platform: job.platform,
             phoneNumber: job.phoneNumber,
             username: profileData.username,
-            password: profileData ? await this.encryptPassword(generateSecureToken(12)) : null,
+            password: await this.encryptPassword(generateSecureToken(12)),
             status: 'registered',
             createdAt: new Date(),
             updatedAt: new Date()
           }
         })
-
-        // Save session
-        const session = await automation.saveSession(account.id)
 
         // Update job as completed
         job.status = 'completed'
@@ -443,9 +415,9 @@ export class RegistrationManager {
           success: true,
           accountId: account.id,
           username: profileData.username,
-          session,
           retryCount: attempt
         }
+        
       } catch (error) {
         console.error(`[RegistrationManager] Registration attempt ${attempt + 1} failed:`, error)
 
@@ -465,10 +437,6 @@ export class RegistrationManager {
 
         // Wait before retry
         await this.delay(5000 * (attempt + 1))
-      } finally {
-        if (automation) {
-          await automation.close()
-        }
       }
     }
 
