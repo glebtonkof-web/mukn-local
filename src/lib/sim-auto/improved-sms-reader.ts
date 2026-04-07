@@ -388,7 +388,12 @@ function parseContentProviderOutput(output: string, deviceId: string): SmsMessag
           message.sender = cleanValue
           break
         case 'body':
-          message.body = decodeURIComponent(cleanValue.replace(/\+/g, ' '))
+          try {
+            message.body = decodeURIComponent(cleanValue.replace(/\+/g, ' '))
+          } catch {
+            // If decode fails, use as-is
+            message.body = cleanValue.replace(/\+/g, ' ')
+          }
           break
         case 'date':
           const ts = parseInt(cleanValue)

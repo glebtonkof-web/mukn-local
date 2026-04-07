@@ -442,8 +442,6 @@ async function storeSimCardInDb(simCard: DetectedSimCard): Promise<void> {
         phoneNumber: simCard.phoneNumber,
         operator: simCard.operator,
         country: simCard.country,
-        mcc: simCard.mcc,
-        mnc: simCard.mnc,
         iccid: simCard.iccid,
         isActive: simCard.isActive,
         detectedAt: new Date(),

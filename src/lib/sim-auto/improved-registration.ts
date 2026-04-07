@@ -499,14 +499,15 @@ async function launchStealthBrowser(platform: string): Promise<{
  */
 async function navigateToRegistration(page: Page, config: typeof PLATFORM_CONFIGS.telegram): Promise<boolean> {
   try {
-    // First try main URL
+    // First try main URL with extended timeout
+    logger.info(`[${config.name}] Navigating to ${config.url}...`)
     await page.goto(config.url, {
-      waitUntil: 'domcontentloaded',
-      timeout: 30000
+      waitUntil: 'load', // Simpler wait condition
+      timeout: 60000 // Increased timeout
     })
     
-    // Wait for network to settle
-    await page.waitForLoadState('networkidle', { timeout: 30000 })
+    // Wait a bit for dynamic content
+    await delay(3000)
     
     // Check if page loaded
     const title = await page.title()
@@ -516,15 +517,16 @@ async function navigateToRegistration(page: Page, config: typeof PLATFORM_CONFIG
     const content = await page.content()
     if (content.includes('Cloudflare') && content.includes('challenge')) {
       logger.info('Cloudflare challenge detected, waiting...')
-      await delay(10000)
+      await delay(15000)
       
       // Try alternative URL if available
       if (config.alternativeUrl) {
+        logger.info(`Trying alternative URL: ${config.alternativeUrl}`)
         await page.goto(config.alternativeUrl, {
-          waitUntil: 'domcontentloaded',
-          timeout: 30000
+          waitUntil: 'load',
+          timeout: 60000
         })
-        await page.waitForLoadState('networkidle', { timeout: 30000 })
+        await delay(3000)
       }
     }
     
@@ -536,11 +538,12 @@ async function navigateToRegistration(page: Page, config: typeof PLATFORM_CONFIG
     // Try alternative URL
     if (config.alternativeUrl) {
       try {
+        logger.info(`Retrying with alternative URL: ${config.alternativeUrl}`)
         await page.goto(config.alternativeUrl, {
-          waitUntil: 'domcontentloaded',
-          timeout: 30000
+          waitUntil: 'load',
+          timeout: 60000
         })
-        await page.waitForLoadState('networkidle', { timeout: 30000 })
+        await delay(3000)
         return true
       } catch {
         return false
