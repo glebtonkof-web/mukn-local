@@ -7,7 +7,7 @@ import { chromium, Browser, BrowserContext, Page } from 'playwright'
 import { EventEmitter } from 'events'
 import { logger } from '@/lib/logger'
 import { startSmsMonitoring, waitForVerificationCode, readRecentSms } from './improved-sms-reader'
-import { getBestProxyForPlatform, getWorkingProxies, type ProxyInfo } from './proxy-manager'
+import { getBestProxyForPlatform, getWorkingProxies, type ProxyInfo, getProxyManager } from './proxy-manager'
 import type { Platform } from './session-manager'
 
 // Registration events
@@ -206,6 +206,27 @@ const USER_AGENTS = [
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 ]
 
+// Interface for platform config
+interface PlatformConfig {
+  url: string
+  alternativeUrl?: string
+  name: string
+  requiresPhone: boolean
+  requiresSms: boolean
+  maxRetries: number
+  timeout: number
+  selectors: {
+    phoneInput?: string[]
+    codeInput: string[]
+    submitBtn: string[]
+    successIndicator: string[]
+    errorIndicator: string[]
+    emailInput?: string[]
+    usernameInput?: string[]
+    passwordInput?: string[]
+  }
+}
+
 export interface RegistrationParams {
   platform: Platform
   phoneNumber: string
@@ -298,23 +319,35 @@ export async function runRegistration(params: RegistrationParams): Promise<Regis
     }
     
     // Stage 3: Enter phone number (if required)
+    // ВАЖНО: Ввод номера телефона делаем БЕЗ прокси для безопасности
     if (config.requiresPhone && phoneNumber) {
       registrationEvents.emit('registration_progress', { platform, stage: 'entering_phone' })
-      logger.info(`[${platform}] Entering phone number...`)
+      logger.info(`[${platform}] Entering phone number (secure mode - no proxy for sensitive data)...`)
       
-      const phoneEntered = await enterPhoneNumber(page, config, phoneNumber)
+      // Создаем безопасную страницу без прокси для ввода критических данных
+      const securePage = await createSecurePage(browser, usedProxy)
+      
+      // Копируем cookies и localStorage с оригинальной страницы
+      await copyPageData(page, securePage, config.url)
+      
+      const phoneEntered = await enterPhoneNumber(securePage, config, phoneNumber)
       if (!phoneEntered) {
+        await securePage.close().catch(() => {})
         throw new Error('Failed to enter phone number')
       }
       
       // Click submit
-      await clickSubmit(page, config)
+      await clickSubmit(securePage, config)
       
       // Wait a bit for SMS to be sent
       await delay(2000)
+      
+      // Закрываем безопасную страницу и продолжаем на основной
+      await securePage.close().catch(() => {})
     }
     
     // Stage 4: Wait for and enter SMS code
+    // ВАЖНО: Ввод SMS кода делаем БЕЗ прокси - это критически важные данные
     if (config.requiresSms) {
       registrationEvents.emit('registration_progress', { platform, stage: 'waiting_sms' })
       logger.info(`[${platform}] Waiting for SMS verification code...`)
@@ -329,17 +362,30 @@ export async function runRegistration(params: RegistrationParams): Promise<Regis
         throw new Error('SMS verification code not received')
       }
       
-      logger.info(`[${platform}] Received code: ${code.code}`)
+      // Логируем получение кода (скрывая часть)
+      const maskedCode = code.code.substring(0, 2) + '****'
+      logger.info(`[${platform}] Received SMS code: ${maskedCode}`)
       
-      // Enter the code
+      // Enter the code в безопасном режиме (без прокси)
       registrationEvents.emit('registration_progress', { platform, stage: 'entering_code' })
-      const codeEntered = await enterVerificationCode(page, config, code.code)
+      logger.info(`[${platform}] Entering code in SECURE mode (bypassing proxy for sensitive data)...`)
+      
+      // Создаем безопасную страницу без прокси
+      const securePage = await createSecurePage(browser, usedProxy)
+      await copyPageData(page, securePage, config.url)
+      
+      const codeEntered = await enterVerificationCode(securePage, config, code.code)
       if (!codeEntered) {
+        await securePage.close().catch(() => {})
         throw new Error('Failed to enter verification code')
       }
       
       // Click submit
-      await clickSubmit(page, config)
+      await clickSubmit(securePage, config)
+      
+      // Синхронизируем данные обратно
+      await copyPageData(securePage, page, config.url)
+      await securePage.close().catch(() => {})
     }
     
     // Stage 5: Complete profile (if provided)
@@ -426,7 +472,7 @@ async function launchStealthBrowser(platform: string, proxy?: ProxyInfo | null):
       activeProxy = await getBestProxyForPlatform(platform)
       
       if (activeProxy) {
-        logger.info(`[${platform}] Using proxy: ${activeProxy.host}:${activeProxy.port} (${activeProxy.type})`)
+        logger.info(`[${platform}] Using proxy: ${activeProxy.host}:${activeProxy.port} (${activeProxy.protocol})`)
       } else {
         logger.warn(`[${platform}] No working proxy found, trying direct connection`)
       }
@@ -461,7 +507,7 @@ async function launchStealthBrowser(platform: string, proxy?: ProxyInfo | null):
   // Add proxy if available
   if (activeProxy) {
     launchOptions.proxy = {
-      server: `${activeProxy.type}://${activeProxy.host}:${activeProxy.port}`
+      server: `${activeProxy.protocol}://${activeProxy.host}:${activeProxy.port}`
     }
   }
   
@@ -509,7 +555,6 @@ async function launchStealthBrowser(platform: string, proxy?: ProxyInfo | null):
     
     // Override permissions
     const originalQuery = window.navigator.permissions.query
-    // @ts-expect-error - permissions override
     window.navigator.permissions.query = (parameters: PermissionDescriptor) => (
       parameters.name === 'notifications' ?
         Promise.resolve({ state: 'granted' } as PermissionStatus) :
@@ -545,13 +590,13 @@ async function launchStealthBrowser(platform: string, proxy?: ProxyInfo | null):
   
   const page = await context.newPage()
   
-  return { browser, context, page, proxy: activeProxy }
+  return { browser, context, page, proxy: activeProxy ?? null }
 }
 
 /**
  * Navigate to registration page
  */
-async function navigateToRegistration(page: Page, config: typeof PLATFORM_CONFIGS.telegram): Promise<boolean> {
+async function navigateToRegistration(page: Page, config: PlatformConfig): Promise<boolean> {
   const urls = [config.url]
   if (config.alternativeUrl) {
     urls.push(config.alternativeUrl)
@@ -622,12 +667,18 @@ async function navigateToRegistration(page: Page, config: typeof PLATFORM_CONFIG
  */
 async function enterPhoneNumber(
   page: Page, 
-  config: typeof PLATFORM_CONFIGS.telegram, 
+  config: PlatformConfig, 
   phoneNumber: string
 ): Promise<boolean> {
   const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`
   
-  for (const selector of config.selectors.phoneInput) {
+  const phoneSelectors = config.selectors.phoneInput || []
+  if (phoneSelectors.length === 0) {
+    logger.error('No phone input selectors defined for this platform')
+    return false
+  }
+  
+  for (const selector of phoneSelectors) {
     try {
       const element = await page.waitForSelector(selector, { timeout: 5000, state: 'visible' })
       if (element) {
@@ -658,7 +709,7 @@ async function enterPhoneNumber(
  */
 async function enterVerificationCode(
   page: Page,
-  config: typeof PLATFORM_CONFIGS.telegram,
+  config: PlatformConfig,
   code: string
 ): Promise<boolean> {
   for (const selector of config.selectors.codeInput) {
@@ -687,7 +738,7 @@ async function enterVerificationCode(
 /**
  * Click submit button
  */
-async function clickSubmit(page: Page, config: typeof PLATFORM_CONFIGS.telegram): Promise<void> {
+async function clickSubmit(page: Page, config: PlatformConfig): Promise<void> {
   await delay(1000)
   
   for (const selector of config.selectors.submitBtn) {
@@ -713,7 +764,7 @@ async function clickSubmit(page: Page, config: typeof PLATFORM_CONFIGS.telegram)
  */
 async function completeProfile(
   page: Page,
-  config: typeof PLATFORM_CONFIGS.telegram,
+  config: PlatformConfig,
   profile: NonNullable<RegistrationParams['profile']>
 ): Promise<void> {
   // Implementation depends on platform
@@ -723,7 +774,7 @@ async function completeProfile(
 /**
  * Verify successful registration
  */
-async function verifySuccess(page: Page, config: typeof PLATFORM_CONFIGS.telegram): Promise<boolean> {
+async function verifySuccess(page: Page, config: PlatformConfig): Promise<boolean> {
   // Check success indicators
   for (const selector of config.selectors.successIndicator) {
     try {
@@ -787,6 +838,111 @@ async function checkForCaptcha(page: Page): Promise<boolean> {
  */
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/**
+ * Создать безопасную страницу БЕЗ прокси для критических данных
+ * 
+ * БЕЗОПАСНОСТЬ: Эта функция создает новую страницу без прокси
+ * для ввода критически важных данных (SMS коды, пароли, номера телефонов)
+ * 
+ * @param browser - Экземпляр браузера
+ * @param originalProxy - Оригинальный прокси (для логирования)
+ */
+async function createSecurePage(browser: Browser, originalProxy: ProxyInfo | null): Promise<Page> {
+  const userAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]
+  
+  // Создаем новый контекст БЕЗ прокси
+  const secureContext = await browser.newContext({
+    userAgent,
+    viewport: { width: 1280 + Math.floor(Math.random() * 200), height: 800 + Math.floor(Math.random() * 100) },
+    locale: 'ru-RU',
+    timezoneId: 'Europe/Moscow',
+    ignoreHTTPSErrors: false, // Строго проверяем SSL
+    // ВАЖНО: Никакого proxy - прямое соединение для критических данных
+    extraHTTPHeaders: {
+      'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    }
+  })
+  
+  // Логируем создание безопасной страницы
+  if (originalProxy) {
+    logger.info(`🔒 Создана БЕЗОПАСНАЯ страница (прокси отключен для критических данных)`)
+    logger.debug(`   Оригинальный прокси был: ${originalProxy.host}:${originalProxy.port}`)
+  }
+  
+  // Добавляем stealth скрипты
+  await secureContext.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false })
+    Object.defineProperty(navigator, 'languages', { get: () => ['ru-RU', 'ru', 'en'] })
+    // @ts-expect-error - chrome runtime override
+    window.chrome = { runtime: {} }
+  })
+  
+  return await secureContext.newPage()
+}
+
+/**
+ * Копировать данные сессии между страницами
+ * 
+ * Переносит cookies и localStorage для сохранения состояния авторизации
+ * при переключении между прокси и прямым соединением
+ */
+async function copyPageData(sourcePage: Page, targetPage: Page, url: string): Promise<void> {
+  try {
+    const context = sourcePage.context()
+    const targetContext = targetPage.context()
+    
+    // Получаем домен из URL
+    const urlObj = new URL(url)
+    const domain = urlObj.hostname
+    
+    // Копируем cookies
+    const cookies = await context.cookies()
+    const relevantCookies = cookies.filter(c => 
+      c.domain === domain || 
+      c.domain === '.' + domain ||
+      domain.endsWith(c.domain.replace('.', ''))
+    )
+    
+    if (relevantCookies.length > 0) {
+      await targetContext.addCookies(relevantCookies)
+      logger.debug(`📋 Скопировано ${relevantCookies.length} cookies`)
+    }
+    
+    // Копируем localStorage (если страница загружена)
+    try {
+      const localStorageData = await sourcePage.evaluate(() => {
+        const data: Record<string, string> = {}
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (key) {
+            data[key] = localStorage.getItem(key) || ''
+          }
+        }
+        return data
+      })
+      
+      if (Object.keys(localStorageData).length > 0) {
+        await targetPage.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
+        
+        await targetPage.evaluate((data) => {
+          for (const [key, value] of Object.entries(data)) {
+            localStorage.setItem(key, value)
+          }
+        }, localStorageData)
+        
+        logger.debug(`📋 Скопировано ${Object.keys(localStorageData).length} localStorage entries`)
+      }
+    } catch (e) {
+      logger.debug('localStorage copy skipped (page not loaded or restricted)')
+    }
+    
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    logger.warn(`Не удалось скопировать данные между страницами: ${errorMsg}`)
+  }
 }
 
 /**

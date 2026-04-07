@@ -271,3 +271,35 @@ export {
   importSchemesFromJson,
   type SeedingStatus
 } from './seed-schemes';
+
+// Proxy Manager (Security-First)
+export {
+  getProxyManager,
+  getBestProxyForPlatform,
+  getWorkingProxies,
+  initializeProxies,
+  type ProxyInfo,
+  type ProxyValidationResult,
+  type ProxyInfoWithType
+} from './proxy-manager';
+
+// Improved Registration (with security)
+export {
+  runRegistration as runSecureRegistration,
+  onRegistrationEvent,
+  type RegistrationParams,
+  type RegistrationResult as SecureRegistrationResult
+} from './improved-registration';
+
+// Improved SMS Reader
+export {
+  startSmsMonitoring,
+  waitForVerificationCode,
+  readRecentSms as readRecentSmsImproved
+} from './improved-sms-reader';
+
+// Improved SIM Scanner
+export {
+  detectAllSimCards as scanForSimCards,
+  type DetectedSimCard
+} from './improved-sim-scanner';
