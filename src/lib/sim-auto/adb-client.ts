@@ -76,7 +76,7 @@ function executeCommandOnce(command: string[], timeout: number): Promise<string>
     
     logger.debug('Executing ADB command', { command: fullCommand.join(' ') });
     
-    const process = spawn(fullCommand[0], fullCommand.slice(1), {
+    const childProcess = spawn(fullCommand[0], fullCommand.slice(1), {
       shell: false,
       env: process.env
     });
@@ -87,24 +87,24 @@ function executeCommandOnce(command: string[], timeout: number): Promise<string>
 
     // Set timeout
     timeoutId = setTimeout(() => {
-      process.kill();
+      childProcess.kill();
       reject(new Error(`Command timed out after ${timeout}ms`));
     }, timeout);
 
-    process.stdout.on('data', (data) => {
+    childProcess.stdout.on('data', (data) => {
       stdout += data.toString();
     });
 
-    process.stderr.on('data', (data) => {
+    childProcess.stderr.on('data', (data) => {
       stderr += data.toString();
     });
 
-    process.on('error', (err) => {
+    childProcess.on('error', (err) => {
       if (timeoutId) clearTimeout(timeoutId);
       reject(err);
     });
 
-    process.on('close', (code) => {
+    childProcess.on('close', (code) => {
       if (timeoutId) clearTimeout(timeoutId);
       
       if (code === 0) {
@@ -746,7 +746,7 @@ export async function startSmsListenerRealtime(
   const adbPath = process.env.ADB_PATH || DEFAULT_CONFIG.adb.path;
   
   try {
-    const process = spawn(adbPath, [
+    const childProcess = spawn(adbPath, [
       '-s', deviceId,
       'logcat',
       '-v', 'time',
@@ -758,7 +758,7 @@ export async function startSmsListenerRealtime(
 
     let buffer = '';
     
-    process.stdout.on('data', (data) => {
+    childProcess.stdout.on('data', (data) => {
       buffer += data.toString();
       
       // Try to parse SMS from logcat output
@@ -773,21 +773,21 @@ export async function startSmsListenerRealtime(
       }
     });
 
-    process.stderr.on('data', (data) => {
+    childProcess.stderr.on('data', (data) => {
       logger.error('SMS listener error', new Error(data.toString()));
     });
 
-    process.on('error', (error) => {
+    childProcess.on('error', (error) => {
       logger.error('SMS listener process error', error);
       activeListeners.delete(deviceId);
     });
 
-    process.on('close', (code) => {
+    childProcess.on('close', (code) => {
       logger.info('SMS listener closed', { deviceId, exitCode: code });
       activeListeners.delete(deviceId);
     });
 
-    activeListeners.set(deviceId, process);
+    activeListeners.set(deviceId, childProcess);
     
     return { success: true };
   } catch (error) {
@@ -802,14 +802,14 @@ export async function startSmsListenerRealtime(
  * Stop SMS listener
  */
 export async function stopSmsListenerRealtime(deviceId: string): Promise<boolean> {
-  const process = activeListeners.get(deviceId);
+  const listenerProcess = activeListeners.get(deviceId);
   
-  if (!process) {
+  if (!listenerProcess) {
     return false;
   }
   
   try {
-    process.kill('SIGTERM');
+    listenerProcess.kill('SIGTERM');
     activeListeners.delete(deviceId);
     return true;
   } catch (error) {
@@ -908,9 +908,9 @@ export function getActiveListeners(): string[] {
 
 // Clean up all listeners on process exit
 process.on('SIGINT', () => {
-  for (const [deviceId, process] of activeListeners) {
+  for (const [deviceId, listenerProcess] of activeListeners) {
     try {
-      process.kill('SIGTERM');
+      listenerProcess.kill('SIGTERM');
       logger.info('Cleaned up SMS listener', { deviceId });
     } catch (e) {
       // Ignore errors during cleanup
