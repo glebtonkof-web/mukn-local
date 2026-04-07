@@ -15,6 +15,16 @@ import {
   DEFAULT_CONFIG,
   ERROR_CODES
 } from './types';
+
+// Re-export types for external modules
+export type {
+  SmsMessage,
+  VerificationSms,
+  SmsListenerConfig,
+  ParsedVerificationCode,
+  VerificationRequest,
+  VerificationResult
+} from './types';
 import { 
   readSms, 
   startSmsListenerRealtime, 
@@ -474,7 +484,7 @@ export async function getPendingVerifications(): Promise<VerificationRequest[]> 
           id: v.id,
           phoneNumber: v.phoneNumber,
           platform: v.platform as Platform,
-          deviceId: v.deviceId,
+          deviceId: v.deviceId || '',
           status: v.status as VerificationRequest['status'],
           requestCode: v.requestCode || undefined,
           createdAt: v.createdAt,
@@ -560,7 +570,7 @@ export async function getVerification(
         id: dbVerification.id,
         phoneNumber: dbVerification.phoneNumber,
         platform: dbVerification.platform as Platform,
-        deviceId: dbVerification.deviceId,
+        deviceId: dbVerification.deviceId || '',
         status: dbVerification.status as VerificationRequest['status'],
         requestCode: dbVerification.requestCode || undefined,
         createdAt: dbVerification.createdAt,
@@ -761,7 +771,7 @@ export async function searchVerificationCodes(params: {
       phoneNumber: r.phoneNumber,
       platform: r.platform as Platform,
       code: r.code,
-      sender: r.sender,
+      sender: r.sender || 'unknown',
       receivedAt: r.receivedAt,
       expiresIn: r.expiresIn,
       used: r.used

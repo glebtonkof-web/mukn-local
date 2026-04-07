@@ -11,9 +11,9 @@ import {
   readSimSlots,
   executeCommand,
   type AdbDevice,
-  type DeviceInfo,
   type SimCardSlot
 } from './adb-client';
+import type { DeviceInfo } from './types';
 import { 
   detectAllSimCards, 
   getSimCardStats,
@@ -66,9 +66,9 @@ import {
 } from './scheme-ranker';
 import { 
   MONETIZATION_SCHEMES, 
-  type MonetizationSchemeDefinition,
-  type Platform 
+  type MonetizationSchemeDefinition
 } from './schemes-library';
+import type { Platform } from './session-manager';
 import { profitExecutor, type Scheme } from './profit-executor';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
@@ -218,7 +218,7 @@ export async function scanSimCards(): Promise<SimCard[]> {
       simCards = await detectAllSimCardsImproved();
       logger.info(`[FullAuto] Improved scanner found ${simCards.length} SIM cards`);
     } catch (improvedError) {
-      logger.warn('[FullAuto] Improved scanner failed, falling back to standard scanner', improvedError as Error);
+      logger.warn('[FullAuto] Improved scanner failed, falling back to standard scanner', { error: String(improvedError) });
     }
     
     // Fallback to standard scanner if improved found nothing
@@ -320,10 +320,12 @@ export async function calculateRegistrationPlan(
   sims: SimCard[],
   config: FullAutoConfig = {}
 ): Promise<RegistrationJob[]> {
-  const platforms = config.platforms || [
+  // Use the session-manager Platform type
+  const defaultPlatforms: import('./session-manager').Platform[] = [
     'telegram', 'instagram', 'tiktok', 'twitter', 'youtube', 
     'whatsapp', 'viber', 'signal', 'discord', 'reddit'
   ];
+  const platforms = (config.platforms || defaultPlatforms) as import('./session-manager').Platform[];
   
   const jobs: RegistrationJob[] = [];
   const maxPerSim = config.maxRegistrationsPerSim || 3;
@@ -392,7 +394,6 @@ export async function registerAccount(job: RegistrationJob): Promise<Registratio
         deviceId: deviceId,
         profile: {
           username: job.profileData?.username,
-          password: job.profileData?.password,
           email: job.profileData?.email,
           firstName: job.profileData?.firstName,
           lastName: job.profileData?.lastName
@@ -401,7 +402,7 @@ export async function registerAccount(job: RegistrationJob): Promise<Registratio
       
       logger.info(`[FullAuto] Improved registration result: ${result.success ? 'success' : result.error}`);
     } catch (improvedError) {
-      logger.warn('[FullAuto] Improved registration failed, falling back to standard', improvedError as Error);
+      logger.warn('[FullAuto] Improved registration failed, falling back to standard', { error: String(improvedError) });
       
       // Fallback to standard registration manager
       const fallbackResult = await registrationManager.registerAccount(
@@ -503,7 +504,7 @@ async function getAccountInfoForRanking(): Promise<SimCardAccountInfo[]> {
         status: true,
         warmingProgress: true,
         warmingStartedAt: true,
-        lastUsedAt: true,
+        updatedAt: true,
       }
     });
     
@@ -515,11 +516,11 @@ async function getAccountInfoForRanking(): Promise<SimCardAccountInfo[]> {
       warmingPhase: Math.floor((a.warmingProgress || 0) / 25) + 1,
       warmingStartedAt: a.warmingStartedAt,
       warmingEndsAt: a.warmingStartedAt ? new Date(a.warmingStartedAt.getTime() + 21 * 24 * 60 * 60 * 1000) : null,
-      lastActivityAt: a.lastUsedAt,
+      lastActivityAt: a.updatedAt,
     }));
     
   } catch (error) {
-    logger.error('[FullAuto] Error getting account info:', error as Error);
+    logger.error('[FullAuto] Error getting account info:', error instanceof Error ? error : new Error(String(error)));
     return [];
   }
 }
@@ -561,10 +562,16 @@ export async function applyTopSchemes(rankedSchemes: RankedScheme[]): Promise<{
         platform: ranked.scheme.platforms[0] || 'all',
         category: ranked.scheme.category,
         expectedRevenue: ranked.estimatedRevenue.max,
-        riskLevel: ranked.scheme.riskLevel,
+        riskLevel: ranked.scheme.riskLevel as 'low' | 'medium' | 'high',
         conversionRate: ranked.scheme.automationLevel / 100,
-        activeAccounts: ranked.matchedAccounts,
+        accounts: [],
+        score: ranked.score,
+        dailyRevenue: 0,
+        weeklyRevenue: 0,
+        totalRevenue: 0,
         status: 'active',
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
       
       const result = await profitExecutor.applyScheme(scheme.id);
@@ -575,7 +582,7 @@ export async function applyTopSchemes(rankedSchemes: RankedScheme[]): Promise<{
       }
       
     } catch (error) {
-      logger.error(`[FullAuto] Failed to apply scheme:`, error as Error);
+      logger.error('[FullAuto] Failed to apply scheme:', error instanceof Error ? error : new Error(String(error)));
     }
   }
   
@@ -917,19 +924,23 @@ export async function getStatistics(): Promise<{
   activeEarning: number;
   totalRevenue: number;
 }> {
-  const [simStats, accountCount, warmingCount] = await Promise.all([
+  const [simStats, accountCount, warmingCount, dailyRevenue] = await Promise.all([
     getSimCardStats(),
     db.simCardAccount.count({ where: { status: 'active' } }),
     db.simCardAccount.count({ where: { status: 'warming' } }),
+    profitExecutor.getDailyRevenue(),
   ]);
+  
+  const schemes = await profitExecutor.getSchemes();
+  const activeSchemes = schemes.filter(s => s.status === 'active');
   
   return {
     totalSims: simStats.total,
     availableSims: simStats.available,
     registeredAccounts: accountCount,
     activeWarming: warmingCount,
-    activeEarning: profitExecutor.getActiveSchemes().length,
-    totalRevenue: profitExecutor.getTotalRevenue(),
+    activeEarning: activeSchemes.length,
+    totalRevenue: dailyRevenue.total,
   };
 }
 

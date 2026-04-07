@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
     console.log('Video task created:', videoTask.id, 'Status:', videoTask.task_status);
 
     // Store task info
-    const taskInfo = {
+    const taskInfo: any = {
       task_id: taskId,
       video_task_id: videoTask.id,
       prompt: enhancedPrompt,
@@ -210,6 +210,7 @@ export async function POST(request: NextRequest) {
       status: videoTask.task_status === 'PROCESSING' ? 'processing' : 'pending',
       created_at: new Date().toISOString(),
       size,
+      video_url: null,
     };
 
     tasks.set(taskId, taskInfo);

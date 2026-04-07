@@ -164,9 +164,7 @@ export async function POST(request: NextRequest) {
         input: chunks[0],
         voice: voiceConfig.sdk_voice,
         speed: validSpeed,
-        volume: volume,
         response_format: format as 'wav' | 'mp3' | 'pcm',
-        stream: false,
       });
 
       // Get array buffer from Response object
@@ -213,9 +211,7 @@ export async function POST(request: NextRequest) {
           input: chunk,
           voice: voiceConfig.sdk_voice,
           speed: validSpeed,
-          volume: volume,
           response_format: 'wav',
-          stream: false,
         });
 
         const arrayBuffer = await response.arrayBuffer();

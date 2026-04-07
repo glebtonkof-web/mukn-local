@@ -3,7 +3,7 @@
 
 export type SchemeCategory = 'cpa' | 'affiliate' | 'farming' | 'direct' | 'arbitrage';
 export type RiskLevel = 'low' | 'medium' | 'high' | 'extreme';
-export type Platform = 'telegram' | 'instagram' | 'tiktok' | 'twitter' | 'youtube' | 'discord' | 'facebook' | 'reddit' | 'whatsapp' | 'all';
+export type Platform = 'telegram' | 'instagram' | 'tiktok' | 'twitter' | 'youtube' | 'discord' | 'facebook' | 'reddit' | 'whatsapp' | 'viber' | 'signal' | 'pinterest' | 'all';
 
 export interface MonetizationSchemeDefinition {
   id: string;

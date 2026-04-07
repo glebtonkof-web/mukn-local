@@ -3,7 +3,7 @@
  * Handles device connection, command execution, and SMS reading
  */
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess, SpawnOptions } from 'child_process';
 import { 
   AdbDevice, 
   DeviceInfo, 
@@ -12,6 +12,16 @@ import {
   AdbCommandOptions,
   DEFAULT_CONFIG,
   ERROR_CODES,
+  SmsMessage
+} from './types';
+
+// Re-export types for external modules
+export type { 
+  AdbDevice, 
+  DeviceInfo, 
+  SimCardSlot,
+  AdbCommandResult, 
+  AdbCommandOptions,
   SmsMessage
 } from './types';
 import { logger } from '@/lib/logger';
@@ -79,15 +89,13 @@ function executeCommandOnce(command: string[], timeout: number): Promise<string>
     logger.debug('Executing ADB command', { command: fullCommand.join(' ') });
     
     // Create clean environment object for spawn
-    const spawnEnv: Record<string, string> = {};
-    if (typeof process !== 'undefined' && process.env) {
-      Object.assign(spawnEnv, process.env);
-    }
+    const spawnEnv: NodeJS.ProcessEnv = { ...process.env };
     
-    const childProcess = spawn(fullCommand[0], fullCommand.slice(1), {
+    const spawnOptions: SpawnOptions = {
       shell: false,
       env: spawnEnv
-    });
+    };
+    const childProcess: ChildProcess = spawn(fullCommand[0], fullCommand.slice(1), spawnOptions);
 
     let stdout = '';
     let stderr = '';
@@ -99,11 +107,11 @@ function executeCommandOnce(command: string[], timeout: number): Promise<string>
       reject(new Error(`Command timed out after ${timeout}ms`));
     }, timeout);
 
-    childProcess.stdout.on('data', (data) => {
+    childProcess.stdout?.on('data', (data) => {
       stdout += data.toString();
     });
 
-    childProcess.stderr.on('data', (data) => {
+    childProcess.stderr?.on('data', (data) => {
       stderr += data.toString();
     });
 

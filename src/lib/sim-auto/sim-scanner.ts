@@ -11,9 +11,11 @@ import {
   ScanError,
   ScanProgress,
   Platform,
-  PlatformAccountCheck as IPlatformAccountCheck,
   ERROR_CODES
 } from './types';
+
+// Re-export types
+export type { SimCardInfo, ScanProgress, ScanResult, ScanError } from './types';
 import { 
   listDevices, 
   connectDevice, 
@@ -109,10 +111,10 @@ export async function getSimCardInfo(
 export async function checkExistingAccounts(
   phoneNumber: string, 
   platform: Platform
-): Promise<IPlatformAccountCheck> {
+): Promise<PlatformAccountCheck> {
   logger.debug('Checking existing accounts', { phoneNumber, platform });
   
-  const checkResult: IPlatformAccountCheck = {
+  const checkResult: PlatformAccountCheck = {
     platform,
     phoneNumber,
     exists: false,
@@ -124,10 +126,7 @@ export async function checkExistingAccounts(
     const existingAccount = await db.account.findFirst({
       where: {
         phone: phoneNumber,
-        platform: {
-          equals: platform,
-          mode: 'insensitive'
-        }
+        platform: platform
       }
     });
     
@@ -630,7 +629,6 @@ function extractCountryCode(operator?: string): string | null {
     '206': 'BE', // Belgium
     '232': 'AT', // Austria
     '230': 'CZ', // Czech Republic
-    '260': 'PL', // Poland
     '242': 'NO', // Norway
     '240': 'SE', // Sweden
     '244': 'FI', // Finland

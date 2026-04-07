@@ -34,7 +34,8 @@ import { BeginnerHints } from '@/components/onboarding/beginner-hints';
 import { TerminalMode } from '@/components/terminal/terminal-mode';
 import { useHotkeys, HotkeysHelp, HotkeysHelpDialog } from '@/components/hotkeys/use-hotkeys';
 import { useModeStore } from '@/store/mode-store';
-import { MobileMenu, MobileHeader } from '@/components/ui/mobile-menu';
+import { MobileMenu } from '@/components/ui/mobile-menu';
+import { MobileHeader } from '@/components/dashboard/sidebar';
 import { NotificationsSheet } from '@/components/notifications/notifications-sheet';
 
 import { UnifiedAutoEarnWizard } from '@/components/auto-earn/unified-auto-earn-wizard';
@@ -281,13 +282,7 @@ export default function Page() {
   const [aiPanelOpen, setAiPanelOpen] = useState(true); // AI Panel справа
 
   // Горячие клавиши
-  useHotkeys([
-    { key: 'n', ctrl: true, action: () => setCampaignModalOpen(true), description: 'Новая кампания' },
-    { key: 's', ctrl: true, action: () => setSettingsOpen(true), description: 'Настройки' },
-    { key: '/', action: () => setHotkeysDialogOpen(true), description: 'Горячие клавиши' },
-    { key: 'a', ctrl: true, action: () => setAiPanelOpen(prev => !prev), description: 'AI Ассистент' },
-    { key: 'Escape', action: () => { setSettingsOpen(false); setCampaignModalOpen(false); }, description: 'Закрыть' },
-  ]);
+  useHotkeys()
 
   // Рендер контента на основе активного таба
   const renderContent = () => {
@@ -363,10 +358,8 @@ export default function Page() {
       <div className="flex h-screen bg-[#0A0A0C] text-white overflow-hidden">
         {/* Sidebar */}
         <Sidebar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          settingsOpen={settingsOpen}
-          setSettingsOpen={setSettingsOpen}
+          onNotificationsClick={() => setNotificationsOpen(true)}
+          onMobileMenuClick={() => setMobileMenuOpen(true)}
         />
 
         {/* Main content */}
@@ -375,10 +368,8 @@ export default function Page() {
         >
           {/* Header */}
           <MobileHeader
-            menuOpen={mobileMenuOpen}
-            setMenuOpen={setMobileMenuOpen}
-            notificationsOpen={notificationsOpen}
-            setNotificationsOpen={setNotificationsOpen}
+            onNotificationsClick={() => setNotificationsOpen(true)}
+            onMenuClick={() => setMobileMenuOpen(true)}
           />
 
           {/* Content area */}
@@ -391,13 +382,7 @@ export default function Page() {
 
         {/* Mobile Menu */}
         <MobileMenu
-          open={mobileMenuOpen}
-          onOpenChange={setMobileMenuOpen}
-          activeTab={activeTab}
-          setActiveTab={(tab) => {
-            setActiveTab(tab);
-            setMobileMenuOpen(false);
-          }}
+          onNotificationsClick={() => setNotificationsOpen(true)}
         />
 
         {/* Notifications Sheet */}

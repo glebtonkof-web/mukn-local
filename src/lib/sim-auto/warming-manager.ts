@@ -605,4 +605,4 @@ function sleep(ms: number): Promise<void> {
 /**
  * Export types
  */
-export type { WarmingStatus, WarmingConfig };
+// Types are already exported above with their definitions

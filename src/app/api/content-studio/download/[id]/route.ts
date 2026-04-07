@@ -73,7 +73,7 @@ export async function GET(
   if (audioResult) {
     const filename = `audio_${id}.wav`;
 
-    return new NextResponse(audioResult.buffer, {
+    return new NextResponse(new Uint8Array(audioResult.buffer), {
       status: 200,
       headers: {
         'Content-Type': audioResult.type,

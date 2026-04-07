@@ -219,24 +219,27 @@ export class ContentPipeline {
     type: string,
     options: Record<string, any>
   ): Promise<ContentStudioResponse<any>> {
+    // Импортируем типы для приведения
+    const { ImageGenerationOptions, AudioGenerationOptions, TextGenerationOptions, TranslationOptions, WatermarkRemovalOptions } = require('./types');
+    
     switch (type) {
       case 'image':
-        return imageGen.generate(options);
+        return imageGen.generate(options as any);
       
       case 'audio':
-        return audioGen.generate(options);
+        return audioGen.generate(options as any);
       
       case 'text':
-        return textGen.generate(options);
+        return textGen.generate(options as any);
       
       case 'translate':
-        return translate.translate(options);
+        return translate.translate(options as any);
       
       case 'watermark-remove':
         if (options.videoPath) {
-          return watermarkRemove.fromVideo(options.videoPath, options);
+          return watermarkRemove.fromVideo(options.videoPath, options as any);
         }
-        return watermarkRemove.fromImage(options.imagePath || '', options);
+        return watermarkRemove.fromImage(options.imagePath || '', options as any);
       
       case 'video':
         // Video generation would go through free-video-gen service

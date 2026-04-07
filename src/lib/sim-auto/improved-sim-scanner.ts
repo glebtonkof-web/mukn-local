@@ -247,7 +247,7 @@ async function createSimCardEntry(deviceId: string, slot: {
     }
     
   } catch (error) {
-    logger.debug(`Error getting additional SIM info for slot ${slot.slotIndex}`, error as Error)
+    logger.debug(`Error getting additional SIM info for slot ${slot.slotIndex}`, { error: String(error) })
   }
   
   // Format phone number
@@ -480,18 +480,18 @@ export async function getCachedSimCards(): Promise<DetectedSimCard[]> {
       id: c.id,
       deviceId: c.deviceId,
       slotIndex: c.slotIndex,
-      phoneNumber: c.phoneNumber,
-      operator: c.operator,
-      country: c.country,
-      mcc: c.mcc,
-      mnc: c.mnc,
-      iccid: c.iccid,
+      phoneNumber: c.phoneNumber || '',
+      operator: c.operator || 'Unknown',
+      country: c.country || 'XX',
+      mcc: c.mcc || '',
+      mnc: c.mnc || '',
+      iccid: c.iccid || '',
       isActive: c.isActive,
       networkType: '',
       isRoaming: false
     }))
   } catch (error) {
-    logger.error('Failed to get cached SIM cards', error as Error)
+    logger.error('Failed to get cached SIM cards', error instanceof Error ? error : new Error(String(error)))
     return []
   }
 }

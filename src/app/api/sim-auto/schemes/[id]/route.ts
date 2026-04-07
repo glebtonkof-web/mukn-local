@@ -15,7 +15,8 @@ import {
   getSchemePerformance,
   getExecution,
   recordAction,
-  type ExecutionConfig
+  type ExecutionConfig,
+  type SchemeExecution
 } from '@/lib/sim-auto/scheme-executor';
 
 interface RouteParams {
@@ -116,7 +117,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       execution: execution ? {
         id: execution.id,
         status: execution.status,
-        accountIds: execution.accountIds,
+        accountId: execution.accountId,
         startedAt: execution.startedAt,
         metrics: execution.metrics,
         config: execution.config
@@ -167,92 +168,61 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           );
         }
 
-        const execution = await startScheme(schemeId, accountIds, config as Partial<ExecutionConfig>);
+        // Start scheme for each account
+        const executions: SchemeExecution[] = [];
+        for (const accId of accountIds) {
+          const exec = await startScheme(schemeId, accId, config as Partial<ExecutionConfig>);
+          executions.push(exec);
+        }
 
         return NextResponse.json({
           success: true,
           message: 'Scheme execution started',
-          execution: {
-            id: execution.id,
-            schemeId: execution.schemeId,
-            status: execution.status,
-            accountIds: execution.accountIds,
-            startedAt: execution.startedAt,
-            config: execution.config
-          }
+          executions: executions.map(exec => ({
+            id: exec.id,
+            schemeId: exec.schemeId,
+            status: exec.status,
+            accountId: exec.accountId,
+            startedAt: exec.startedAt,
+            config: exec.config
+          }))
         });
       }
 
       case 'stop': {
-        const execution = await stopScheme(schemeId);
-
-        if (!execution) {
-          return NextResponse.json({
-            success: false,
-            message: 'No active execution found for this scheme'
-          });
-        }
+        await stopScheme(schemeId);
 
         return NextResponse.json({
           success: true,
-          message: 'Scheme execution stopped',
-          execution: {
-            id: execution.id,
-            status: execution.status,
-            stoppedAt: execution.stoppedAt,
-            finalMetrics: execution.metrics
-          }
+          message: 'Scheme execution stopped'
         });
       }
 
       case 'pause': {
-        const execution = await pauseScheme(schemeId);
-
-        if (!execution) {
-          return NextResponse.json({
-            success: false,
-            message: 'No running execution found for this scheme'
-          });
-        }
+        await pauseScheme(schemeId);
 
         return NextResponse.json({
           success: true,
-          message: 'Scheme execution paused',
-          status: execution.status
+          message: 'Scheme execution paused'
         });
       }
 
       case 'resume': {
-        const execution = await resumeScheme(schemeId);
-
-        if (!execution) {
-          return NextResponse.json({
-            success: false,
-            message: 'No paused execution found for this scheme'
-          });
-        }
+        await resumeScheme(schemeId);
 
         return NextResponse.json({
           success: true,
-          message: 'Scheme execution resumed',
-          status: execution.status
+          message: 'Scheme execution resumed'
         });
       }
 
       case 'rotate': {
-        const execution = await rotateAccounts(schemeId, newAccountIds);
-
-        if (!execution) {
-          return NextResponse.json({
-            success: false,
-            message: 'No active execution found for this scheme'
-          });
-        }
+        const rotatedCount = await rotateAccounts(schemeId);
 
         return NextResponse.json({
           success: true,
           message: 'Accounts rotated',
-          accountIds: execution.accountIds
+          rotatedCount
         });
       }
 
@@ -266,11 +236,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
         await recordAction(
           schemeId,
-          actionData.accountId,
           actionData.action,
-          actionData.success,
-          actionData.revenue,
-          actionData.details
+          actionData.success ? 'success' : 'failure',
+          actionData.revenue
         );
 
         return NextResponse.json({

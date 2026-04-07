@@ -97,19 +97,22 @@ class TempMailService {
             
             const detail = await detailResponse.json()
             
-            return {
+            const mailMsg: TempMailMessage = {
               from: msg.from,
               subject: msg.subject,
               body: detail.text || detail.body || '',
-              html: detail.htmlBody || detail.html || ''
             }
+            if (detail.htmlBody || detail.html) {
+              mailMsg.html = detail.htmlBody || detail.html
+            }
+            return mailMsg
           } catch {
             return null
           }
         })
       )
       
-      return detailedMessages.filter((m): m is TempMailMessage => m !== null)
+      return detailedMessages.filter((m) => m !== null) as TempMailMessage[]
     } catch (error) {
       console.error('[TempMail] Error fetching messages:', error)
       return []

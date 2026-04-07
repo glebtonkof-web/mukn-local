@@ -688,7 +688,6 @@ export class PlaywrightAutomation {
 
       // Override permissions
       const originalQuery = window.navigator.permissions.query
-      // @ts-expect-error - permissions override
       window.navigator.permissions.query = (parameters: PermissionDescriptor) => (
         parameters.name === 'notifications' ?
           Promise.resolve({ state: 'granted' } as PermissionStatus) :

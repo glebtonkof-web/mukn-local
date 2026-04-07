@@ -14,6 +14,7 @@ import {
   type WarmingConfig,
   type WarmingStatus,
 } from '@/lib/sim-auto/warming-manager';
+import { type WarmingAction, type ActionResult } from '@/lib/sim-auto/action-executor';
 import {
   getWarmingStrategy,
   getCurrentPhase,
@@ -265,9 +266,9 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
-        const results = [];
+        const results: ActionResult[] = [];
         for (const act of body.actions) {
-          const result = await executeWarmingActionWithCheck(accountId, act);
+          const result = await executeWarmingActionWithCheck(accountId, act as WarmingAction);
           results.push(result);
           if (!result.success && config?.pauseOnError) {
             break;

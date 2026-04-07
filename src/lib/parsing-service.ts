@@ -240,9 +240,9 @@ class ParsingService {
           where: { id: options.accountId }
         })
 
-        if (account && account.sessionString) {
+        if (account && account.sessionData) {
           // Используем сессию Telegram клиента для парсинга
-          const parsedMembers = await this.parseWithUserbot(groupId, account.sessionString, options)
+          const parsedMembers = await this.parseWithUserbot(groupId, account.sessionData, options)
           members.push(...parsedMembers)
         }
       }
@@ -624,8 +624,8 @@ class ParsingService {
       const savedChats = await db.telegramBotEvent.findMany({
         where: {
           OR: [
-            { chatTitle: { contains: query, mode: 'insensitive' } },
-            { username: { contains: query, mode: 'insensitive' } }
+            { chatTitle: { contains: query } },
+            { username: { contains: query } }
           ]
         },
         take: 50

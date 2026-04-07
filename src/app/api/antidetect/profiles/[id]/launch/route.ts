@@ -241,8 +241,8 @@ export async function DELETE(
       );
       
       await client.stopProfile(profile.profileId);
-    } catch (error) {
-      logger.warn('Failed to stop profile via API, continuing with status update', error as Error);
+    } catch (error: unknown) {
+      logger.warn('Failed to stop profile via API, continuing with status update', { error: error instanceof Error ? error.message : String(error) });
     }
 
     // Update profile status to available

@@ -412,10 +412,4 @@ export function simulateNetworkLatency(): number {
 /**
  * Export types
  */
-export type {
-  MouseMovement,
-  ReadingPattern,
-  TypingPattern,
-  SessionSchedule,
-  ScheduledAction,
-};
+// Types are already exported above with their definitions

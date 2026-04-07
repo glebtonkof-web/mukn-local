@@ -23,6 +23,7 @@ export interface RegistrationJob {
   status: RegistrationStatus
   username?: string
   password?: string
+  accountId?: string
   profileData?: ProfileData
   verificationCode?: string
   errorMessage?: string

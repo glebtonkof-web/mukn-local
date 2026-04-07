@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { nanoid } from 'nanoid';
 import { logger } from '@/lib/logger';
+import type { Account, InstagramWarming } from '@prisma/client';
 
 // Интерфейсы для запроса
 interface AccountInput {
@@ -59,10 +60,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Создаём или обновляем аккаунты
-    const createdAccounts = [];
+    const createdAccounts: Account[] = [];
     for (const accountData of accounts) {
       // Проверяем существование аккаунта
-      let account = await db.account.findFirst({
+      const existingAccount = await db.account.findFirst({
         where: {
           username: accountData.username,
           platform: accountData.platform,
@@ -70,7 +71,8 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      if (!account) {
+      let account: Account;
+      if (!existingAccount) {
         // Создаём новый аккаунт
         account = await db.account.create({
           data: {
@@ -90,7 +92,7 @@ export async function POST(request: NextRequest) {
       } else {
         // Обновляем существующий
         account = await db.account.update({
-          where: { id: account.id },
+          where: { id: existingAccount.id },
           data: {
             proxyHost: accountData.proxyHost,
             proxyPort: accountData.proxyPort,
@@ -121,7 +123,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Создаём записи прогрева для аккаунтов, требующих прогрева
-    const warmingAccounts = [];
+    const warmingAccounts: InstagramWarming[] = [];
     for (const account of createdAccounts) {
       const schemeRequiresWarming = getSchemeWarmingRequirements(schemeId, account.platform);
       
@@ -134,6 +136,7 @@ export async function POST(request: NextRequest) {
             username: account.username || '',
             status: 'pending',
             currentDay: 0,
+            currentPhase: 'ghost',
             warmingStartedAt: new Date(),
             warmingEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 дней
             todayLikes: 0,

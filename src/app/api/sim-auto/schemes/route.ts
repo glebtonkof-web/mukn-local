@@ -4,10 +4,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { MONETIZATION_SCHEMES, getSchemeStats, getSchemesByCategory, getSchemesByRiskLevel } from '@/lib/sim-auto/schemes-library';
+import { MONETIZATION_SCHEMES, getSchemeStats } from '@/lib/sim-auto/schemes-library';
 import { rankSchemes, getQuickRecommendations, type RankerConfig, type SimCardAccountInfo } from '@/lib/sim-auto/scheme-ranker';
 import { getActiveExecutions, getExecutionSummary } from '@/lib/sim-auto/scheme-executor';
 import { seedSchemes, getSeedingStatus } from '@/lib/sim-auto/seed-schemes';
+import type { MonetizationScheme } from '@prisma/client';
+
+// Type for scheme data
+type SchemeData = MonetizationScheme & {
+  platforms: string;
+};
 
 // GET /api/sim-auto/schemes - List all schemes with pagination
 export async function GET(request: NextRequest) {
@@ -21,15 +27,15 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const fromDb = searchParams.get('fromDb') === 'true';
 
-    let schemes = fromDb 
+    let schemes: SchemeData[] = fromDb 
       ? await db.monetizationScheme.findMany({
           where: { isActive: true },
           orderBy: { usageCount: 'desc' }
         })
-      : null;
+      : [];
 
     // If database is empty or not requested, use in-memory schemes
-    if (!schemes || schemes.length === 0) {
+    if (!fromDb || schemes.length === 0) {
       schemes = MONETIZATION_SCHEMES.map(s => ({
         id: s.id,
         name: s.name,
@@ -46,7 +52,12 @@ export async function GET(request: NextRequest) {
         usageCount: 0,
         successRate: 0,
         avgROI: 0,
-        isActive: true
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        config: null,
+        requirements: null,
+        instructions: null
       }));
     }
 
@@ -87,7 +98,7 @@ export async function GET(request: NextRequest) {
     // Get statistics
     const stats = getSchemeStats();
     const seedingStatus = await getSeedingStatus();
-    const executionSummary = await getExecutionSummary();
+    const executionSummary = getExecutionSummary('');
 
     return NextResponse.json({
       success: true,
@@ -272,7 +283,6 @@ export async function POST(request: NextRequest) {
         // Seed schemes to database
         const result = await seedSchemes();
         return NextResponse.json({
-          success: result.success,
           ...result
         });
       }
@@ -281,7 +291,7 @@ export async function POST(request: NextRequest) {
         // Get detailed statistics
         const stats = getSchemeStats();
         const seedingStatus = await getSeedingStatus();
-        const executionSummary = await getExecutionSummary();
+        const executionSummary = getExecutionSummary('');
         const activeExecutions = getActiveExecutions();
 
         return NextResponse.json({
@@ -292,7 +302,7 @@ export async function POST(request: NextRequest) {
           activeExecutions: activeExecutions.map(e => ({
             schemeId: e.schemeId,
             status: e.status,
-            accountsCount: e.accountIds.length,
+            accountId: e.accountId,
             metrics: e.metrics
           }))
         });

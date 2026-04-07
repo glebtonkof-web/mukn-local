@@ -6,7 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { registrationManager, type Platform } from '@/lib/sim-auto/registration-manager'
+import { registrationManager } from '@/lib/sim-auto/registration-manager'
+import { type Platform } from '@/lib/sim-auto/session-manager'
 import { db } from '@/lib/db'
 
 // Platform validation

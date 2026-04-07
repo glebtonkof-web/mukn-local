@@ -38,10 +38,25 @@ export interface Alert {
   message: string;
   source: string;
   timestamp: Date;
+  createdAt?: Date;
   metadata?: Record<string, any>;
   acknowledged: boolean;
   acknowledgedAt?: Date;
   acknowledgedBy?: string;
+}
+
+// Database Alert type (matches Prisma schema)
+interface DbAlert {
+  id: string;
+  severity: string;
+  title: string;
+  message: string;
+  source: string;
+  metadata: string | null;
+  acknowledged: boolean;
+  acknowledgedAt: Date | null;
+  acknowledgedBy: string | null;
+  createdAt: Date;
 }
 
 // ==================== СЕРВИС АЛЕРТОВ ====================
@@ -186,11 +201,25 @@ class AlertService {
    */
   async getUnacknowledged(limit: number = 50): Promise<Alert[]> {
     try {
-      return await db.alert.findMany({
+      const dbAlerts = await db.alert.findMany({
         where: { acknowledged: false },
-        orderBy: { timestamp: 'desc' },
+        orderBy: { createdAt: 'desc' },
         take: limit,
-      }) as Alert[];
+      }) as DbAlert[];
+      // Convert DB alerts to Alert interface
+      return dbAlerts.map(dbAlert => ({
+        id: dbAlert.id,
+        severity: dbAlert.severity as AlertSeverity,
+        title: dbAlert.title,
+        message: dbAlert.message,
+        source: dbAlert.source,
+        timestamp: dbAlert.createdAt,
+        createdAt: dbAlert.createdAt,
+        metadata: dbAlert.metadata ? JSON.parse(dbAlert.metadata) : undefined,
+        acknowledged: dbAlert.acknowledged,
+        acknowledgedAt: dbAlert.acknowledgedAt || undefined,
+        acknowledgedBy: dbAlert.acknowledgedBy || undefined,
+      }));
     } catch (error) {
       logger.error('Failed to get unacknowledged alerts', error as Error);
       return [];

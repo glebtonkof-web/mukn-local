@@ -46,8 +46,9 @@ class KeepAliveService {
     try {
       const { db } = await import('./db');
       this.db = db;
-    } catch (error) {
-      logger.warn('[KeepAlive] Could not initialize database', error as Error);
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.warn('[KeepAlive] Could not initialize database', { error: err.message });
     }
 
     // Периодические проверки
@@ -88,9 +89,10 @@ class KeepAliveService {
         if (!response.ok) {
           logger.warn(`[KeepAlive] Endpoint ${endpoint} returned ${response.status}`);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         results[endpoint] = false;
-        logger.error(`[KeepAlive] Failed to ping ${endpoint}`, error as Error);
+        const err = error instanceof Error ? error : new Error(String(error));
+        logger.error(`[KeepAlive] Failed to ping ${endpoint}`, err);
       }
     }
 
@@ -99,17 +101,19 @@ class KeepAliveService {
       try {
         await this.db.$queryRaw`SELECT 1`;
         results['database'] = true;
-      } catch (error) {
+      } catch (error: unknown) {
         results['database'] = false;
-        logger.error('[KeepAlive] Database ping failed', error as Error);
+        const err = error instanceof Error ? error : new Error(String(error));
+        logger.error('[KeepAlive] Database ping failed', err);
         
         // Пытаемся переподключиться
         try {
           await this.db.$disconnect();
           await this.db.$connect();
           logger.info('[KeepAlive] Database reconnected');
-        } catch (reconnectError) {
-          logger.error('[KeepAlive] Database reconnection failed', reconnectError as Error);
+        } catch (reconnectError: unknown) {
+          const recErr = reconnectError instanceof Error ? reconnectError : new Error(String(reconnectError));
+          logger.error('[KeepAlive] Database reconnection failed', recErr);
         }
       }
     }

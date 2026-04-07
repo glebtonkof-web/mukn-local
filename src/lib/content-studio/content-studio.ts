@@ -282,13 +282,13 @@ export class ContentStudio {
 
         switch (item.type) {
           case 'image':
-            result = await this.generateImage(item.options);
+            result = await this.generateImage(item.options as ImageGenerationOptions);
             break;
           case 'audio':
-            result = await this.generateAudio(item.options);
+            result = await this.generateAudio(item.options as AudioGenerationOptions);
             break;
           case 'text':
-            result = await this.generateText(item.options);
+            result = await this.generateText(item.options as TextGenerationOptions);
             break;
           default:
             throw new Error(`Unsupported type: ${item.type}`);

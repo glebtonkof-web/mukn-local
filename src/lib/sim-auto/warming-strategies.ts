@@ -450,8 +450,4 @@ export function generateDailyActionPlan(
 /**
  * Export types
  */
-export type {
-  WarmingActionLimit,
-  WarmingPhase,
-  PlatformWarmingStrategy,
-};
+// Types are already exported above with their definitions

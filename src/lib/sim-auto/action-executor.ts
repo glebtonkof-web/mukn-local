@@ -602,4 +602,4 @@ export async function checkSuspiciousActivity(
 /**
  * Export types
  */
-export type { WarmingAction, ActionResult, ActionContext };
+// Types are already exported above with their definitions

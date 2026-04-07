@@ -16,8 +16,11 @@ export {
   startSmsListenerRealtime,
   stopSmsListenerRealtime,
   executeCommand,
+  type AdbDevice,
+  type DeviceInfo as AdbDeviceInfo,
+  type SimCardSlot,
   type AdbCommandResult,
-  type DeviceInfo as AdbDeviceInfo
+  type SmsMessage
 } from './adb-client';
 
 // SIM Scanner
