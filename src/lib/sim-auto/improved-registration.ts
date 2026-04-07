@@ -7,6 +7,7 @@ import { chromium, Browser, BrowserContext, Page } from 'playwright'
 import { EventEmitter } from 'events'
 import { logger } from '@/lib/logger'
 import { startSmsMonitoring, waitForVerificationCode, readRecentSms } from './improved-sms-reader'
+import { getBestProxyForPlatform, getWorkingProxies, type ProxyInfo } from './proxy-manager'
 import type { Platform } from './session-manager'
 
 // Registration events
@@ -254,16 +255,22 @@ export async function runRegistration(params: RegistrationParams): Promise<Regis
   let browser: Browser | null = null
   let context: BrowserContext | null = null
   let page: Page | null = null
+  let usedProxy: ProxyInfo | null = null
   
   try {
-    // Stage 1: Launch browser
+    // Stage 1: Launch browser with proxy
     registrationEvents.emit('registration_progress', { platform, stage: 'launching_browser' })
-    logger.info(`[${platform}] Launching browser...`)
+    logger.info(`[${platform}] Launching browser with proxy support...`)
     
     const launchResult = await launchStealthBrowser(platform)
     browser = launchResult.browser
     context = launchResult.context
     page = launchResult.page
+    usedProxy = launchResult.proxy
+    
+    if (usedProxy) {
+      logger.info(`[${platform}] Browser launched with proxy: ${usedProxy.host}:${usedProxy.port}`)
+    }
     
     // Stage 2: Navigate to registration page
     registrationEvents.emit('registration_progress', { platform, stage: 'navigating' })
@@ -271,7 +278,23 @@ export async function runRegistration(params: RegistrationParams): Promise<Regis
     
     const navigated = await navigateToRegistration(page, config)
     if (!navigated) {
-      throw new Error('Failed to navigate to registration page')
+      // Try with a different proxy if available
+      logger.warn(`[${platform}] Navigation failed, trying with new proxy...`)
+      
+      // Close current browser
+      if (browser) await browser.close().catch(() => {})
+      
+      // Try again with fresh proxy
+      const retryResult = await launchStealthBrowser(platform)
+      browser = retryResult.browser
+      context = retryResult.context
+      page = retryResult.page
+      usedProxy = retryResult.proxy
+      
+      const retryNavigated = await navigateToRegistration(page, config)
+      if (!retryNavigated) {
+        throw new Error('Failed to navigate to registration page (tried multiple proxies)')
+      }
     }
     
     // Stage 3: Enter phone number (if required)
@@ -385,16 +408,35 @@ export async function runRegistration(params: RegistrationParams): Promise<Regis
 /**
  * Launch browser with stealth configuration
  */
-async function launchStealthBrowser(platform: string): Promise<{
+async function launchStealthBrowser(platform: string, proxy?: ProxyInfo | null): Promise<{
   browser: Browser
   context: BrowserContext
   page: Page
+  proxy: ProxyInfo | null
 }> {
   const userAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]
   
   logger.debug(`Using user agent: ${userAgent.substring(0, 50)}...`)
   
-  const browser = await chromium.launch({
+  // Try to get proxy if not provided
+  let activeProxy = proxy
+  if (!activeProxy) {
+    try {
+      logger.info(`[${platform}] Fetching proxy for registration...`)
+      activeProxy = await getBestProxyForPlatform(platform)
+      
+      if (activeProxy) {
+        logger.info(`[${platform}] Using proxy: ${activeProxy.host}:${activeProxy.port} (${activeProxy.type})`)
+      } else {
+        logger.warn(`[${platform}] No working proxy found, trying direct connection`)
+      }
+    } catch (error) {
+      logger.warn(`[${platform}] Failed to get proxy: ${error}`)
+    }
+  }
+  
+  // Build launch options
+  const launchOptions: Parameters<typeof chromium.launch>[0] = {
     headless: true,
     args: [
       '--disable-blink-features=AutomationControlled',
@@ -414,9 +456,19 @@ async function launchStealthBrowser(platform: string): Promise<{
       '--disable-images'
     ],
     timeout: 60000
-  })
+  }
   
-  const context = await browser.newContext({
+  // Add proxy if available
+  if (activeProxy) {
+    launchOptions.proxy = {
+      server: `${activeProxy.type}://${activeProxy.host}:${activeProxy.port}`
+    }
+  }
+  
+  const browser = await chromium.launch(launchOptions)
+  
+  // Build context options
+  const contextOptions: Parameters<typeof browser.newContext>[0] = {
     userAgent,
     viewport: { width: 1280 + Math.floor(Math.random() * 200), height: 800 + Math.floor(Math.random() * 100) },
     locale: 'ru-RU',
@@ -434,7 +486,9 @@ async function launchStealthBrowser(platform: string): Promise<{
       'Sec-Fetch-User': '?1',
       'Cache-Control': 'max-age=0'
     }
-  })
+  }
+  
+  const context = await browser.newContext(contextOptions)
   
   // Inject stealth scripts
   await context.addInitScript(() => {
@@ -491,7 +545,7 @@ async function launchStealthBrowser(platform: string): Promise<{
   
   const page = await context.newPage()
   
-  return { browser, context, page }
+  return { browser, context, page, proxy: activeProxy }
 }
 
 /**

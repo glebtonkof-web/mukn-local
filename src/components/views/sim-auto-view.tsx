@@ -12,6 +12,7 @@ import {
   TrendingUp,
   DollarSign,
   Zap,
+  Shield,
 } from 'lucide-react';
 
 import { FullAutoLauncher } from '@/components/sim-auto/full-auto-launcher';
@@ -20,6 +21,7 @@ import { RegistrationPanel } from '@/components/sim-auto/registration-panel';
 import { WarmingPanel } from '@/components/sim-auto/warming-panel';
 import { SchemesPanel } from '@/components/sim-auto/schemes-panel';
 import { ProfitDashboard } from '@/components/sim-auto/profit-dashboard';
+import { ProxyStatus } from '@/components/sim-auto/proxy-status';
 
 export function SimAutoView() {
   const [activeTab, setActiveTab] = useState('launcher');
@@ -89,6 +91,9 @@ export function SimAutoView() {
 
         <TabsContent value="launcher" className="space-y-6">
           <FullAutoLauncher />
+          
+          {/* Proxy Status for RF */}
+          <ProxyStatus />
           
           {/* Quick Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
