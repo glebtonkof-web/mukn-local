@@ -5,28 +5,61 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getProxyManager, initializeProxies } from '@/lib/sim-auto/proxy-manager'
+import { getProxyManager, getWorkingProxies, initializeProxies } from '@/lib/sim-auto/proxy-manager'
 
 /**
  * GET /api/sim-auto/proxy
  * Получить статистику и список рабочих прокси
+ * 
+ * Query params:
+ * - action: 'stats' | 'list' | 'security'
  */
 export async function GET(request: NextRequest) {
   try {
+    const searchParams = request.nextUrl.searchParams
+    const action = searchParams.get('action')
     const manager = getProxyManager()
-    const stats = manager.getStats()
-    const securityLog = manager.getSecurityLog()
     
-    return NextResponse.json({
-      success: true,
-      data: {
-        stats,
-        securityEvents: securityLog.slice(-20), // Последние 20 событий безопасности
-        message: stats.workingProxies > 0 
-          ? `${stats.workingProxies} рабочих прокси доступно` 
-          : 'Нет рабочих прокси. Запустите /api/sim-auto/proxy/refresh'
-      }
-    })
+    switch (action) {
+      case 'list':
+        const proxies = getWorkingProxies()
+        return NextResponse.json({
+          success: true,
+          proxies: proxies.map((p, i) => ({
+            id: `${p.host}:${p.port}`,
+            host: p.host,
+            port: p.port,
+            type: p.protocol,
+            country: p.country,
+            speed: p.responseTime,
+            working: p.isWorking
+          })),
+          total: proxies.length
+        })
+        
+      case 'security':
+        const securityLog = manager.getSecurityLog()
+        return NextResponse.json({
+          success: true,
+          securityEvents: securityLog.slice(-50)
+        })
+        
+      case 'stats':
+      default:
+        const stats = manager.getStats()
+        const securityLogDefault = manager.getSecurityLog()
+        
+        return NextResponse.json({
+          success: true,
+          data: {
+            stats,
+            securityEvents: securityLogDefault.slice(-20),
+            message: stats.workingProxies > 0 
+              ? `${stats.workingProxies} рабочих прокси доступно` 
+              : 'Нет рабочих прокси. Нажмите "Найти новые прокси"'
+          }
+        })
+    }
   } catch (error) {
     console.error('Error getting proxy stats:', error)
     return NextResponse.json({

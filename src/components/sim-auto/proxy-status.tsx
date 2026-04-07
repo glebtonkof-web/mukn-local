@@ -16,11 +16,17 @@ import {
 } from 'lucide-react'
 
 interface ProxyStats {
-  total: number
-  working: number
-  byType: Record<string, number>
-  byCountry: Record<string, number>
-  avgSpeed: number
+  totalProxies?: number
+  workingProxies?: number
+  httpsProxies?: number
+  lastRefresh?: Date | null
+  securityEvents?: number
+  // Fallback для старого формата
+  total?: number
+  working?: number
+  byType?: Record<string, number>
+  byCountry?: Record<string, number>
+  avgSpeed?: number
 }
 
 interface ProxyInfo {
@@ -45,10 +51,13 @@ export function ProxyStatus() {
   const fetchStats = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/proxy?action=stats')
+      const response = await fetch('/api/sim-auto/proxy')
       const data = await response.json()
       
-      if (data.success) {
+      if (data.success && data.data?.stats) {
+        setStats(data.data.stats)
+        setError(null)
+      } else if (data.success && data.stats) {
         setStats(data.stats)
         setError(null)
       } else {
@@ -67,7 +76,7 @@ export function ProxyStatus() {
       setRefreshing(true)
       setError(null)
       
-      const response = await fetch('/api/proxy', {
+      const response = await fetch('/api/sim-auto/proxy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'refresh' })
@@ -91,10 +100,10 @@ export function ProxyStatus() {
   // Fetch proxy list
   const fetchProxyList = async () => {
     try {
-      const response = await fetch('/api/proxy?action=list')
+      const response = await fetch('/api/sim-auto/proxy?action=list')
       const data = await response.json()
       
-      if (data.success) {
+      if (data.success && data.proxies) {
         setProxies(data.proxies)
       }
     } catch (err) {
@@ -114,10 +123,11 @@ export function ProxyStatus() {
     return () => clearInterval(interval)
   }, [fetchStats])
 
-  const getStatusColor = () => {
+  const getStatusColor = (): "secondary" | "destructive" | "default" | "outline" => {
     if (!stats) return 'secondary'
-    if (stats.working >= 10) return 'success'
-    if (stats.working >= 5) return 'warning'
+    const working = stats.workingProxies ?? stats.working ?? 0
+    if (working >= 10) return 'default'
+    if (working >= 5) return 'secondary'
     return 'destructive'
   }
 
@@ -138,7 +148,7 @@ export function ProxyStatus() {
           </div>
           <div className="flex items-center gap-2">
             <Badge variant={getStatusColor()}>
-              {stats?.working ?? 0} рабочих
+              {stats?.workingProxies ?? stats?.working ?? 0} рабочих
             </Badge>
             <Button
               variant="outline"
@@ -180,37 +190,31 @@ export function ProxyStatus() {
             {/* Total */}
             <div className="bg-muted/50 rounded-lg p-3">
               <div className="text-sm text-muted-foreground">Всего проверено</div>
-              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-2xl font-bold">{stats.totalProxies ?? stats.total ?? 0}</div>
             </div>
             
             {/* Working */}
             <div className="bg-muted/50 rounded-lg p-3">
               <div className="text-sm text-muted-foreground">Рабочих</div>
-              <div className="text-2xl font-bold text-green-500">{stats.working}</div>
+              <div className="text-2xl font-bold text-green-500">{stats.workingProxies ?? stats.working ?? 0}</div>
             </div>
             
             {/* Success Rate */}
             <div className="bg-muted/50 rounded-lg p-3">
-              <div className="text-sm text-muted-foreground">Успешность</div>
-              <div className="text-2xl font-bold">
-                {stats.total > 0 
-                  ? Math.round((stats.working / stats.total) * 100) 
-                  : 0}%
-              </div>
+              <div className="text-sm text-muted-foreground">HTTPS</div>
+              <div className="text-2xl font-bold">{stats.httpsProxies ?? 0}</div>
             </div>
             
-            {/* Avg Speed */}
+            {/* Security Events */}
             <div className="bg-muted/50 rounded-lg p-3">
-              <div className="text-sm text-muted-foreground">Скорость</div>
-              <div className="text-2xl font-bold">
-                {Math.round(stats.avgSpeed)}ms
-              </div>
+              <div className="text-sm text-muted-foreground">Событий безопасности</div>
+              <div className="text-2xl font-bold">{stats.securityEvents ?? 0}</div>
             </div>
           </div>
         )}
         
         {/* By Type */}
-        {stats && Object.keys(stats.byType).length > 0 && (
+        {stats?.byType && Object.keys(stats.byType).length > 0 && (
           <div className="space-y-2">
             <div className="text-sm font-medium">По типу:</div>
             <div className="flex flex-wrap gap-2">
@@ -224,7 +228,7 @@ export function ProxyStatus() {
         )}
         
         {/* By Country */}
-        {stats && Object.keys(stats.byCountry).length > 0 && (
+        {stats?.byCountry && Object.keys(stats.byCountry).length > 0 && (
           <div className="space-y-2">
             <div className="text-sm font-medium">По стране (топ 5):</div>
             <div className="flex flex-wrap gap-2">
