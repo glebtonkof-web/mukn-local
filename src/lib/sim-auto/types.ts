@@ -78,7 +78,16 @@ export type Platform =
   | 'youtube'
   | 'linkedin'
   | 'snapchat'
-  | 'pinterest';
+  | 'pinterest'
+  | 'vk'
+  | 'ok'
+  | 'discord'
+  | 'reddit'
+  | 'spotify'
+  | 'twitch'
+  | 'onlyfans'
+  | 'viber'
+  | 'signal';
 
 // SMS Types
 export interface SmsMessage {
@@ -292,6 +301,78 @@ export const PLATFORM_PATTERNS: Record<Platform, {
       /code[:\s]*(\d{6})/i
     ],
     keywords: ['pinterest', 'verify', 'code']
+  },
+  vk: {
+    senderPatterns: [/vk/i, /vkontakte/i, /вконтакте/i],
+    codePatterns: [
+      /(\d{4,6})/g,
+      /код[:\s]*(\d{4,6})/i
+    ],
+    keywords: ['vk', 'вк', 'код', 'code', 'verify']
+  },
+  ok: {
+    senderPatterns: [/odnoklassniki/i, /ok\.ru/i, /одноклассники/i],
+    codePatterns: [
+      /(\d{4,6})/g,
+      /код[:\s]*(\d{4,6})/i
+    ],
+    keywords: ['ok', 'одноклассники', 'код', 'code']
+  },
+  discord: {
+    senderPatterns: [/discord/i],
+    codePatterns: [
+      /(\d{6})/g,
+      /code[:\s]*(\d{6})/i
+    ],
+    keywords: ['discord', 'verify', 'code']
+  },
+  reddit: {
+    senderPatterns: [/reddit/i],
+    codePatterns: [
+      /(\d{6})/g,
+      /code[:\s]*(\d{6})/i
+    ],
+    keywords: ['reddit', 'verify', 'code']
+  },
+  spotify: {
+    senderPatterns: [/spotify/i],
+    codePatterns: [
+      /(\d{6})/g,
+      /code[:\s]*(\d{6})/i
+    ],
+    keywords: ['spotify', 'verify', 'code']
+  },
+  twitch: {
+    senderPatterns: [/twitch/i],
+    codePatterns: [
+      /(\d{6})/g,
+      /code[:\s]*(\d{6})/i
+    ],
+    keywords: ['twitch', 'verify', 'code']
+  },
+  onlyfans: {
+    senderPatterns: [/onlyfans/i],
+    codePatterns: [
+      /(\d{6})/g,
+      /code[:\s]*(\d{6})/i
+    ],
+    keywords: ['onlyfans', 'verify', 'code']
+  },
+  viber: {
+    senderPatterns: [/viber/i],
+    codePatterns: [
+      /(\d{4,6})/g,
+      /code[:\s]*(\d{4,6})/i
+    ],
+    keywords: ['viber', 'verify', 'code']
+  },
+  signal: {
+    senderPatterns: [/signal/i],
+    codePatterns: [
+      /(\d{6})/g,
+      /code[:\s]*(\d{6})/i
+    ],
+    keywords: ['signal', 'verify', 'code']
   }
 };
 

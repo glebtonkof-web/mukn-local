@@ -306,3 +306,50 @@ export {
   detectAllSimCards as scanForSimCards,
   type DetectedSimCard
 } from './improved-sim-scanner';
+
+// Human Behavior Simulation
+export {
+  humanDelay,
+  humanTyping,
+  humanMouseMove,
+  humanClick,
+  humanScroll,
+  scrollToElement,
+  simulateReading,
+  randomMouseMovement,
+  simulateDecision,
+  lookAround,
+  generateFingerprint,
+  generateMobileFingerprint,
+  generateName,
+  generateUsername,
+  generatePassword,
+  generateDateOfBirth,
+  randomInt,
+  randomChoice,
+  type HumanBehaviorConfig
+} from './human-behavior';
+
+// Services Registry
+export {
+  SERVICES_REGISTRY,
+  getServiceConfig,
+  getAllServices,
+  getServicesForRussia,
+  getServicesWithoutVpn,
+  getAutomatableServices,
+  canRegister,
+  getPauseBetweenRegs,
+  needsMobileFingerprint,
+  type ServiceConfig
+} from './services-registry';
+
+// Mass Registration
+export {
+  runMassRegistration,
+  runSingleRegistration,
+  onMassRegEvent,
+  type RegistrationTask,
+  type RegistrationResult,
+  type MassRegistrationConfig
+} from './register-all';
