@@ -407,20 +407,34 @@ export async function readSimSlots(deviceId: string): Promise<SimCardSlot[]> {
     }
   }
   
-  // Method 2: Check each slot individually using getprop
+  // Method 2: First check combined SIM state (most reliable for some Huawei devices)
+  const combinedStateResult = await executeCommand(deviceId, 'getprop gsm.sim.state');
+  const combinedStates = combinedStateResult.success ? combinedStateResult.output.split(',') : [];
+  
+  logger.info('Combined SIM states', { states: combinedStates });
+  
+  // Method 3: Check each slot individually using getprop
   for (let slotIndex = 0; slotIndex < 2; slotIndex++) {
     // Skip if already found from content provider
     if (slots.find(s => s.slotIndex === slotIndex && s.isActive)) {
       continue;
     }
     
-    // Check slot state
+    // First try individual slot state
     const stateResult = await executeCommand(deviceId,
       `getprop gsm.sim.state.${slotIndex}`
     );
     
-    const state = stateResult.success ? stateResult.output.trim() : '';
+    let state = stateResult.success ? stateResult.output.trim() : '';
+    
+    // If individual state is empty, use combined state
+    if (!state && combinedStates[slotIndex]) {
+      state = combinedStates[slotIndex].trim();
+    }
+    
     const isActive = state === 'READY' || state === 'IMSI' || state === 'LOADED';
+    
+    logger.debug('SIM slot state', { slotIndex, state, isActive });
     
     if (isActive || !slots.find(s => s.slotIndex === slotIndex)) {
       const slot: SimCardSlot = {
@@ -510,44 +524,15 @@ export async function readSimSlots(deviceId: string): Promise<SimCardSlot[]> {
       } else {
         slots.push(slot);
       }
-      
-      logger.info('Found SIM from getprop', { 
-        slotIndex, 
+
+      logger.info('Found SIM from getprop', {
+        slotIndex,
         isActive,
-        phoneNumber: slot.phoneNumber 
+        phoneNumber: slot.phoneNumber
       });
     }
   }
-  
-  // Method 3: Check combined sim state (fallback)
-  const simStateResult = await executeCommand(deviceId, 
-    'getprop gsm.sim.state'
-  );
-  
-  if (simStateResult.success) {
-    const states = simStateResult.output.split(',');
-    
-    for (let i = 0; i < states.length; i++) {
-      const existingSlot = slots.find(s => s.slotIndex === i);
-      if (!existingSlot) {
-        const isActive = states[i]?.trim() === 'READY' || 
-                        states[i]?.trim() === 'IMSI' ||
-                        states[i]?.trim() === 'LOADED';
-        
-        slots.push({
-          slotIndex: i,
-          isActive
-        });
-        
-        logger.info('Found SIM from combined state', { 
-          slotIndex: i, 
-          state: states[i]?.trim(),
-          isActive 
-        });
-      }
-    }
-  }
-  
+
   // Sort slots by index
   slots.sort((a, b) => a.slotIndex - b.slotIndex);
   
