@@ -49,6 +49,7 @@ const navSections = [
     title: '🚀 Быстрый старт',
     items: [
       { id: 'auto-earn', label: 'Авто-заработок', icon: Zap, badge: 'NEW' },
+      { id: 'sim-auto', label: 'SIM Auto', icon: Smartphone, badge: 'PRO' },
     ]
   },
   {

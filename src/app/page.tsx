@@ -25,6 +25,7 @@ import { TrafficPourView } from '@/components/views/traffic-pour-view';
 import { AntidetectView } from '@/components/views/antidetect-view';
 import { DeepSeekFreePanelPro } from '@/components/deepseek-free/deepseek-free-panel-pro';
 import { ContentStudioView } from '@/components/views/content-studio-view';
+import { SimAutoView } from '@/components/views/sim-auto-view';
 // AI Panel - боковая панель с браузером
 import { AIPanel } from '@/components/ai-assistant/ai-panel';
 import { ModeSwitcher } from '@/components/mode-switcher/index';
@@ -333,6 +334,8 @@ export default function Page() {
         return <AntidetectView />;
       case 'content-studio':
         return <ContentStudioView />;
+      case 'sim-auto':
+        return <SimAutoView />;
       case 'advanced':
         return <AdvancedView />;
       case 'deepseek-free':

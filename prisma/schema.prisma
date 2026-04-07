@@ -4032,3 +4032,266 @@ model ScheduledTask {
   @@index([status])
   @@index([nextRunAt])
 }
+
+// ============================================
+// SIM AUTO-REGISTRATION MODULE MODELS
+// ============================================
+
+// Detected SIM card from ADB scan
+model SimCardDetected {
+  id              String   @id
+  deviceId        String   // ADB device ID
+  slotIndex       Int      // 0 or 1 for dual SIM
+  phoneNumber     String?
+  operator        String?
+  country         String   @default("RU")
+  imei            String?
+  isActive        Boolean  @default(true)
+  lastScannedAt   DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+  registrationJob SimCardRegistrationJob[]
+  SimCardAccount  SimCardAccount[]
+
+  @@unique([deviceId, slotIndex])
+  @@index([phoneNumber])
+  @@index([deviceId])
+}
+
+// Registration job for batch processing
+model SimCardRegistrationJob {
+  id              String   @id
+  simCardId       String
+  platform        String   // telegram, instagram, tiktok, twitter, youtube, whatsapp, viber, signal, discord, reddit
+  status          String   @default("pending") // pending, registering, verifying, completed, failed
+  username        String?
+  password        String?
+  sessionData     String?  // JSON with cookies/session
+  twoFASecret     String?
+  twoFABackupCodes String?
+  verificationCode String?
+  errorMessage    String?
+  retryCount      Int      @default(0)
+  maxRetries      Int      @default(3)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+  SimCardDetected SimCardDetected @relation(fields: [simCardId], references: [id])
+  SimCardAccount  SimCardAccount?
+
+  @@index([simCardId])
+  @@index([platform])
+  @@index([status])
+}
+
+// Registered account from SIM
+model SimCardAccount {
+  id              String   @id
+  simCardId       String
+  jobId           String   @unique
+  platform        String
+  username        String?
+  phoneNumber     String?
+  email           String?
+  password        String?
+  sessionData     String?  // Encrypted session/cookies
+  twoFASecret     String?  // Encrypted 2FA secret
+  twoFABackupCodes String? // Encrypted backup codes
+  status          String   @default("registered") // registered, warming, active, banned, sold
+  banReason       String?
+  warmingProgress Int      @default(0) // 0-100
+  warmingPhase     Int      @default(0) // 0-4 phases
+  warmingStartedAt DateTime?
+  warmingEndsAt   DateTime?
+  lastActivityAt  DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+  SimCardDetected SimCardDetected @relation(fields: [simCardId], references: [id])
+  SimCardRegistrationJob SimCardRegistrationJob @relation(fields: [jobId], references: [id])
+  SimCardWarmingLog SimCardWarmingLog[]
+  SimCardProfitLog SimCardProfitLog[]
+
+  @@index([simCardId])
+  @@index([platform])
+  @@index([status])
+}
+
+// Warming activity log
+model SimCardWarmingLog {
+  id           String   @id
+  accountId    String
+  actionType   String   // login, view, like, subscribe, comment, message, post
+  target       String?  // Channel/post/message ID
+  result       String?  // success, failed, error message
+  riskScore    Int      @default(0) // 0-100
+  metadata     String?  // JSON with additional data
+  createdAt    DateTime @default(now())
+  SimCardAccount SimCardAccount @relation(fields: [accountId], references: [id])
+
+  @@index([accountId])
+  @@index([actionType])
+  @@index([createdAt])
+}
+
+// Monetization scheme library
+model MonetizationScheme {
+  id               String   @id
+  name             String
+  description      String?
+  category         String   // cpa, affiliate, direct, arbitrage, farming
+  platforms        String   // JSON array: ["telegram", "instagram"]
+  minAccounts      Int      @default(1)
+  minWarmingDays   Int      @default(7)
+  riskLevel        String   @default("medium") // low, medium, high, extreme
+  automationLevel  Int      @default(50) // 0-100%
+  expectedRevenue  String?  // "$50-100/month"
+  timeToProfit     Int      @default(14) // days
+  isFree           Boolean  @default(true)
+  requirements     String?  // JSON with required resources
+  config           String?  // JSON with scheme configuration
+  instructions     String?  // Step-by-step instructions
+  usageCount       Int      @default(0)
+  successRate      Float    @default(0)
+  avgROI           Float    @default(0)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @default(now())
+  UserSchemeRanking UserSchemeRanking[]
+
+  @@index([category])
+  @@index([riskLevel])
+  @@index([isActive])
+}
+
+// User-specific scheme rankings
+model UserSchemeRanking {
+  id             String   @id
+  userId         String
+  schemeId       String
+  score          Float    @default(0)
+  rank           Int      @default(0)
+  isApplied      Boolean  @default(false)
+  appliedAt      DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now())
+  MonetizationScheme MonetizationScheme @relation(fields: [schemeId], references: [id])
+
+  @@unique([userId, schemeId])
+  @@index([userId])
+  @@index([score])
+}
+
+// Profit execution and tracking
+model SimCardProfitLog {
+  id              String   @id
+  accountId       String
+  schemeId        String?
+  revenueType     String   // cpa, subscription, sale, referral
+  amount          Float    @default(0)
+  currency        String   @default("USD")
+  description     String?
+  metadata        String?  // JSON with additional data
+  createdAt       DateTime @default(now())
+  SimCardAccount  SimCardAccount @relation(fields: [accountId], references: [id])
+
+  @@index([accountId])
+  @@index([schemeId])
+  @@index([createdAt])
+}
+
+// Full auto process state
+model SimCardAutoProcess {
+  id                 String   @id
+  status             String   @default("idle") // idle, scanning, registering, warming, monetizing, error
+  currentStep        String?
+  progress           Int      @default(0)
+  totalAccounts      Int      @default(0)
+  registeredAccounts Int      @default(0)
+  warmingAccounts    Int      @default(0)
+  activeAccounts     Int      @default(0)
+  bannedAccounts     Int      @default(0)
+  totalRevenue       Float    @default(0)
+  currency           String   @default("USD")
+  startedAt          DateTime?
+  estimatedEndAt     DateTime?
+  error              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @default(now())
+
+  @@index([status])
+}
+
+// ADB device connection
+model AdbDevice {
+  id              String   @id
+  deviceId        String   @unique
+  deviceModel     String?
+  androidVersion  String?
+  status          String   @default("disconnected") // connected, disconnected, error
+  lastConnectedAt DateTime?
+  ipAddress       String?
+  port            Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+
+  @@index([status])
+}
+
+// SMS verification queue
+model SmsVerificationQueue {
+  id           String   @id
+  jobId        String   @unique
+  phoneNumber  String
+  platform     String
+  expectedCode String?  // Pattern to match
+  receivedCode String?
+  smsContent   String?
+  expiresAt    DateTime
+  receivedAt   DateTime?
+  status       String   @default("waiting") // waiting, received, expired, cancelled
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now())
+
+  @@index([phoneNumber])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+// SIM Auto Verification - tracks verification requests
+model SimAutoVerification {
+  id            String    @id
+  phoneNumber   String
+  platform      String    // instagram, tiktok, telegram, whatsapp, etc.
+  deviceId      String?   // ADB device ID
+  status        String    @default("pending") // pending, waiting_code, code_received, verified, failed, timeout, cancelled
+  requestCode   String?
+  error         String?
+  expiresAt     DateTime
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now())
+
+  @@index([phoneNumber])
+  @@index([platform])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+// Verification SMS - stores received verification codes
+model VerificationSms {
+  id          String    @id
+  phoneNumber String
+  platform    String    // instagram, tiktok, telegram, whatsapp, etc.
+  code        String
+  sender      String?
+  receivedAt  DateTime  @default(now())
+  expiresIn   Int       @default(300) // seconds
+  used        Boolean   @default(false)
+  usedAt      DateTime?
+
+  @@index([phoneNumber])
+  @@index([platform])
+  @@index([code])
+  @@index([receivedAt])
+}
