@@ -74,14 +74,18 @@ export async function GET(request: NextRequest) {
  * Управление прокси
  * 
  * Body:
- * - action: 'refresh' | 'clear' | 'blacklist'
- * - host?: string (для blacklist)
+ * - action: 'refresh' | 'clear' | 'blacklist' | 'add'
+ * - host?: string (для blacklist/add)
+ * - port?: number (для add)
+ * - protocol?: string (для add: http, https, socks4, socks5)
+ * - username?: string (для add)
+ * - password?: string (для add)
  * - reason?: string (для blacklist)
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { action, host, reason } = body
+    const { action, host, port, protocol, username, password, reason } = body
     const manager = getProxyManager()
     
     switch (action) {
@@ -122,11 +126,34 @@ export async function POST(request: NextRequest) {
           message: `Прокси ${host} добавлен в blacklist`,
           action: 'blacklist'
         })
+
+      case 'add':
+        if (!host || !port || !protocol) {
+          return NextResponse.json({
+            success: false,
+            error: 'Host, port и protocol обязательны для добавления прокси'
+          }, { status: 400 })
+        }
+        
+        const validProtocols = ['http', 'https', 'socks4', 'socks5']
+        if (!validProtocols.includes(protocol)) {
+          return NextResponse.json({
+            success: false,
+            error: `Неверный протокол: ${protocol}. Используйте: ${validProtocols.join(', ')}`
+          }, { status: 400 })
+        }
+        
+        manager.addCustomProxy(host, port, protocol, username, password)
+        return NextResponse.json({
+          success: true,
+          message: `Прокси ${host}:${port} (${protocol}) добавлен`,
+          action: 'add'
+        })
         
       default:
         return NextResponse.json({
           success: false,
-          error: `Unknown action: ${action}. Use: refresh, clear, blacklist`
+          error: `Unknown action: ${action}. Use: refresh, clear, blacklist, add`
         }, { status: 400 })
     }
   } catch (error) {
