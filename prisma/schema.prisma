@@ -4448,3 +4448,45 @@ model AlertLog {
   @@index([acknowledged])
   @@index([createdAt])
 }
+
+// Учётные данные по умолчанию для регистрации аккаунтов
+model DefaultCredentials {
+  id                String   @id
+  userId            String   @unique
+  
+  // Глобальные настройки
+  defaultUsername   String?
+  defaultPassword   String?
+  defaultEmail      String?
+  defaultPhone      String?
+  autoFillEnabled   Boolean  @default(true)
+  
+  // JSON с настройками для каждой платформы
+  platformsConfig   String?  // JSON: Record<platformId, PlatformCredentials>
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Профиль платформы для регистрации
+model PlatformProfile {
+  id                String   @id
+  platform          String   @unique
+  defaultUsername   String?
+  defaultPassword   String?
+  defaultEmail      String?
+  defaultPhone      String?
+  useGlobalDefaults Boolean  @default(true)
+  
+  // Дополнительные поля для специфичных платформ
+  apiId             String?  // Telegram API ID
+  apiHash           String?  // Telegram API Hash
+  sessionData       String?  // Session string
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now())
+
+  @@index([platform])
+}

@@ -72,9 +72,52 @@ interface AccountsPanelProps {
 }
 
 const PLATFORM_CONFIG = {
+  // Мессенджеры
   telegram: { icon: MessageSquare, color: '#0088cc', label: 'Telegram' },
+  whatsapp: { icon: MessageSquare, color: '#25D366', label: 'WhatsApp' },
+  discord: { icon: MessageSquare, color: '#5865F2', label: 'Discord' },
+  
+  // Социальные сети
   instagram: { icon: Globe, color: '#E4405F', label: 'Instagram' },
   tiktok: { icon: Video, color: '#000000', label: 'TikTok' },
+  youtube: { icon: Video, color: '#FF0000', label: 'YouTube' },
+  twitter: { icon: Globe, color: '#1DA1F2', label: 'Twitter/X' },
+  facebook: { icon: Globe, color: '#1877F2', label: 'Facebook' },
+  snapchat: { icon: Globe, color: '#FFFC00', label: 'Snapchat' },
+  reddit: { icon: Globe, color: '#FF4500', label: 'Reddit' },
+  pinterest: { icon: Globe, color: '#E60023', label: 'Pinterest' },
+  linkedin: { icon: Globe, color: '#0A66C2', label: 'LinkedIn' },
+  
+  // Российские платформы
+  vk: { icon: Globe, color: '#0077FF', label: 'ВКонтакте' },
+  ok: { icon: Globe, color: '#EE8208', label: 'Одноклассники' },
+  
+  // Стриминг и музыка
+  twitch: { icon: Video, color: '#9146FF', label: 'Twitch' },
+  spotify: { icon: Globe, color: '#1DB954', label: 'Spotify' },
+  
+  // Другое
+  onlyfans: { icon: Globe, color: '#00AFF0', label: 'OnlyFans' },
+};
+
+// Список всех платформ для выбора
+const ALL_PLATFORMS = Object.keys(PLATFORM_CONFIG);
+
+// Группы платформ для фильтров
+const PLATFORM_GROUPS = {
+  all: 'Все',
+  messengers: 'Мессенджеры',
+  social: 'Соцсети',
+  russian: 'РФ',
+  streaming: 'Стриминг',
+};
+
+const PLATFORM_FILTERS: Record<string, string[]> = {
+  all: ALL_PLATFORMS,
+  messengers: ['telegram', 'whatsapp', 'discord'],
+  social: ['instagram', 'tiktok', 'youtube', 'twitter', 'facebook', 'snapchat', 'reddit', 'pinterest', 'linkedin'],
+  russian: ['vk', 'ok'],
+  streaming: ['twitch', 'spotify'],
 };
 
 const STATUS_CONFIG = {
@@ -251,10 +294,10 @@ export function AccountsPanel({ onStatsChange }: AccountsPanelProps) {
     setDialogOpen(true);
   };
 
-  // Фильтрация
+  // Фильтрация по группе платформ
   const filteredAccounts = filter === 'all'
     ? accounts
-    : accounts.filter(a => a.platform === filter);
+    : accounts.filter(a => PLATFORM_FILTERS[filter]?.includes(a.platform) || false);
 
   const getRiskColor = (risk: number) => {
     if (risk < 30) return '#00D26A';
@@ -276,12 +319,13 @@ export function AccountsPanel({ onStatsChange }: AccountsPanelProps) {
             <RefreshCw className={cn('w-4 h-4 mr-2', loading && 'animate-spin')} />
             Обновить
           </Button>
-          <div className="flex bg-[#1E1F26] rounded-lg p-1">
+          <div className="flex flex-wrap bg-[#1E1F26] rounded-lg p-1 gap-1">
             {[
               { id: 'all', label: 'Все' },
-              { id: 'telegram', label: 'Telegram' },
-              { id: 'instagram', label: 'Instagram' },
-              { id: 'tiktok', label: 'TikTok' },
+              { id: 'messengers', label: 'Мессенджеры' },
+              { id: 'social', label: 'Соцсети' },
+              { id: 'russian', label: 'РФ' },
+              { id: 'streaming', label: 'Стриминг' },
             ].map((f) => (
               <button
                 key={f.id}
@@ -457,10 +501,24 @@ export function AccountsPanel({ onStatsChange }: AccountsPanelProps) {
                 <SelectTrigger className="bg-[#1E1F26] border-[#2A2B32] text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-[#1E1F26] border-[#2A2B32]">
-                  <SelectItem value="telegram">Telegram</SelectItem>
-                  <SelectItem value="instagram">Instagram</SelectItem>
-                  <SelectItem value="tiktok">TikTok</SelectItem>
+                <SelectContent className="bg-[#1E1F26] border-[#2A2B32] max-h-60">
+                  <SelectItem value="telegram">💬 Telegram</SelectItem>
+                  <SelectItem value="whatsapp">💬 WhatsApp</SelectItem>
+                  <SelectItem value="discord">💬 Discord</SelectItem>
+                  <SelectItem value="instagram">📷 Instagram</SelectItem>
+                  <SelectItem value="tiktok">🎬 TikTok</SelectItem>
+                  <SelectItem value="youtube">▶️ YouTube</SelectItem>
+                  <SelectItem value="twitter">🐦 Twitter/X</SelectItem>
+                  <SelectItem value="facebook">📘 Facebook</SelectItem>
+                  <SelectItem value="snapchat">👻 Snapchat</SelectItem>
+                  <SelectItem value="reddit">🔴 Reddit</SelectItem>
+                  <SelectItem value="pinterest">📌 Pinterest</SelectItem>
+                  <SelectItem value="linkedin">💼 LinkedIn</SelectItem>
+                  <SelectItem value="vk">👥 ВКонтакте</SelectItem>
+                  <SelectItem value="ok">👥 Одноклассники</SelectItem>
+                  <SelectItem value="twitch">🎮 Twitch</SelectItem>
+                  <SelectItem value="spotify">🎵 Spotify</SelectItem>
+                  <SelectItem value="onlyfans">💎 OnlyFans</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -25,6 +25,7 @@ import {
   Sparkles,
   BarChart3,
   Terminal,
+  Key,
 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
@@ -37,6 +38,7 @@ import { AIAgentTab } from './ai-agent-tab';
 import { FeaturesTab } from './features-tab';
 import { AnalyticsSettingsTab } from './analytics-settings-tab';
 import { DevSettingsTab } from './dev-settings-tab';
+import { DefaultCredentialsPanel } from './default-credentials-panel';
 
 // Список всех настроек для поиска
 const allSettings = [
@@ -59,6 +61,8 @@ const allSettings = [
   { id: 'reportFormat', tab: 'analytics', label: 'Формат отчётов', description: 'Формат автоматических отчётов' },
   { id: 'debugMode', tab: 'dev', label: 'Режим отладки', description: 'Расширенное логирование' },
   { id: 'testMode', tab: 'dev', label: 'Тестовый режим', description: 'Без реальной публикации' },
+  { id: 'defaultCredentials', tab: 'credentials', label: 'Учётные данные', description: 'Логин и пароль по умолчанию для всех платформ' },
+  { id: 'autoFillEnabled', tab: 'credentials', label: 'Автозаполнение', description: 'Автоматическое заполнение данных при регистрации' },
 ];
 
 export function SettingsDialog() {
@@ -197,6 +201,10 @@ export function SettingsDialog() {
               <Terminal className="w-4 h-4" />
               <span className="hidden sm:inline">DevOps</span>
             </TabsTrigger>
+            <TabsTrigger value="credentials" className="data-[state=active]:bg-[#6C63FF] gap-1">
+              <Key className="w-4 h-4" />
+              <span className="hidden sm:inline">Логины</span>
+            </TabsTrigger>
           </TabsList>
 
           <div className="mt-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 280px)' }}>
@@ -226,6 +234,10 @@ export function SettingsDialog() {
 
             <TabsContent value="dev" className="mt-0">
               <DevSettingsTab />
+            </TabsContent>
+
+            <TabsContent value="credentials" className="mt-0">
+              <DefaultCredentialsPanel />
             </TabsContent>
           </div>
         </Tabs>
