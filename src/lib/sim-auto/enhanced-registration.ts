@@ -41,7 +41,7 @@ import {
 } from '@/lib/captcha-solver'
 
 // Platform configurations with enhanced selectors
-const PLATFORM_CONFIGS = {
+export const PLATFORM_CONFIGS = {
   telegram: {
     url: 'https://web.telegram.org/a/',
     alternativeUrl: 'https://web.telegram.org/k/',
