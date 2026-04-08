@@ -4490,3 +4490,121 @@ model PlatformProfile {
 
   @@index([platform])
 }
+
+// Почтовые сервисы для регистрации аккаунтов
+model EmailService {
+  id                String        @id
+  name              String        @unique  // gmail, yandex, mailru, outlook, protonmail, rambler
+  displayName       String                  // Gmail, Yandex Mail, Mail.ru, etc.
+  domain            String                  // gmail.com, yandex.ru, mail.ru, etc.
+  registrationUrl   String?
+  isActive          Boolean       @default(true)
+  requiresPhone     Boolean       @default(true)
+  requiresRecovery  Boolean       @default(true)
+  captchaTypes      String?       // JSON array: ["recaptcha", "hcaptcha"]
+  
+  // Лимиты
+  dailyLimit        Int           @default(10)
+  dailyUsed         Int           @default(0)
+  
+  // Статистика
+  totalRegistered   Int           @default(0)
+  successRate       Float         @default(0)
+  lastUsedAt        DateTime?
+  lastResetAt       DateTime?
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @default(now())
+  
+  EmailAccount      EmailAccount[]
+
+  @@index([isActive])
+  @@index([name])
+}
+
+// Зарегистрированные почтовые аккаунты
+model EmailAccount {
+  id                String        @id
+  email             String        @unique
+  password          String
+  serviceId         String
+  
+  // Данные аккаунта
+  firstName         String?
+  lastName          String?
+  username          String?       // Логин без домена
+  recoveryEmail     String?
+  recoveryPhone     String?
+  
+  // Статус
+  status            String        @default("active")  // active, banned, locked, expired
+  isVerified        Boolean       @default(false)
+  verificationDate  DateTime?
+  
+  // Для использования при регистрации
+  usedForAccounts   String?       // JSON array of account IDs
+  usedCount         Int           @default(0)
+  
+  // Сессия и куки
+  sessionData       String?       // JSON with cookies, tokens
+  lastLoginAt       DateTime?
+  
+  // Proxy
+  proxyId           String?
+  proxyHost         String?
+  proxyPort         Int?
+  proxyUsername     String?
+  proxyPassword     String?
+  
+  // sticky session
+  stickyProxy       String?
+  
+  // Метаданные
+  notes             String?
+  tags              String?       // JSON array
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @default(now())
+  expiresAt         DateTime?
+  
+  EmailService      EmailService  @relation(fields: [serviceId], references: [id])
+
+  @@index([email])
+  @@index([status])
+  @@index([serviceId])
+}
+
+// Очередь регистрации почтовых аккаунтов
+model EmailRegistrationQueue {
+  id                String    @id
+  service           String    // gmail, yandex, mailru, etc.
+  status            String    @default("pending")  // pending, in_progress, completed, failed
+  priority          Int       @default(5)
+  
+  // Параметры регистрации
+  firstName         String?
+  lastName          String?
+  customUsername    String?
+  customPassword    String?
+  recoveryEmail     String?
+  
+  // Результат
+  resultEmail       String?
+  resultPassword    String?
+  accountId         String?
+  
+  // Ошибки
+  errorMessage      String?
+  retryCount        Int       @default(0)
+  maxRetries        Int       @default(3)
+  
+  // Временные метки
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now())
+
+  @@index([status])
+  @@index([service])
+  @@index([priority])
+}

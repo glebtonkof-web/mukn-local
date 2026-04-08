@@ -280,6 +280,573 @@ const PLATFORM_CONFIGS = {
       ],
       captchaIframe: []
     }
+  },
+
+  facebook: {
+    url: 'https://www.facebook.com/r.php',
+    name: 'Facebook',
+    requiresPhone: true,
+    requiresSms: true,
+    maxRetries: 3,
+    timeout: 300000,
+    captchaTypes: ['recaptcha', 'hcaptcha'],
+    selectors: {
+      phoneInput: [
+        'input[name="reg_email__"]',
+        'input[type="tel"]',
+        'input[placeholder*="mobile" i]'
+      ],
+      emailInput: [
+        'input[name="reg_email__"]',
+        'input[type="email"]'
+      ],
+      codeInput: [
+        'input[name="code"]',
+        'input[type="text"][maxlength="6"]',
+        'input[placeholder*="code" i]'
+      ],
+      usernameInput: [
+        'input[name="firstname"]',
+        'input[name="lastname"]'
+      ],
+      passwordInput: [
+        'input[name="reg_passwd__"]',
+        'input[type="password"]'
+      ],
+      submitBtn: [
+        'button[name="websubmit"]',
+        'button[type="submit"]',
+        'button:has-text("Sign Up")'
+      ],
+      successIndicator: [
+        '[data-pagelet="Feed"]',
+        '[role="feed"]',
+        '[aria-label="Home"]'
+      ],
+      errorIndicator: [
+        '[class*="error"]',
+        '#reg_error_inner'
+      ],
+      captchaIframe: [
+        'iframe[src*="recaptcha"]',
+        'iframe[src*="hcaptcha"]'
+      ]
+    }
+  },
+
+  youtube: {
+    url: 'https://accounts.google.com/signup',
+    name: 'YouTube',
+    requiresPhone: true,
+    requiresSms: true,
+    maxRetries: 3,
+    timeout: 300000,
+    captchaTypes: ['recaptcha'],
+    selectors: {
+      phoneInput: [
+        'input[type="tel"]',
+        'input[id="phoneNumberId"]',
+        'input[name="phoneNumber"]'
+      ],
+      emailInput: [
+        'input[type="email"]',
+        'input[id="identifierId"]'
+      ],
+      codeInput: [
+        'input[type="text"][maxlength="6"]',
+        'input[id="code"]'
+      ],
+      usernameInput: [
+        'input[name="firstName"]',
+        'input[name="lastName"]'
+      ],
+      passwordInput: [
+        'input[type="password"]',
+        'input[name="Passwd"]'
+      ],
+      submitBtn: [
+        'button[type="submit"]',
+        'button:has-text("Next")',
+        '#identifierNext button'
+      ],
+      successIndicator: [
+        '[data-youtube-account]',
+        'ytd-app',
+        '#content'
+      ],
+      errorIndicator: [
+        '[class*="error"]',
+        '.LXRPh'
+      ],
+      captchaIframe: [
+        'iframe[src*="recaptcha"]'
+      ]
+    }
+  },
+
+  linkedin: {
+    url: 'https://www.linkedin.com/signup',
+    name: 'LinkedIn',
+    requiresPhone: true,
+    requiresSms: true,
+    maxRetries: 3,
+    timeout: 300000,
+    captchaTypes: ['recaptcha'],
+    selectors: {
+      phoneInput: [
+        'input[type="tel"]',
+        'input[id="phone-number"]'
+      ],
+      emailInput: [
+        'input[type="email"]',
+        'input[id="email-or-phone"]'
+      ],
+      codeInput: [
+        'input[type="text"][maxlength="6"]',
+        'input[id="verification-code"]'
+      ],
+      usernameInput: [
+        'input[id="first-name"]',
+        'input[id="last-name"]'
+      ],
+      passwordInput: [
+        'input[type="password"]',
+        'input[id="password"]'
+      ],
+      submitBtn: [
+        'button[type="submit"]',
+        'button:has-text("Agree & Join")'
+      ],
+      successIndicator: [
+        '.feed-container',
+        '[data-control-name="feed"]',
+        '.global-nav'
+      ],
+      errorIndicator: [
+        '[class*="error"]',
+        '.alert'
+      ],
+      captchaIframe: [
+        'iframe[src*="recaptcha"]'
+      ]
+    }
+  },
+
+  snapchat: {
+    url: 'https://www.snapchat.com/signup',
+    name: 'Snapchat',
+    requiresPhone: true,
+    requiresSms: true,
+    maxRetries: 3,
+    timeout: 300000,
+    captchaTypes: ['recaptcha'],
+    selectors: {
+      phoneInput: [
+        'input[type="tel"]',
+        'input[name="phone"]'
+      ],
+      emailInput: [
+        'input[type="email"]',
+        'input[name="email"]'
+      ],
+      codeInput: [
+        'input[type="text"][maxlength="6"]',
+        'input[name="verificationCode"]'
+      ],
+      usernameInput: [
+        'input[name="username"]'
+      ],
+      passwordInput: [
+        'input[type="password"]',
+        'input[name="password"]'
+      ],
+      submitBtn: [
+        'button[type="submit"]',
+        'button:has-text("Sign Up")'
+      ],
+      successIndicator: [
+        '[data-testid="camera"]',
+        '.camera-screen'
+      ],
+      errorIndicator: [
+        '[class*="error"]'
+      ],
+      captchaIframe: [
+        'iframe[src*="recaptcha"]'
+      ]
+    }
+  },
+
+  pinterest: {
+    url: 'https://www.pinterest.com/signup/',
+    name: 'Pinterest',
+    requiresPhone: true,
+    requiresSms: true,
+    maxRetries: 3,
+    timeout: 300000,
+    captchaTypes: ['recaptcha', 'hcaptcha'],
+    selectors: {
+      phoneInput: [
+        'input[type="tel"]',
+        'input[name="phone"]'
+      ],
+      emailInput: [
+        'input[type="email"]',
+        'input[id="email"]'
+      ],
+      codeInput: [
+        'input[type="text"][maxlength="6"]'
+      ],
+      usernameInput: [
+        'input[name="username"]'
+      ],
+      passwordInput: [
+        'input[type="password"]',
+        'input[id="password"]'
+      ],
+      submitBtn: [
+        'button[type="submit"]',
+        'button:has-text("Continue")'
+      ],
+      successIndicator: [
+        '[data-test-id="homefeed-feed"]',
+        '.homeFeedContainer'
+      ],
+      errorIndicator: [
+        '[class*="error"]'
+      ],
+      captchaIframe: [
+        'iframe[src*="recaptcha"]',
+        'iframe[src*="hcaptcha"]'
+      ]
+    }
+  },
+
+  vk: {
+    url: 'https://vk.com/signup',
+    name: 'VK',
+    requiresPhone: true,
+    requiresSms: true,
+    maxRetries: 3,
+    timeout: 300000,
+    captchaTypes: ['recaptcha'],
+    selectors: {
+      phoneInput: [
+        'input[name="phone"]',
+        'input[type="tel"]',
+        '#join_phone'
+      ],
+      codeInput: [
+        'input[name="code"]',
+        'input[type="text"][maxlength="6"]'
+      ],
+      submitBtn: [
+        'button[type="submit"]',
+        '#join_send_phone',
+        'button:has-text("Получить код")'
+      ],
+      successIndicator: [
+        '.lpr',
+        '#l',
+        '.page_name'
+      ],
+      errorIndicator: [
+        '.msg.error',
+        '[class*="error"]'
+      ],
+      captchaIframe: [
+        'iframe[src*="recaptcha"]'
+      ]
+    }
+  },
+
+  ok: {
+    url: 'https://ok.ru/dk?st.cmd=anonymRegistrationStart',
+    name: 'Odnoklassniki',
+    requiresPhone: true,
+    requiresSms: true,
+    maxRetries: 3,
+    timeout: 300000,
+    captchaTypes: ['recaptcha'],
+    selectors: {
+      phoneInput: [
+        'input[type="tel"]',
+        'input[name="fr.phone"]'
+      ],
+      codeInput: [
+        'input[type="text"][maxlength="6"]',
+        'input[name="fr.code"]'
+      ],
+      usernameInput: [
+        'input[name="fr.name"]',
+        'input[name="fr.surname"]'
+      ],
+      submitBtn: [
+        'button[type="submit"]',
+        'input[type="submit"]'
+      ],
+      successIndicator: [
+        '.toolbar_nav',
+        '.nav-side',
+        '#hook_Block_Navigation'
+      ],
+      errorIndicator: [
+        '.form-error',
+        '[class*="error"]'
+      ],
+      captchaIframe: [
+        'iframe[src*="recaptcha"]'
+      ]
+    }
+  },
+
+  reddit: {
+    url: 'https://www.reddit.com/register/',
+    name: 'Reddit',
+    requiresPhone: false,
+    requiresSms: true,
+    maxRetries: 3,
+    timeout: 300000,
+    captchaTypes: ['recaptcha', 'hcaptcha'],
+    selectors: {
+      emailInput: [
+        'input[type="email"]',
+        'input[name="email"]'
+      ],
+      codeInput: [
+        'input[type="text"][maxlength="6"]'
+      ],
+      usernameInput: [
+        'input[name="username"]',
+        'input[id="regUsername"]'
+      ],
+      passwordInput: [
+        'input[type="password"]',
+        'input[id="regPassword"]'
+      ],
+      submitBtn: [
+        'button[type="submit"]',
+        'button:has-text("Sign Up")'
+      ],
+      successIndicator: [
+        '[data-testid="home-feed"]',
+        '.listing-container',
+        '#SHORTCUT_FOCUSABLE_DIV'
+      ],
+      errorIndicator: [
+        '[class*="error"]',
+        '.AnimatedForm__errorMessage'
+      ],
+      captchaIframe: [
+        'iframe[src*="recaptcha"]',
+        'iframe[src*="hcaptcha"]'
+      ]
+    }
+  },
+
+  spotify: {
+    url: 'https://www.spotify.com/signup',
+    name: 'Spotify',
+    requiresPhone: true,
+    requiresSms: true,
+    maxRetries: 3,
+    timeout: 300000,
+    captchaTypes: ['recaptcha', 'hcaptcha'],
+    selectors: {
+      phoneInput: [
+        'input[type="tel"]',
+        'input[name="phone"]'
+      ],
+      emailInput: [
+        'input[type="email"]',
+        'input[id="email"]'
+      ],
+      codeInput: [
+        'input[type="text"][maxlength="6"]'
+      ],
+      usernameInput: [
+        'input[id="displayname"]'
+      ],
+      passwordInput: [
+        'input[type="password"]',
+        'input[id="password"]'
+      ],
+      submitBtn: [
+        'button[type="submit"]',
+        'button:has-text("Continue")'
+      ],
+      successIndicator: [
+        '.root',
+        '[data-testid="home"]',
+        '.main-view'
+      ],
+      errorIndicator: [
+        '[class*="error"]',
+        '.sc-hiSbYr'
+      ],
+      captchaIframe: [
+        'iframe[src*="recaptcha"]',
+        'iframe[src*="hcaptcha"]'
+      ]
+    }
+  },
+
+  twitch: {
+    url: 'https://www.twitch.tv/signup',
+    name: 'Twitch',
+    requiresPhone: true,
+    requiresSms: true,
+    maxRetries: 3,
+    timeout: 300000,
+    captchaTypes: ['recaptcha', 'hcaptcha'],
+    selectors: {
+      phoneInput: [
+        'input[type="tel"]',
+        'input[name="phoneNumber"]'
+      ],
+      emailInput: [
+        'input[type="email"]',
+        'input[id="email-input"]'
+      ],
+      codeInput: [
+        'input[type="text"][maxlength="6"]'
+      ],
+      usernameInput: [
+        'input[id="signup-username"]'
+      ],
+      passwordInput: [
+        'input[type="password"]',
+        'input[id="password-input"]'
+      ],
+      submitBtn: [
+        'button[type="submit"]',
+        'button[data-a-target="signup-button"]'
+      ],
+      successIndicator: [
+        '[data-a-target="user-home-feed"]',
+        '.home-header-sticky',
+        '.twilight-root'
+      ],
+      errorIndicator: [
+        '[class*="error"]',
+        '[data-a-target="input-error-message"]'
+      ],
+      captchaIframe: [
+        'iframe[src*="recaptcha"]',
+        'iframe[src*="hcaptcha"]'
+      ]
+    }
+  },
+
+  onlyfans: {
+    url: 'https://onlyfans.com/signup',
+    name: 'OnlyFans',
+    requiresPhone: true,
+    requiresSms: true,
+    maxRetries: 3,
+    timeout: 300000,
+    captchaTypes: ['recaptcha'],
+    selectors: {
+      phoneInput: [
+        'input[type="tel"]',
+        'input[name="phone"]'
+      ],
+      emailInput: [
+        'input[type="email"]',
+        'input[name="email"]'
+      ],
+      codeInput: [
+        'input[type="text"][maxlength="6"]'
+      ],
+      usernameInput: [
+        'input[name="username"]'
+      ],
+      passwordInput: [
+        'input[type="password"]',
+        'input[name="password"]'
+      ],
+      submitBtn: [
+        'button[type="submit"]',
+        'button:has-text("Sign up")'
+      ],
+      successIndicator: [
+        '.home-feed',
+        '[class*="user-profile"]'
+      ],
+      errorIndicator: [
+        '[class*="error"]',
+        '.validation-error'
+      ],
+      captchaIframe: [
+        'iframe[src*="recaptcha"]'
+      ]
+    }
+  },
+
+  viber: {
+    url: 'https://www.viber.com/en/download/',
+    name: 'Viber',
+    requiresPhone: true,
+    requiresSms: true,
+    maxRetries: 3,
+    timeout: 300000,
+    captchaTypes: [],
+    selectors: {
+      phoneInput: [
+        'input[type="tel"]',
+        'input[name="phone"]'
+      ],
+      codeInput: [
+        'input[type="text"][maxlength="6"]',
+        'input[name="activationCode"]'
+      ],
+      submitBtn: [
+        'button[type="submit"]',
+        'button:has-text("Continue")'
+      ],
+      successIndicator: [
+        '[class*="chat-list"]',
+        '.main-chat-container'
+      ],
+      errorIndicator: [
+        '[class*="error"]'
+      ],
+      captchaIframe: []
+    }
+  },
+
+  signal: {
+    url: 'https://signal.org/download/',
+    name: 'Signal',
+    requiresPhone: true,
+    requiresSms: true,
+    maxRetries: 3,
+    timeout: 300000,
+    captchaTypes: ['recaptcha'],
+    selectors: {
+      phoneInput: [
+        'input[type="tel"]',
+        'input[name="number"]'
+      ],
+      codeInput: [
+        'input[type="text"][maxlength="6"]',
+        'input[name="code"]'
+      ],
+      submitBtn: [
+        'button[type="submit"]',
+        'button:has-text("Continue")'
+      ],
+      successIndicator: [
+        '[class*="conversation"]',
+        '.inbox'
+      ],
+      errorIndicator: [
+        '[class*="error"]'
+      ],
+      captchaIframe: [
+        'iframe[src*="recaptcha"]'
+      ]
+    }
   }
 }
 
@@ -566,6 +1133,8 @@ export async function runEnhancedRegistration(
         platform,
         phoneNumber,
         username: profile?.username,
+        email: profile?.email,
+        password: profile?.password,
         deviceId,
         jobId
       })
@@ -1092,8 +1661,102 @@ async function completeProfile(
   config: typeof PLATFORM_CONFIGS[keyof typeof PLATFORM_CONFIGS],
   profile: NonNullable<EnhancedRegistrationParams['profile']>
 ): Promise<void> {
-  // Implementation depends on platform
-  logger.debug('[EnhancedRegistration] Profile completion not implemented for this platform')
+  // Enter email if provided and platform supports it
+  if (profile.email && config.selectors.emailInput) {
+    for (const selector of config.selectors.emailInput) {
+      try {
+        const element = await page.$(selector)
+        if (element) {
+          await element.click()
+          await delay(200)
+          await element.fill('')
+          await delay(100)
+          
+          for (const char of profile.email) {
+            await element.press(char, { delay: 50 + Math.random() * 50 })
+          }
+          logger.debug(`[EnhancedRegistration] Email entered: ${profile.email}`)
+          break
+        }
+      } catch {
+        continue
+      }
+    }
+  }
+
+  // Enter username if provided
+  if (profile.username && config.selectors.usernameInput) {
+    for (const selector of config.selectors.usernameInput) {
+      try {
+        const element = await page.$(selector)
+        if (element) {
+          await element.click()
+          await delay(200)
+          await element.fill('')
+          await delay(100)
+          
+          for (const char of profile.username) {
+            await element.press(char, { delay: 50 + Math.random() * 50 })
+          }
+          logger.debug(`[EnhancedRegistration] Username entered: ${profile.username}`)
+          break
+        }
+      } catch {
+        continue
+      }
+    }
+  }
+
+  // Enter password if provided
+  if (profile.password && config.selectors.passwordInput) {
+    for (const selector of config.selectors.passwordInput) {
+      try {
+        const element = await page.$(selector)
+        if (element) {
+          await element.click()
+          await delay(200)
+          await element.fill('')
+          await delay(100)
+          
+          for (const char of profile.password) {
+            await element.press(char, { delay: 50 + Math.random() * 50 })
+          }
+          logger.debug('[EnhancedRegistration] Password entered')
+          break
+        }
+      } catch {
+        continue
+      }
+    }
+  }
+
+  // Enter first name if provided
+  if (profile.firstName && config.selectors.usernameInput) {
+    // Some platforms use usernameInput for name fields
+    const firstNameSelectors = config.selectors.usernameInput.filter(s => 
+      s.includes('first') || s.includes('name')
+    )
+    for (const selector of firstNameSelectors) {
+      try {
+        const element = await page.$(selector)
+        if (element) {
+          await element.click()
+          await delay(200)
+          await element.fill('')
+          await delay(100)
+          
+          for (const char of profile.firstName) {
+            await element.press(char, { delay: 50 + Math.random() * 50 })
+          }
+          break
+        }
+      } catch {
+        continue
+      }
+    }
+  }
+
+  logger.debug('[EnhancedRegistration] Profile completion done')
 }
 
 /**
@@ -1125,6 +1788,8 @@ async function saveAccountToDatabase(params: {
   platform: string
   phoneNumber: string
   username?: string
+  email?: string
+  password?: string
   deviceId: string
   jobId: string
 }): Promise<string> {
@@ -1139,6 +1804,8 @@ async function saveAccountToDatabase(params: {
         platform: params.platform,
         phoneNumber: params.phoneNumber,
         username: params.username,
+        email: params.email,
+        password: params.password,
         status: 'registered',
         createdAt: new Date(),
         updatedAt: new Date()
