@@ -338,6 +338,23 @@ class PersistentTaskQueue {
       this.stats.failed++;
       console.error(`❌ [Queue] Задача провалена: ${dbTask.type} (${taskId}) - ${error.message}`);
 
+      // Добавляем в Dead Letter Queue
+      try {
+        const { getDeadLetterQueue } = await import('./dead-letter-queue');
+        await getDeadLetterQueue().add(
+          taskId,
+          dbTask.type,
+          JSON.parse(dbTask.payload as string),
+          error,
+          {
+            priority: dbTask.priority,
+            metadata: dbTask.metadata ? JSON.parse(dbTask.metadata as string) : undefined
+          }
+        );
+      } catch (dlqError) {
+        console.error('❌ [Queue] Ошибка добавления в DLQ:', dlqError);
+      }
+
       // Callback ошибки
       if (handler?.onError) {
         const task: Task = {

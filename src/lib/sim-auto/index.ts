@@ -134,7 +134,7 @@ export {
 export {
   randomDelay,
   simulateTyping,
-  simulateReading,
+  simulateReading as simulateReadingBehavior,
   simulateMouseMovements,
   simulateScroll,
   generateRandomSchedule,
@@ -350,6 +350,6 @@ export {
   runSingleRegistration,
   onMassRegEvent,
   type RegistrationTask,
-  type RegistrationResult,
+  type RegistrationResult as MassRegistrationResult,
   type MassRegistrationConfig
 } from './register-all';

@@ -314,6 +314,39 @@ class CronScheduler {
         schedule: '0 0 * * *', // в полночь
         taskType: 'daily-stats-reset',
         enabled: true
+      },
+      // Новые задачи для очистки и метрик
+      {
+        name: 'dlq-cleanup',
+        schedule: '0 4 * * *', // в 4:00 каждый день
+        taskType: 'dlq-cleanup',
+        taskPayload: { olderThanDays: 30 },
+        enabled: true
+      },
+      {
+        name: 'checkpoints-cleanup',
+        schedule: '0 */12 * * *', // каждые 12 часов
+        taskType: 'checkpoints-cleanup',
+        enabled: true
+      },
+      {
+        name: 'sticky-sessions-cleanup',
+        schedule: '*/30 * * * *', // каждые 30 минут
+        taskType: 'sticky-sessions-cleanup',
+        enabled: true
+      },
+      {
+        name: 'collect-metrics',
+        schedule: '*/5 * * * *', // каждые 5 минут
+        taskType: 'collect-metrics',
+        enabled: true
+      },
+      {
+        name: 'metrics-cleanup',
+        schedule: '0 5 * * *', // в 5:00 каждый день
+        taskType: 'metrics-cleanup',
+        taskPayload: { olderThanDays: 30 },
+        enabled: true
       }
     ];
 
@@ -357,9 +390,9 @@ export function getCronScheduler(): CronScheduler {
  * * * * * *
  * 
  * Примеры:
- * "*/5 * * * *"     - каждые 5 минут
+ * "0,5,10,15... * * * *" - каждые 5 минут
  * "0 * * * *"       - каждый час
- * "0 */6 * * *"     - каждые 6 часов
+ * "0 0,6,12,18 * * *" - каждые 6 часов
  * "0 0 * * *"       - каждый день в полночь
  * "0 9 * * 1-5"     - в 9:00 по будням
  * "0 3 * * *"       - каждый день в 3:00

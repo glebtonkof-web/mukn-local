@@ -219,9 +219,9 @@ export function initTaskHandlers(): void {
     name: 'account-warming',
     handle: async (task) => {
       const { accountId, platform } = task.payload;
-      
+
       addLog('info', `🔥 Прогрев аккаунта: ${accountId}`, `Платформа: ${platform}`);
-      
+
       // Обновляем статус
       await prisma.account.update({
         where: { id: accountId },
@@ -233,7 +233,7 @@ export function initTaskHandlers(): void {
 
       // Здесь будет логика прогрева
       // Интеграция с warming-manager
-      
+
       return { warming: true, accountId };
     },
     maxAttempts: 2,
@@ -241,6 +241,93 @@ export function initTaskHandlers(): void {
     onError: async (task, error) => {
       addLog('error', `❌ Ошибка прогрева: ${error.message}`);
     }
+  });
+
+  // Очистка DLQ
+  queue.register({
+    name: 'dlq-cleanup',
+    handle: async (task) => {
+      const { olderThanDays = 30 } = task.payload || {};
+      addLog('info', `🧹 Очистка DLQ (старше ${olderThanDays} дней)...`);
+
+      const { getDeadLetterQueue } = await import('./dead-letter-queue');
+      const dlq = getDeadLetterQueue();
+      const deleted = await dlq.cleanup(olderThanDays);
+
+      addLog('success', `🧹 DLQ очищена: удалено ${deleted} записей`);
+      return { deleted };
+    },
+    maxAttempts: 1,
+    timeout: 60000
+  });
+
+  // Очистка истекших чекпоинтов
+  queue.register({
+    name: 'checkpoints-cleanup',
+    handle: async (task) => {
+      addLog('info', '🧹 Очистка истекших чекпоинтов...');
+
+      const { getCheckpointService } = await import('./checkpoint-service');
+      const checkpointService = getCheckpointService();
+      const deleted = await checkpointService.cleanupExpired();
+
+      addLog('success', `🧹 Удалено ${deleted} истекших чекпоинтов`);
+      return { deleted };
+    },
+    maxAttempts: 1,
+    timeout: 60000
+  });
+
+  // Очистка sticky сессий
+  queue.register({
+    name: 'sticky-sessions-cleanup',
+    handle: async (task) => {
+      addLog('info', '🧹 Очистка истекших sticky сессий...');
+
+      const { getStickySessions } = await import('./sticky-sessions');
+      const sticky = getStickySessions();
+      const expired = await sticky.cleanupExpired();
+
+      addLog('success', `🧹 Пометено как expired: ${expired} sticky сессий`);
+      return { expired };
+    },
+    maxAttempts: 1,
+    timeout: 60000
+  });
+
+  // Сбор системных метрик
+  queue.register({
+    name: 'collect-metrics',
+    handle: async (task) => {
+      addLog('info', '📊 Сбор системных метрик...');
+
+      const { getSystemMetrics } = await import('./system-metrics');
+      const metrics = getSystemMetrics();
+      await metrics.collectSystemMetrics();
+
+      addLog('success', '📊 Метрики собраны');
+      return { collected: true };
+    },
+    maxAttempts: 1,
+    timeout: 60000
+  });
+
+  // Очистка старых метрик
+  queue.register({
+    name: 'metrics-cleanup',
+    handle: async (task) => {
+      const { olderThanDays = 30 } = task.payload || {};
+      addLog('info', `📊 Очистка метрик старше ${olderThanDays} дней...`);
+
+      const { getSystemMetrics } = await import('./system-metrics');
+      const metrics = getSystemMetrics();
+      const deleted = await metrics.cleanup(olderThanDays);
+
+      addLog('success', `📊 Удалено ${deleted} старых метрик`);
+      return { deleted };
+    },
+    maxAttempts: 1,
+    timeout: 60000
   });
 
   console.log('📋 [TaskHandlers] Обработчики инициализированы');

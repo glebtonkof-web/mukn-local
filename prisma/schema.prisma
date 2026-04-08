@@ -4323,3 +4323,110 @@ model EmailNotification {
   @@index([status])
   @@index([createdAt])
 }
+
+model DeadLetterQueue {
+  id               String    @id
+  originalTaskId   String
+  taskType         String
+  payload          String
+  error            String
+  errorStack       String?
+  attempts         Int       @default(0)
+  lastAttemptAt    DateTime?
+  originalPriority String?
+  originalMetadata String?
+  resolution       String?
+  resolvedAt       DateTime?
+  resolvedBy       String?
+  createdAt        DateTime  @default(now())
+
+  @@index([taskType])
+  @@index([createdAt])
+  @@index([resolvedAt])
+}
+
+model Checkpoint {
+  id           String    @id
+  entityType   String
+  entityId     String
+  stepName     String
+  stepNumber   Int       @default(0)
+  totalSteps   Int       @default(0)
+  data         String?
+  status       String    @default("in_progress")
+  error        String?
+  canResume    Boolean   @default(true)
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now())
+
+  @@unique([entityType, entityId, stepName])
+  @@index([entityType])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model ProxyStickySession {
+  id           String    @id
+  proxyId      String
+  proxyHost    String
+  proxyPort    Int
+  accountId    String?
+  platform     String?
+  sessionToken String?
+  bindDuration Int       @default(3600)
+  lastUsedAt   DateTime?
+  usageCount   Int       @default(0)
+  status       String    @default("active")
+  boundAt      DateTime  @default(now())
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@unique([proxyHost, proxyPort, accountId])
+  @@index([proxyId])
+  @@index([accountId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model SystemMetric {
+  id          String    @id
+  metricName  String
+  metricValue Float
+  metricUnit  String?
+  tags        String?
+  timestamp   DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+
+  @@index([metricName])
+  @@index([timestamp])
+}
+
+model RegistrationSession {
+  id               String    @id
+  simCardId        String
+  platform         String
+  currentStep      String
+  stepData         String?
+  tempEmail        String?
+  tempUsername     String?
+  proxyId          String?
+  deviceId         String?
+  status           String    @default("pending")
+  errorMessage     String?
+  retryCount       Int       @default(0)
+  maxRetries       Int       @default(3)
+  startedAt        DateTime  @default(now())
+  lastActivityAt   DateTime  @default(now())
+  completedAt      DateTime?
+  expiresAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @default(now())
+
+  @@index([simCardId])
+  @@index([platform])
+  @@index([status])
+  @@index([expiresAt])
+}
