@@ -4250,3 +4250,76 @@ model VerificationSms {
   @@index([code])
   @@index([receivedAt])
 }
+
+model TaskQueue {
+  id          String    @id
+  type        String
+  payload     String
+  priority    String    @default("normal")
+  status      String    @default("pending")
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3)
+  error       String?
+  result      String?
+  metadata    String?
+  scheduledAt DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now())
+
+  @@index([status])
+  @@index([priority])
+  @@index([scheduledAt])
+  @@index([type])
+}
+
+model CronJob {
+  id          String    @id
+  name        String    @unique
+  schedule    String
+  taskType    String
+  taskPayload String?
+  enabled     Boolean   @default(true)
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  lastError   String?
+  runCount    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now())
+
+  @@index([enabled])
+  @@index([nextRunAt])
+}
+
+model TempEmail {
+  id          String    @id
+  email       String    @unique
+  provider    String
+  accessToken String?
+  expiresAt   DateTime
+  usedFor     String?
+  usedForId   String?
+  status      String    @default("active")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now())
+
+  @@index([email])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model EmailNotification {
+  id          String    @id
+  to          String
+  subject     String
+  body        String
+  status      String    @default("pending")
+  sentAt      DateTime?
+  error       String?
+  retryCount  Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  @@index([status])
+  @@index([createdAt])
+}
