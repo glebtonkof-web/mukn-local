@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  mukn:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mukn-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/data/custom.db
+      - CAPTCHA_PROVIDER=${CAPTCHA_PROVIDER:-2captcha}
+      - CAPTCHA_API_KEY=${CAPTCHA_API_KEY}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM}
+      - SMTP_TO=${SMTP_TO}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+    volumes:
+      - mukn-data:/app/data
+      - mukn-backups:/app/backups
+      - ./proxy-cache.json:/app/proxy-cache.json
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/system"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  mukn-data:
+  mukn-backups:

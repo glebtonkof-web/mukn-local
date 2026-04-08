@@ -58,6 +58,15 @@ export class ProxyManager {
   
   // Флаги безопасности
   private securityLog: Array<{ timestamp: Date; event: string; proxy: string }> = [];
+  
+  // Счётчик ошибок для каждого прокси
+  private errorCount: Map<string, number> = new Map();
+  private maxErrorsBeforeReplace: number = 3;
+  
+  // Кэш последнего использованного прокси для sticky sessions
+  private lastUsedProxy: ProxyInfo | null = null;
+  private stickySessionDuration: number = 10 * 60 * 1000; // 10 минут
+  private stickySessionStart: Date | null = null;
 
   constructor() {
     this.loadCachedProxies();
@@ -991,6 +1000,236 @@ export class ProxyManager {
     this.currentIndex = 0;
     this.lastRefresh = null;
     console.log('🗑️ Все прокси очищены');
+  }
+
+  /**
+   * Отметить прокси как неработающий (авто-ротация при падении)
+   */
+  markProxyFailed(proxy: ProxyInfo, reason?: string): void {
+    const key = `${proxy.host}:${proxy.port}`;
+    const errors = (this.errorCount.get(key) || 0) + 1;
+    this.errorCount.set(key, errors);
+
+    console.log(`⚠️ Прокси ${key} ошибка #${errors}: ${reason || 'unknown'}`);
+
+    if (errors >= this.maxErrorsBeforeReplace) {
+      // Удаляем из рабочих
+      this.workingProxies = this.workingProxies.filter(p => 
+        `${p.host}:${p.port}` !== key
+      );
+      
+      // Добавляем в blacklist временно
+      PROXY_BLACKLIST.add(proxy.host);
+      this.logSecurity('auto_blacklisted', key);
+      
+      console.log(`🚫 Прокси ${key} авто-удалён после ${errors} ошибок`);
+      
+      // Если мало прокси осталось, запускаем обновление
+      if (this.workingProxies.length < 5) {
+        console.log('🔄 Мало прокси, запускаем обновление...');
+        this.refreshProxies().catch(err => console.error('Ошибка обновления:', err));
+      }
+    }
+  }
+
+  /**
+   * Отметить прокси как работающий (сброс счётчика ошибок)
+   */
+  markProxyWorking(proxy: ProxyInfo): void {
+    const key = `${proxy.host}:${proxy.port}`;
+    this.errorCount.set(key, 0);
+    proxy.lastChecked = new Date();
+  }
+
+  /**
+   * Получить следующий прокси при ошибке текущего
+   */
+  getNextOnFailure(failedProxy: ProxyInfo): ProxyInfo | null {
+    // Отмечаем как неработающий
+    this.markProxyFailed(failedProxy);
+
+    // Получаем следующий
+    if (this.workingProxies.length === 0) {
+      console.log('❌ Нет доступных прокси для замены');
+      return null;
+    }
+
+    // Пробуем найти прокси с другим IP
+    const failedKey = `${failedProxy.host}:${failedProxy.port}`;
+    for (let i = 0; i < this.workingProxies.length; i++) {
+      const idx = (this.currentIndex + i) % this.workingProxies.length;
+      const proxy = this.workingProxies[idx];
+      
+      if (`${proxy.host}:${proxy.port}` !== failedKey && proxy.riskLevel !== 'high') {
+        this.currentIndex = idx;
+        console.log(`🔄 Переключение на резервный прокси: ${proxy.host}:${proxy.port}`);
+        return proxy;
+      }
+    }
+
+    // Если не нашли, берём любой
+    return this.getSafeProxy();
+  }
+
+  /**
+   * Получить прокси со sticky session (тот же на время сессии)
+   */
+  getStickyProxy(sessionId?: string): ProxyInfo | null {
+    const now = new Date();
+    
+    // Если есть активная sticky session
+    if (this.lastUsedProxy && this.stickySessionStart) {
+      const elapsed = now.getTime() - this.stickySessionStart.getTime();
+      
+      if (elapsed < this.stickySessionDuration) {
+        console.log(`🔒 Sticky proxy: ${this.lastUsedProxy.host}:${this.lastUsedProxy.port}`);
+        return this.lastUsedProxy;
+      }
+    }
+
+    // Получаем новый
+    const proxy = this.getSafeProxySync();
+    if (proxy) {
+      this.lastUsedProxy = proxy;
+      this.stickySessionStart = now;
+    }
+
+    return proxy;
+  }
+
+  /**
+   * Сбросить sticky session
+   */
+  resetStickySession(): void {
+    this.lastUsedProxy = null;
+    this.stickySessionStart = null;
+  }
+
+  /**
+   * Синхронное получение прокси (без обновления)
+   */
+  private getSafeProxySync(): ProxyInfo | null {
+    if (this.workingProxies.length === 0) {
+      return null;
+    }
+
+    this.currentIndex = (this.currentIndex + 1) % this.workingProxies.length;
+    const proxy = this.workingProxies[this.currentIndex];
+
+    if (proxy.riskLevel === 'high') {
+      return this.getNextSafeProxy(this.currentIndex);
+    }
+
+    return proxy;
+  }
+
+  /**
+   * Быстрая проверка прокси (без браузера)
+   */
+  async quickCheckProxy(proxy: ProxyInfo): Promise<boolean> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(`http://${proxy.host}:${proxy.port}`, {
+        method: 'HEAD',
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+      return true;
+    } catch {
+      // Прокси может не отвечать на HTTP напрямую, проверяем через соединение
+      return false;
+    }
+  }
+
+  /**
+   * Health check всех прокси
+   */
+  async healthCheck(): Promise<{
+    total: number;
+    working: number;
+    failed: number;
+    removed: number;
+  }> {
+    console.log('🏥 Health check прокси...');
+    
+    const results = {
+      total: this.workingProxies.length,
+      working: 0,
+      failed: 0,
+      removed: 0
+    };
+
+    const toRemove: string[] = [];
+
+    for (const proxy of this.workingProxies) {
+      try {
+        const validation = await this.validateProxy(proxy);
+        
+        if (validation.isValid) {
+          results.working++;
+          this.markProxyWorking(proxy);
+        } else {
+          results.failed++;
+          this.markProxyFailed(proxy, validation.error);
+          
+          if (this.errorCount.get(`${proxy.host}:${proxy.port}`) || 0 >= this.maxErrorsBeforeReplace) {
+            toRemove.push(`${proxy.host}:${proxy.port}`);
+          }
+        }
+      } catch (error) {
+        results.failed++;
+      }
+    }
+
+    // Удаляем неработающие
+    for (const key of toRemove) {
+      const [host] = key.split(':');
+      this.workingProxies = this.workingProxies.filter(p => `${p.host}:${p.port}` !== key);
+      PROXY_BLACKLIST.add(host);
+      results.removed++;
+    }
+
+    console.log(`🏥 Health check: ${results.working}/${results.total} работают, ${results.removed} удалено`);
+    
+    // Сохраняем
+    this.cacheProxies();
+    
+    return results;
+  }
+
+  /**
+   * Получить топ N быстрых прокси
+   */
+  getTopProxies(count: number = 5): ProxyInfo[] {
+    return this.workingProxies
+      .filter(p => p.riskLevel !== 'high')
+      .sort((a, b) => (a.responseTime || 9999) - (b.responseTime || 9999))
+      .slice(0, count);
+  }
+
+  /**
+   * Получить прокси по стране
+   */
+  getProxyByCountry(country: string): ProxyInfo | null {
+    const filtered = this.workingProxies.filter(
+      p => p.country?.toUpperCase() === country.toUpperCase() && p.riskLevel !== 'high'
+    );
+    
+    if (filtered.length === 0) {
+      return this.getSafeProxySync();
+    }
+
+    return filtered[Math.floor(Math.random() * filtered.length)];
+  }
+
+  /**
+   * Получить статистику ошибок
+   */
+  getErrorStats(): Map<string, number> {
+    return new Map(this.errorCount);
   }
 }
 
