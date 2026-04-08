@@ -4608,3 +4608,319 @@ model EmailRegistrationQueue {
   @@index([service])
   @@index([priority])
 }
+
+// =====================================================
+// АВТОНОМНАЯ ГЕНЕРАЦИЯ КОНТЕНТА 24/365
+// =====================================================
+
+// Кампания автогенерации контента
+model AutoContentCampaign {
+  id                  String                @id
+  name                String
+  description         String?
+  
+  // Типы контента для генерации (JSON array: ["video", "image", "text", "audio"])
+  contentTypes        String
+  
+  // Промты (JSON array of prompt objects or single prompt)
+  prompts             String                // JSON: { basePrompt: string, variations: string[], style: string, tone: string }
+  
+  // Настройки генерации
+  generationConfig    String?               // JSON: { providers, models, styles, aspectRatios, durations }
+  
+  // Расписание 24/365
+  scheduleMode        String                @default("continuous")  // continuous, interval, scheduled
+  intervalSeconds     Int                   @default(300)           // Интервал между генерациями (5 минут по умолчанию)
+  workHoursStart      String?               @default("00:00")       // Часы работы (null = 24/7)
+  workHoursEnd        String?               @default("23:59")
+  workDays            String?               @default("1,2,3,4,5,6,7") // Дни недели (1=Пн, 7=Вс)
+  timezone            String                @default("Europe/Moscow")
+  
+  // Лимиты
+  maxGenerationsPerDay  Int                 @default(100)
+  maxGenerationsPerHour Int                 @default(10)
+  maxConcurrentJobs     Int                 @default(3)
+  
+  // Параметры вариации промтов
+  promptVariation     String?               // JSON: { enabled: bool, style: string, useAI: bool, contextWords: string[] }
+  
+  // Публикация (автоматическая публикация сгенерированного контента)
+  autoPublish         Boolean               @default(false)
+  publishPlatforms    String?               // JSON array: ["telegram", "instagram", "tiktok"]
+  publishConfig       String?               // JSON with platform-specific settings
+  
+  // Статистика
+  totalGenerated      Int                   @default(0)
+  totalPublished      Int                   @default(0)
+  totalFailed         Int                   @default(0)
+  lastGenerationAt    DateTime?
+  lastPublishedAt     DateTime?
+  
+  // Статус
+  status              String                @default("paused")      // paused, running, stopped, error
+  errorMessage        String?
+  startedAt           DateTime?
+  stoppedAt           DateTime?
+  
+  // Метаданные
+  userId              String?
+  tags                String?               // JSON array
+  priority            Int                   @default(5)
+  
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @default(now())
+  
+  // Relations
+  AutoContentJob      AutoContentJob[]
+  AutoContentStats    AutoContentStats[]
+
+  @@index([status])
+  @@index([userId])
+  @@index([lastGenerationAt])
+}
+
+// Задача генерации контента
+model AutoContentJob {
+  id                  String              @id
+  campaignId          String
+  
+  // Тип и параметры генерации
+  contentType         String              // video, image, text, audio
+  prompt              String              // Использованный промт (может быть вариацией)
+  originalPrompt      String?             // Оригинальный промт (если это вариация)
+  generationParams    String?             // JSON with all generation parameters
+  
+  // Провайдер
+  provider            String?             // z-ai, hunyuan, runway, etc.
+  model               String?             // Модель, использованная для генерации
+  
+  // Результат
+  status              String              @default("pending")    // pending, processing, completed, failed, published
+  resultUrl           String?             // URL сгенерированного контента
+  resultBase64        String?             // Base64 для небольших файлов
+  resultThumbnail     String?
+  metadata            String?             // JSON: duration, width, height, fileSize, etc.
+  
+  // Ошибки
+  errorMessage        String?
+  retryCount          Int                 @default(0)
+  maxRetries          Int                 @default(3)
+  
+  // Временные метки
+  scheduledAt         DateTime            @default(now())
+  startedAt           DateTime?
+  completedAt         DateTime?
+  publishedAt         DateTime?
+  
+  // Публикация
+  publishedPlatform   String?
+  publishedPostId     String?
+  publishedUrl        String?
+  views               Int                 @default(0)
+  likes               Int                 @default(0)
+  comments            Int                 @default(0)
+  
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @default(now())
+  
+  // Relations
+  AutoContentCampaign AutoContentCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([status])
+  @@index([contentType])
+  @@index([scheduledAt])
+  @@index([startedAt])
+}
+
+// Статистика автогенерации
+model AutoContentStats {
+  id                  String              @id
+  campaignId          String
+  
+  // Период
+  date                DateTime            // День статистики
+  hour                Int?                // Час (для почасовой статистики)
+  
+  // Генерация
+  generatedCount      Int                 @default(0)
+  successCount        Int                 @default(0)
+  failedCount         Int                 @default(0)
+  
+  // По типам контента
+  videosGenerated     Int                 @default(0)
+  imagesGenerated     Int                 @default(0)
+  textsGenerated      Int                 @default(0)
+  audioGenerated      Int                 @default(0)
+  
+  // Публикация
+  publishedCount      Int                 @default(0)
+  totalViews          Int                 @default(0)
+  totalLikes          Int                 @default(0)
+  totalComments       Int                 @default(0)
+  
+  // Производительность
+  avgGenerationTime   Float               @default(0)   // Среднее время генерации в секундах
+  totalGenerationTime Float               @default(0)   // Общее время генерации
+  
+  // Ресурсы
+  tokensUsed          Int                 @default(0)
+  estimatedCost       Float               @default(0)
+  
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @default(now())
+  
+  // Relations
+  AutoContentCampaign AutoContentCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, date, hour])
+  @@index([campaignId])
+  @@index([date])
+}
+
+// Шаблон промта для автогенерации
+model AutoPromptTemplate {
+  id                  String    @id
+  name                String
+  description         String?
+  
+  // Контент
+  contentType         String    // video, image, text, audio
+  category            String?   // lifestyle, product, entertainment, education, etc.
+  
+  // Промт
+  basePrompt          String    // Базовый промт с плейсхолдерами {variable}
+  variables           String?   // JSON: { varName: { type, options, default } }
+  
+  // Вариации
+  variationRules      String?   // JSON: { style: [], tone: [], context: [] }
+  aiVariationEnabled  Boolean   @default(true)
+  
+  // Стили
+  defaultStyle        String?
+  defaultTone         String?
+  defaultLanguage     String    @default("ru")
+  
+  // Параметры генерации по умолчанию
+  generationDefaults  String?   // JSON with default generation params
+  
+  // Статистика
+  usageCount          Int       @default(0)
+  successRate         Float     @default(0)
+  avgEngagement       Float     @default(0)
+  
+  // Метаданные
+  isPublic            Boolean   @default(false)
+  userId              String?
+  tags                String?   // JSON array
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @default(now())
+
+  @@index([contentType])
+  @@index([category])
+  @@index([userId])
+  @@index([isPublic])
+}
+
+// История вариаций промтов
+model PromptVariationHistory {
+  id                  String    @id
+  campaignId          String?
+  jobId               String?
+  
+  // Промты
+  originalPrompt      String
+  variedPrompt        String
+  
+  // Метод вариации
+  variationType       String    // ai, template, random, manual
+  variationParams     String?   // JSON with variation parameters
+  
+  // Результат использования
+  wasUsed             Boolean   @default(false)
+  resultRating        Int?      // 1-5, если был оценен
+  
+  createdAt           DateTime  @default(now())
+
+  @@index([campaignId])
+  @@index([jobId])
+  @@index([variationType])
+  @@index([createdAt])
+}
+
+// Очередь генерации (для распределенной обработки)
+model ContentGenerationQueue {
+  id                  String    @id
+  jobId               String    @unique
+  
+  // Приоритет
+  priority            Int       @default(5)
+  queue               String    @default("default")  // default, high, low
+  
+  // Задача
+  contentType         String
+  prompt              String
+  params              String    // JSON
+  
+  // Назначение
+  workerId            String?   // ID воркера, обрабатывающего задачу
+  assignedAt          DateTime?
+  
+  // Статус
+  status              String    @default("pending")  // pending, assigned, processing, completed, failed
+  result              String?   // JSON with result
+  error               String?
+  
+  // Попытки
+  attempts            Int       @default(0)
+  maxAttempts         Int       @default(3)
+  lastAttemptAt       DateTime?
+  
+  // Время
+  scheduledAt         DateTime  @default(now())
+  startedAt           DateTime?
+  completedAt         DateTime?
+  expiresAt           DateTime?
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @default(now())
+
+  @@index([status])
+  @@index([queue])
+  @@index([priority])
+  @@index([scheduledAt])
+  @@index([workerId])
+}
+
+// Воркер генерации контента
+model ContentGenerationWorker {
+  id                  String    @id
+  name                String
+  
+  // Статус
+  status              String    @default("idle")  // idle, busy, offline, error
+  currentJobId        String?
+  
+  // Возможности
+  supportedTypes      String    // JSON array: ["video", "image", "text", "audio"]
+  supportedProviders  String    // JSON array
+  
+  // Ресурсы
+  maxConcurrentJobs   Int       @default(1)
+  currentJobs         Int       @default(0)
+  
+  // Статистика
+  totalJobsCompleted  Int       @default(0)
+  totalJobsFailed     Int       @default(0)
+  avgJobTime          Float     @default(0)
+  
+  // Heartbeat
+  lastHeartbeat       DateTime  @default(now())
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @default(now())
+
+  @@index([status])
+  @@index([lastHeartbeat])
+}
