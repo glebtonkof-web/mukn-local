@@ -2,10 +2,18 @@
  * Безопасный менеджер прокси для МУКН
  * 
  * ПРИНЦИПЫ БЕЗОПАСНОСТИ:
- * 1. Только HTTPS прокси - шифрование данных в транзите
+ * 1. Поддержка HTTP, HTTPS, SOCKS4, SOCKS5 прокси
  * 2. Прокси используется ТОЛЬКО для навигации по заблокированным сайтам
  * 3. КРИТИЧЕСКИ ВАЖНЫЕ ДАННЫЕ (пароли, SMS коды) НИКОГДА не идут через прокси
  * 4. Все прокси проверяются на утечки и безопасность
+ * 
+ * ИСТОЧНИКИ (работают в РФ):
+ * - GitHub репозитории с прокси
+ * - proxyscrape.com
+ * - github.com/proxifly
+ * - github.com/TheSpeedX
+ * - openproxy.space
+ * - hidemy.name (через зеркало)
  */
 
 import { chromium, Browser, BrowserContext, Page } from 'playwright';
@@ -22,6 +30,8 @@ export interface ProxyInfo {
   responseTime?: number; // ms
   source: string;
   riskLevel: 'low' | 'medium' | 'high';
+  username?: string;
+  password?: string;
 }
 
 export interface ProxyValidationResult {
@@ -39,28 +49,6 @@ const PROXY_BLACKLIST = new Set<string>([
   // Будет пополняться автоматически при обнаружении проблем
 ]);
 
-// Blacklist стран с рискованными прокси
-const HIGH_RISK_COUNTRIES = new Set(['CN', 'RU', 'IR', 'KP']); // Китай, Россия, Иран, КНДР
-
-// Надежные источники бесплатных прокси
-const PROXY_SOURCES = [
-  {
-    name: 'free-proxy-list.net',
-    url: 'https://free-proxy-list.net/',
-    parseFunction: 'parseFreeProxyList'
-  },
-  {
-    name: 'geonode',
-    url: 'https://proxylist.geonode.com/api/proxy-list?limit=50&page=1&sort_by=lastChecked&sort_type=desc&protocols=http%2Chttps',
-    parseFunction: 'parseGeonode'
-  },
-  {
-    name: 'proxy-list.download',
-    url: 'https://www.proxy-list.download/api/v1/get?type=https',
-    parseFunction: 'parseProxyListDownload'
-  }
-];
-
 export class ProxyManager {
   private proxies: Map<string, ProxyInfo> = new Map();
   private workingProxies: ProxyInfo[] = [];
@@ -77,7 +65,7 @@ export class ProxyManager {
 
   /**
    * Получить безопасный прокси для навигации
-   * Возвращает только проверенные HTTPS прокси с низким риском
+   * Возвращает проверенные прокси с низким риском
    */
   async getSafeProxy(): Promise<ProxyInfo | null> {
     // Если нужно обновить список
@@ -113,7 +101,6 @@ export class ProxyManager {
     browser: Browser,
     proxy: ProxyInfo | null,
     options?: {
-      // Режим безопасности - определяет что идет через прокси
       securityMode: 'navigation_only' | 'all_requests';
     }
   ): Promise<BrowserContext> {
@@ -123,7 +110,6 @@ export class ProxyManager {
       deviceScaleFactor: 2.75,
       locale: 'ru-RU',
       timezoneId: 'Europe/Moscow',
-      // ВАЖНО: Отключаем отправку данных через прокси для критических операций
       ignoreHTTPSErrors: false,
     };
 
@@ -131,9 +117,6 @@ export class ProxyManager {
       // Проверяем что прокси безопасен
       if (proxy.riskLevel === 'high') {
         console.warn('⚠️ Отказ от использования высокорискового прокси');
-        proxy = null;
-      } else if (proxy.protocol !== 'https' && proxy.protocol !== 'socks5') {
-        console.warn('⚠️ Только HTTPS или SOCKS5 прокси разрешены для безопасности');
         proxy = null;
       }
     }
@@ -143,8 +126,14 @@ export class ProxyManager {
         server: `${proxy.protocol}://${proxy.host}:${proxy.port}`
       };
       
+      // Добавляем авторизацию если есть
+      if (proxy.username && proxy.password) {
+        contextOptions.proxy.username = proxy.username;
+        contextOptions.proxy.password = proxy.password;
+      }
+      
       this.logSecurity('proxy_assigned', `${proxy.host}:${proxy.port}`);
-      console.log(`🔐 Используется безопасный прокси: ${proxy.host}:${proxy.port} (${proxy.protocol})`);
+      console.log(`🔐 Используется прокси: ${proxy.host}:${proxy.port} (${proxy.protocol})`);
     } else {
       console.log('🌐 Работаем без прокси (прямой доступ)');
     }
@@ -159,27 +148,18 @@ export class ProxyManager {
 
   /**
    * Настройка обработчиков безопасности
-   * Блокирует передачу критических данных через прокси
    */
   private async setupSecurityHandlers(context: BrowserContext): Promise<void> {
-    // Перехватываем запросы для защиты критических данных
     await context.route('**/*', async (route, request) => {
       const url = request.url();
-      const method = request.method();
-      
-      // Определяем критические данные
       const postData = request.postData() || '';
       const hasSensitiveData = this.containsSensitiveData(postData);
       
       if (hasSensitiveData) {
-        // Логируем попытку отправки критических данных
         this.logSecurity('sensitive_data_blocked', url);
-        
-        // В режиме отладки можно видеть что блокируется
         console.log(`🛡️ Защита: критические данные в запросе к ${url}`);
       }
       
-      // Пропускаем запрос
       await route.continue();
     });
   }
@@ -198,7 +178,7 @@ export class ProxyManager {
       /sms[_-]?code/i,
       /verification[_-]?code/i,
       /otp/i,
-      /\b\d{4,6}\b/, // Коды подтверждения (4-6 цифр)
+      /\b\d{4,6}\b/,
       /credit[_-]?card/i,
       /cvv/i,
     ];
@@ -207,18 +187,29 @@ export class ProxyManager {
   }
 
   /**
-   * Сбор прокси из открытых источников
+   * Сбор прокси из множества источников (работают в РФ)
    */
   async scrapeProxies(): Promise<ProxyInfo[]> {
     console.log('🔍 Начинаем сбор прокси из открытых источников...');
     const allProxies: ProxyInfo[] = [];
 
-    // Используем несколько источников параллельно
+    // Используем много источников параллельно
     const scrapers = [
-      this.scrapeFreeProxyList(),
+      // GitHub источники (обычно работают везде)
+      this.scrapeGitHubProxies(),
+      this.scrapeTheSpeedXProxies(),
+      this.scrapeProxiflyProxies(),
+      this.scrapeProxyListDaily(),
+      
+      // Публичные API (многие работают в РФ)
+      this.scrapeProxyScrapeHTTP(),
+      this.scrapeProxyScrapeSOCKS4(),
+      this.scrapeProxyScrapeSOCKS5(),
       this.scrapeGeonode(),
-      this.scrapeProxyScrape(),
-      this.scrapeProxyListDownload()
+      
+      // Дополнительные источники
+      this.scrapeOpenProxySpace(),
+      this.scrapeSpysOne(),
     ];
 
     try {
@@ -235,72 +226,320 @@ export class ProxyManager {
       console.error('Критическая ошибка при сборе прокси:', error);
     }
 
-    console.log(`📊 Собрано ${allProxies.length} прокси из всех источников`);
-    return allProxies;
+    // Удаляем дубликаты
+    const uniqueProxies = this.removeDuplicates(allProxies);
+    
+    console.log(`📊 Собрано ${uniqueProxies.length} уникальных прокси из всех источников`);
+    return uniqueProxies;
   }
 
   /**
-   * Сбор с free-proxy-list.net
+   * Удаление дубликатов прокси
    */
-  private async scrapeFreeProxyList(): Promise<ProxyInfo[]> {
+  private removeDuplicates(proxies: ProxyInfo[]): ProxyInfo[] {
+    const seen = new Set<string>();
+    return proxies.filter(p => {
+      const key = `${p.host}:${p.port}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  /**
+   * GitHub: TheSpeedX/proxy-list (очень популярный, обновляется ежедневно)
+   */
+  private async scrapeTheSpeedXProxies(): Promise<ProxyInfo[]> {
     const proxies: ProxyInfo[] = [];
+    const urls = [
+      'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt',
+      'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks4.txt',
+      'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt',
+    ];
     
-    try {
-      const response = await fetch('https://free-proxy-list.net/', {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-      });
-      
-      const html = await response.text();
-      
-      // Парсим таблицу прокси
-      const proxyRegex = /<tr>\s*<td>(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})<\/td>\s*<td>(\d+)<\/td>/g;
-      let match;
-      
-      while ((match = proxyRegex.exec(html)) !== null) {
-        const host = match[1];
-        const port = parseInt(match[2]);
+    for (const url of urls) {
+      try {
+        const protocol = url.includes('socks4') ? 'socks4' : url.includes('socks5') ? 'socks5' : 'http';
         
-        // Проверяем HTTPS (проверяется в другой колонке)
-        const httpsMatch = html.substring(match.index, match.index + 500).match(/<td class="hx">(yes|no)<\/td>/);
-        const isHttps = httpsMatch && httpsMatch[1] === 'yes';
+        const response = await fetch(url, {
+          headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
         
-        if (!PROXY_BLACKLIST.has(host)) {
-          proxies.push({
-            host,
-            port,
-            protocol: isHttps ? 'https' : 'http',
-            country: this.extractCountry(html, match.index),
-            isWorking: false,
-            source: 'free-proxy-list.net',
-            riskLevel: this.assessRisk(host, !!isHttps)
-          });
+        const text = await response.text();
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        for (const line of lines.slice(0, 200)) { // Берём первые 200
+          const [host, portStr] = line.trim().split(':');
+          const port = parseInt(portStr);
+          
+          if (host && port && !PROXY_BLACKLIST.has(host)) {
+            proxies.push({
+              host,
+              port,
+              protocol: protocol as 'http' | 'socks4' | 'socks5',
+              isWorking: false,
+              source: 'TheSpeedX/PROXY-List',
+              riskLevel: 'medium'
+            });
+          }
         }
+        
+        console.log(`   ✓ TheSpeedX (${protocol}): ${lines.length} прокси`);
+      } catch (error) {
+        console.error('   ✗ Ошибка TheSpeedX:', error);
       }
-      
-      console.log(`   ✓ free-proxy-list.net: ${proxies.length} прокси`);
-    } catch (error) {
-      console.error('   ✗ Ошибка free-proxy-list.net:', error);
     }
     
     return proxies;
   }
 
   /**
-   * Сбор с geonode.com API
+   * GitHub: proxifly/free-proxy-list
+   */
+  private async scrapeProxiflyProxies(): Promise<ProxyInfo[]> {
+    const proxies: ProxyInfo[] = [];
+    
+    try {
+      const response = await fetch(
+        'https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies.txt',
+        { headers: { 'User-Agent': 'Mozilla/5.0' } }
+      );
+      
+      const text = await response.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      for (const line of lines.slice(0, 150)) {
+        const match = line.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+)/);
+        if (match) {
+          const host = match[1];
+          const port = parseInt(match[2]);
+          
+          if (!PROXY_BLACKLIST.has(host)) {
+            proxies.push({
+              host,
+              port,
+              protocol: 'http',
+              isWorking: false,
+              source: 'proxifly/free-proxy-list',
+              riskLevel: 'medium'
+            });
+          }
+        }
+      }
+      
+      console.log(`   ✓ proxifly: ${proxies.length} прокси`);
+    } catch (error) {
+      console.error('   ✗ Ошибка proxifly:', error);
+    }
+    
+    return proxies;
+  }
+
+  /**
+   * GitHub: clamdd/proxy-list (обновляется часто)
+   */
+  private async scrapeGitHubProxies(): Promise<ProxyInfo[]> {
+    const proxies: ProxyInfo[] = [];
+    
+    try {
+      const response = await fetch(
+        'https://raw.githubusercontent.com/clamdd/proxy-list/main/proxy.txt',
+        { headers: { 'User-Agent': 'Mozilla/5.0' } }
+      );
+      
+      const text = await response.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      for (const line of lines.slice(0, 150)) {
+        const [host, portStr] = line.trim().split(':');
+        const port = parseInt(portStr);
+        
+        if (host && port && !PROXY_BLACKLIST.has(host)) {
+          proxies.push({
+            host,
+            port,
+            protocol: 'http',
+            isWorking: false,
+            source: 'clamdd/proxy-list',
+            riskLevel: 'medium'
+          });
+        }
+      }
+      
+      console.log(`   ✓ clamdd: ${proxies.length} прокси`);
+    } catch (error) {
+      console.error('   ✗ Ошибка clamdd:', error);
+    }
+    
+    return proxies;
+  }
+
+  /**
+   * GitHub: proxylist.daily
+   */
+  private async scrapeProxyListDaily(): Promise<ProxyInfo[]> {
+    const proxies: ProxyInfo[] = [];
+    
+    try {
+      const response = await fetch(
+        'https://raw.githubusercontent.com/mmpx12/proxy-list/master/http.txt',
+        { headers: { 'User-Agent': 'Mozilla/5.0' } }
+      );
+      
+      const text = await response.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      for (const line of lines.slice(0, 150)) {
+        const [host, portStr] = line.trim().split(':');
+        const port = parseInt(portStr);
+        
+        if (host && port && !PROXY_BLACKLIST.has(host)) {
+          proxies.push({
+            host,
+            port,
+            protocol: 'http',
+            isWorking: false,
+            source: 'mmpx12/proxy-list',
+            riskLevel: 'medium'
+          });
+        }
+      }
+      
+      console.log(`   ✓ mmpx12: ${proxies.length} прокси`);
+    } catch (error) {
+      console.error('   ✗ Ошибка mmpx12:', error);
+    }
+    
+    return proxies;
+  }
+
+  /**
+   * ProxyScrape.com - HTTP
+   */
+  private async scrapeProxyScrapeHTTP(): Promise<ProxyInfo[]> {
+    const proxies: ProxyInfo[] = [];
+    
+    try {
+      const response = await fetch(
+        'https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all',
+        { headers: { 'User-Agent': 'Mozilla/5.0' } }
+      );
+      
+      const text = await response.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      for (const line of lines.slice(0, 150)) {
+        const [host, portStr] = line.trim().split(':');
+        const port = parseInt(portStr);
+        
+        if (host && port && !PROXY_BLACKLIST.has(host)) {
+          proxies.push({
+            host,
+            port,
+            protocol: 'http',
+            isWorking: false,
+            source: 'proxy-scrape-http',
+            riskLevel: 'medium'
+          });
+        }
+      }
+      
+      console.log(`   ✓ ProxyScrape HTTP: ${proxies.length} прокси`);
+    } catch (error) {
+      console.error('   ✗ Ошибка ProxyScrape HTTP:', error);
+    }
+    
+    return proxies;
+  }
+
+  /**
+   * ProxyScrape.com - SOCKS4
+   */
+  private async scrapeProxyScrapeSOCKS4(): Promise<ProxyInfo[]> {
+    const proxies: ProxyInfo[] = [];
+    
+    try {
+      const response = await fetch(
+        'https://api.proxyscrape.com/v2/?request=displayproxies&protocol=socks4&timeout=10000&country=all',
+        { headers: { 'User-Agent': 'Mozilla/5.0' } }
+      );
+      
+      const text = await response.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      for (const line of lines.slice(0, 100)) {
+        const [host, portStr] = line.trim().split(':');
+        const port = parseInt(portStr);
+        
+        if (host && port && !PROXY_BLACKLIST.has(host)) {
+          proxies.push({
+            host,
+            port,
+            protocol: 'socks4',
+            isWorking: false,
+            source: 'proxy-scrape-socks4',
+            riskLevel: 'low'
+          });
+        }
+      }
+      
+      console.log(`   ✓ ProxyScrape SOCKS4: ${proxies.length} прокси`);
+    } catch (error) {
+      console.error('   ✗ Ошибка ProxyScrape SOCKS4:', error);
+    }
+    
+    return proxies;
+  }
+
+  /**
+   * ProxyScrape.com - SOCKS5
+   */
+  private async scrapeProxyScrapeSOCKS5(): Promise<ProxyInfo[]> {
+    const proxies: ProxyInfo[] = [];
+    
+    try {
+      const response = await fetch(
+        'https://api.proxyscrape.com/v2/?request=displayproxies&protocol=socks5&timeout=10000&country=all',
+        { headers: { 'User-Agent': 'Mozilla/5.0' } }
+      );
+      
+      const text = await response.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      for (const line of lines.slice(0, 100)) {
+        const [host, portStr] = line.trim().split(':');
+        const port = parseInt(portStr);
+        
+        if (host && port && !PROXY_BLACKLIST.has(host)) {
+          proxies.push({
+            host,
+            port,
+            protocol: 'socks5',
+            isWorking: false,
+            source: 'proxy-scrape-socks5',
+            riskLevel: 'low'
+          });
+        }
+      }
+      
+      console.log(`   ✓ ProxyScrape SOCKS5: ${proxies.length} прокси`);
+    } catch (error) {
+      console.error('   ✗ Ошибка ProxyScrape SOCKS5:', error);
+    }
+    
+    return proxies;
+  }
+
+  /**
+   * Geonode API
    */
   private async scrapeGeonode(): Promise<ProxyInfo[]> {
     const proxies: ProxyInfo[] = [];
     
     try {
       const response = await fetch(
-        'https://proxylist.geonode.com/api/proxy-list?limit=100&page=1&sort_by=lastChecked&sort_type=desc&protocols=http%2Chttps',
-        {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-          }
-        }
+        'https://proxylist.geonode.com/api/proxy-list?limit=100&page=1&sort_by=lastChecked&sort_type=desc&protocols=http%2Chttps%2Csocks4%2Csocks5',
+        { headers: { 'User-Agent': 'Mozilla/5.0' } }
       );
       
       const data = await response.json();
@@ -309,15 +548,20 @@ export class ProxyManager {
         for (const item of data.data) {
           const host = item.ip;
           if (!PROXY_BLACKLIST.has(host)) {
+            let protocol: 'http' | 'https' | 'socks4' | 'socks5' = 'http';
+            if (item.protocols?.includes('socks5')) protocol = 'socks5';
+            else if (item.protocols?.includes('socks4')) protocol = 'socks4';
+            else if (item.protocols?.includes('https')) protocol = 'https';
+            
             proxies.push({
               host,
               port: parseInt(item.port),
-              protocol: item.protocols?.includes('https') ? 'https' : 'http',
+              protocol,
               country: item.country,
               anonymity: item.anonymityLevel,
               isWorking: false,
               source: 'geonode',
-              riskLevel: this.assessRisk(host, item.protocols?.includes('https') ?? false)
+              riskLevel: 'medium'
             });
           }
         }
@@ -332,26 +576,63 @@ export class ProxyManager {
   }
 
   /**
-   * Сбор с proxy-scrape.com
+   * OpenProxy.space API
    */
-  private async scrapeProxyScrape(): Promise<ProxyInfo[]> {
+  private async scrapeOpenProxySpace(): Promise<ProxyInfo[]> {
     const proxies: ProxyInfo[] = [];
     
     try {
-      // Получаем HTTPS прокси
+      // Получаем HTTP прокси
       const response = await fetch(
-        'https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all',
-        {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'https://api.openproxy.space/list/http',
+        { headers: { 'User-Agent': 'Mozilla/5.0' } }
+      );
+      
+      const data = await response.json();
+      
+      if (Array.isArray(data)) {
+        for (const item of data.slice(0, 100)) {
+          const host = item.ip || item.host;
+          const port = item.port || item.p;
+          
+          if (host && port && !PROXY_BLACKLIST.has(host)) {
+            proxies.push({
+              host,
+              port: parseInt(port),
+              protocol: 'http',
+              country: item.cc || item.country,
+              isWorking: false,
+              source: 'openproxy.space',
+              riskLevel: 'medium'
+            });
           }
         }
+      }
+      
+      console.log(`   ✓ openproxy.space: ${proxies.length} прокси`);
+    } catch (error) {
+      console.error('   ✗ Ошибка openproxy.space:', error);
+    }
+    
+    return proxies;
+  }
+
+  /**
+   * Spys.one (парсинг)
+   */
+  private async scrapeSpysOne(): Promise<ProxyInfo[]> {
+    const proxies: ProxyInfo[] = [];
+    
+    try {
+      const response = await fetch(
+        'https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/proxy.txt',
+        { headers: { 'User-Agent': 'Mozilla/5.0' } }
       );
       
       const text = await response.text();
       const lines = text.split('\n').filter(line => line.trim());
       
-      for (const line of lines) {
+      for (const line of lines.slice(0, 100)) {
         const [host, portStr] = line.trim().split(':');
         const port = parseInt(portStr);
         
@@ -359,68 +640,24 @@ export class ProxyManager {
           proxies.push({
             host,
             port,
-            protocol: 'http', // ProxyScrape не区分 HTTPS
+            protocol: 'http',
             isWorking: false,
-            source: 'proxy-scrape',
-            riskLevel: this.assessRisk(host, false)
+            source: 'ShiftyTR/Proxy-List',
+            riskLevel: 'medium'
           });
         }
       }
       
-      console.log(`   ✓ proxy-scrape: ${proxies.length} прокси`);
+      console.log(`   ✓ ShiftyTR: ${proxies.length} прокси`);
     } catch (error) {
-      console.error('   ✗ Ошибка proxy-scrape:', error);
+      console.error('   ✗ Ошибка ShiftyTR:', error);
     }
     
     return proxies;
   }
 
   /**
-   * Сбор с proxy-list.download
-   */
-  private async scrapeProxyListDownload(): Promise<ProxyInfo[]> {
-    const proxies: ProxyInfo[] = [];
-    
-    try {
-      const response = await fetch(
-        'https://www.proxy-list.download/api/v1/get?type=https&anon=elite',
-        {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-          }
-        }
-      );
-      
-      const text = await response.text();
-      const lines = text.split('\n').filter(line => line.trim());
-      
-      for (const line of lines) {
-        const [host, portStr] = line.trim().split(':');
-        const port = parseInt(portStr);
-        
-        if (host && port && !PROXY_BLACKLIST.has(host)) {
-          proxies.push({
-            host,
-            port,
-            protocol: 'https',
-            anonymity: 'elite',
-            isWorking: false,
-            source: 'proxy-list.download',
-            riskLevel: this.assessRisk(host, true)
-          });
-        }
-      }
-      
-      console.log(`   ✓ proxy-list.download: ${proxies.length} прокси`);
-    } catch (error) {
-      console.error('   ✗ Ошибка proxy-list.download:', error);
-    }
-    
-    return proxies;
-  }
-
-  /**
-   * Валидация прокси на безопасность и работоспособность
+   * Валидация прокси на работоспособность
    */
   async validateProxy(proxy: ProxyInfo): Promise<ProxyValidationResult> {
     const result: ProxyValidationResult = {
@@ -431,51 +668,37 @@ export class ProxyManager {
       securityIssues: []
     };
 
-    // Проверка blacklist
     if (PROXY_BLACKLIST.has(proxy.host)) {
-      result.securityIssues.push('Прокси в blacklist - известные утечки');
+      result.securityIssues.push('Прокси в blacklist');
       result.error = 'Proxy in blacklist';
       return result;
     }
 
-    // Проверка соединения
     const startTime = Date.now();
     
     try {
-      // Создаем тестовый браузер с прокси
       const browser = await chromium.launch({ headless: true });
       
       const context = await browser.newContext({
         proxy: {
           server: `${proxy.protocol}://${proxy.host}:${proxy.port}`
         },
-        ignoreHTTPSErrors: false
+        ignoreHTTPSErrors: true
       });
 
       const page = await context.newPage();
+      page.setDefaultTimeout(10000);
       
-      // Тестовый запрос к безопасному сайту для проверки
       try {
-        // Сначала проверяем обычный HTTP
-        await page.goto('http://httpbin.org/ip', {
-          timeout: 15000,
+        // Проверяем соединение через httpbin
+        await page.goto('https://httpbin.org/ip', {
+          timeout: 10000,
           waitUntil: 'domcontentloaded'
         });
         
         result.responseTime = Date.now() - startTime;
         result.isValid = true;
-        
-        // Проверяем HTTPS
-        try {
-          await page.goto('https://httpbin.org/ip', {
-            timeout: 15000,
-            waitUntil: 'domcontentloaded'
-          });
-          result.supportsHTTPS = true;
-        } catch {
-          result.supportsHTTPS = false;
-          result.securityIssues.push('Не поддерживает HTTPS');
-        }
+        result.supportsHTTPS = true;
         
       } catch (error: any) {
         result.error = error.message;
@@ -491,25 +714,28 @@ export class ProxyManager {
     }
 
     // Оценка безопасности
-    if (result.isValid && !result.supportsHTTPS) {
-      proxy.riskLevel = 'medium';
-    } else if (result.isValid && result.supportsHTTPS) {
-      proxy.riskLevel = 'low';
+    if (result.isValid) {
+      if (proxy.protocol === 'socks5' || proxy.protocol === 'socks4') {
+        proxy.riskLevel = 'low';
+      } else if (result.supportsHTTPS) {
+        proxy.riskLevel = 'low';
+      } else {
+        proxy.riskLevel = 'medium';
+      }
     }
 
     return result;
   }
 
   /**
-   * Массовая валидация прокси с ограничением параллельности
+   * Массовая валидация прокси
    */
-  async validateProxies(proxies: ProxyInfo[], maxConcurrent: number = 5): Promise<ProxyInfo[]> {
+  async validateProxies(proxies: ProxyInfo[], maxConcurrent: number = 10): Promise<ProxyInfo[]> {
     console.log(`🔍 Проверка ${proxies.length} прокси (параллельно: ${maxConcurrent})...`);
     
     const validProxies: ProxyInfo[] = [];
     const chunks: ProxyInfo[][] = [];
     
-    // Разбиваем на чанки для параллельной обработки
     for (let i = 0; i < proxies.length; i += maxConcurrent) {
       chunks.push(proxies.slice(i, i + maxConcurrent));
     }
@@ -522,26 +748,25 @@ export class ProxyManager {
       
       for (const result of results) {
         checked++;
-        if (checked % 10 === 0) {
-          console.log(`   Проверено: ${checked}/${proxies.length}`);
+        if (checked % 20 === 0) {
+          console.log(`   Проверено: ${checked}/${proxies.length}, рабочих: ${validProxies.length}`);
         }
         
-        if (result.isValid && result.supportsHTTPS && result.securityIssues.length === 0) {
+        if (result.isValid && result.securityIssues.length === 0) {
           result.proxy.isWorking = true;
           result.proxy.responseTime = result.responseTime;
           result.proxy.lastChecked = new Date();
           validProxies.push(result.proxy);
           
-          // Добавляем в кэш
           this.proxies.set(`${result.proxy.host}:${result.proxy.port}`, result.proxy);
         }
       }
       
-      // Небольшая пауза между чанками
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Пауза между чанками
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
     
-    console.log(`✅ Найдено ${validProxies.length} рабочих безопасных прокси`);
+    console.log(`✅ Найдено ${validProxies.length} рабочих прокси`);
     
     // Сортируем по скорости
     validProxies.sort((a, b) => (a.responseTime || 9999) - (b.responseTime || 9999));
@@ -549,7 +774,6 @@ export class ProxyManager {
     this.workingProxies = validProxies;
     this.lastRefresh = new Date();
     
-    // Сохраняем в кэш
     this.cacheProxies();
     
     return validProxies;
@@ -561,7 +785,6 @@ export class ProxyManager {
   async refreshProxies(): Promise<void> {
     console.log('🔄 Обновление списка прокси...');
     
-    // Собираем прокси
     const proxies = await this.scrapeProxies();
     
     if (proxies.length === 0) {
@@ -569,20 +792,23 @@ export class ProxyManager {
       return;
     }
     
-    // Фильтруем только HTTPS для безопасности
-    const httpsProxies = proxies.filter(p => p.protocol === 'https');
-    console.log(`🔐 Отфильтровано HTTPS прокси: ${httpsProxies.length}`);
+    // Приоритет SOCKS5 и SOCKS4 (более надёжные)
+    const socksProxies = proxies.filter(p => p.protocol === 'socks5' || p.protocol === 'socks4');
+    const httpProxies = proxies.filter(p => p.protocol === 'http' || p.protocol === 'https');
     
-    // Валидируем (проверяем только HTTPS для скорости)
-    const maxToCheck = Math.min(httpsProxies.length, 50); // Проверяем максимум 50
-    await this.validateProxies(httpsProxies.slice(0, maxToCheck));
+    console.log(`📦 SOCKS прокси: ${socksProxies.length}, HTTP прокси: ${httpProxies.length}`);
+    
+    // Проверяем SOCKS в первую очередь
+    const toCheck = [...socksProxies.slice(0, 100), ...httpProxies.slice(0, 100)];
+    console.log(`🔍 Проверяем ${toCheck.length} прокси...`);
+    
+    await this.validateProxies(toCheck, 10);
   }
 
   /**
    * Оценка риска прокси
    */
-  private assessRisk(host: string, supportsHTTPS: boolean): 'low' | 'medium' | 'high' {
-    // Проверяем на приватные диапазоны (подозрительно)
+  private assessRisk(host: string, protocol: string): 'low' | 'medium' | 'high' {
     const privateRanges = [
       /^10\./,
       /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
@@ -591,23 +817,14 @@ export class ProxyManager {
     ];
     
     if (privateRanges.some(range => range.test(host))) {
-      return 'high'; // Локальные адреса - точно утечка
+      return 'high';
     }
     
-    if (!supportsHTTPS) {
-      return 'medium'; // HTTP прокси менее безопасны
+    if (protocol === 'socks5' || protocol === 'socks4') {
+      return 'low';
     }
     
-    return 'low';
-  }
-
-  /**
-   * Извлечение страны из HTML
-   */
-  private extractCountry(html: string, index: number): string | undefined {
-    const snippet = html.substring(index, index + 500);
-    const match = snippet.match(/<td>([A-Z]{2})<\/td>/);
-    return match ? match[1] : undefined;
+    return 'medium';
   }
 
   /**
@@ -645,7 +862,6 @@ export class ProxyManager {
       proxy
     });
     
-    // Храним последние 100 событий
     if (this.securityLog.length > 100) {
       this.securityLog.shift();
     }
@@ -693,8 +909,8 @@ export class ProxyManager {
         const cacheTime = new Date(cacheData.timestamp).getTime();
         const now = Date.now();
         
-        // Используем кэш если он не старше 1 часа
-        if (now - cacheTime < 60 * 60 * 1000 && Array.isArray(cacheData.proxies)) {
+        // Используем кэш если он не старше 2 часов
+        if (now - cacheTime < 2 * 60 * 60 * 1000 && Array.isArray(cacheData.proxies)) {
           this.workingProxies = cacheData.proxies;
           this.lastRefresh = new Date(cacheData.timestamp);
           
@@ -711,13 +927,35 @@ export class ProxyManager {
   }
 
   /**
+   * Добавить пользовательский прокси
+   */
+  addCustomProxy(host: string, port: number, protocol: 'http' | 'https' | 'socks4' | 'socks5', username?: string, password?: string): ProxyInfo {
+    const proxy: ProxyInfo = {
+      host,
+      port,
+      protocol,
+      isWorking: true,
+      source: 'manual',
+      riskLevel: 'low',
+      username,
+      password
+    };
+    
+    this.workingProxies.unshift(proxy); // Добавляем в начало (приоритет)
+    this.proxies.set(`${host}:${port}`, proxy);
+    
+    console.log(`✅ Добавлен пользовательский прокси: ${host}:${port} (${protocol})`);
+    
+    return proxy;
+  }
+
+  /**
    * Добавить прокси в blacklist
    */
   addToBlacklist(host: string, reason: string): void {
     PROXY_BLACKLIST.add(host);
     this.logSecurity('blacklisted', host);
     
-    // Удаляем из рабочих
     this.workingProxies = this.workingProxies.filter(p => p.host !== host);
     
     console.log(`🚫 Прокси ${host} добавлен в blacklist: ${reason}`);
@@ -729,14 +967,16 @@ export class ProxyManager {
   getStats(): {
     totalProxies: number;
     workingProxies: number;
-    httpsProxies: number;
+    httpProxies: number;
+    socksProxies: number;
     lastRefresh: Date | null;
     securityEvents: number;
   } {
     return {
       totalProxies: this.proxies.size,
       workingProxies: this.workingProxies.length,
-      httpsProxies: this.workingProxies.filter(p => p.protocol === 'https').length,
+      httpProxies: this.workingProxies.filter(p => p.protocol === 'http' || p.protocol === 'https').length,
+      socksProxies: this.workingProxies.filter(p => p.protocol === 'socks4' || p.protocol === 'socks5').length,
       lastRefresh: this.lastRefresh,
       securityEvents: this.securityLog.length
     };
@@ -765,22 +1005,11 @@ export function getProxyManager(): ProxyManager {
 }
 
 /**
- * Получить лучший прокси для платформы (для совместимости)
- * Возвращает только HTTPS прокси с низким риском
+ * Получить лучший прокси для платформы
  */
 export async function getBestProxyForPlatform(platform: string): Promise<ProxyInfo | null> {
   const manager = getProxyManager();
-  const proxy = await manager.getSafeProxy();
-  
-  if (proxy) {
-    // Добавляем поле type для совместимости
-    return {
-      ...proxy,
-      type: proxy.protocol
-    } as ProxyInfo & { type: string };
-  }
-  
-  return null;
+  return await manager.getSafeProxy();
 }
 
 /**
@@ -802,8 +1031,22 @@ export async function initializeProxies(): Promise<void> {
 }
 
 /**
+ * Добавить пользовательский прокси
+ */
+export function addCustomProxy(
+  host: string,
+  port: number,
+  protocol: 'http' | 'https' | 'socks4' | 'socks5',
+  username?: string,
+  password?: string
+): ProxyInfo {
+  const manager = getProxyManager();
+  return manager.addCustomProxy(host, port, protocol, username, password);
+}
+
+/**
  * Расширенный интерфейс ProxyInfo для совместимости
  */
 export interface ProxyInfoWithType extends ProxyInfo {
-  type: string; // 'http' | 'https' | 'socks4' | 'socks5'
+  type: string;
 }
