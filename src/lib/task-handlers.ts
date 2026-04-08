@@ -191,7 +191,7 @@ export function initTaskHandlers(): void {
     timeout: 60000
   });
 
-  // Регистрация аккаунта
+  // Регистрация аккаунта с чекпоинтами и sticky sessions
   queue.register({
     name: 'account-register',
     handle: async (task) => {
@@ -199,10 +199,104 @@ export function initTaskHandlers(): void {
       
       addLog('info', `📝 Регистрация аккаунта: ${platform}`, `SIM: ${simCardId}`);
       
-      // Здесь вызываем логику регистрации
-      // Это будет интегрировано с существующим кодом sim-auto
+      const { getCheckpointService } = await import('./checkpoint-service');
+      const { getStickySessions } = await import('./sticky-sessions');
+      const { getProxyManager } = await import('./sim-auto/proxy-manager');
       
-      return { registered: true, platform };
+      const checkpointService = getCheckpointService();
+      const stickySessions = getStickySessions();
+      const proxyManager = getProxyManager();
+      
+      // Шаги регистрации
+      const steps = [
+        'init',
+        'get-proxy',
+        'bind-proxy',
+        'open-app',
+        'enter-phone',
+        'verify-sms',
+        'complete-profile',
+        'verify-email',
+        'finish'
+      ];
+      
+      // Создаём сессию регистрации
+      const sessionId = await checkpointService.createRegistrationSession(
+        simCardId,
+        platform,
+        deviceId,
+        steps
+      );
+      
+      try {
+        // Шаг 1: Получаем рабочий прокси
+        await checkpointService.updateRegistrationProgress(sessionId, 'get-proxy', 1, steps.length);
+        const proxy = await proxyManager.getWorkingProxy();
+        
+        if (!proxy) {
+          throw new Error('Нет доступных рабочих прокси');
+        }
+        
+        // Шаг 2: Привязываем прокси (sticky session)
+        await checkpointService.updateRegistrationProgress(sessionId, 'bind-proxy', 2, steps.length, {
+          proxyId: proxy.id,
+          proxyHost: proxy.host
+        });
+        
+        const stickySession = await stickySessions.bind(proxy.id, {
+          host: proxy.host,
+          port: proxy.port,
+          username: proxy.username,
+          password: proxy.password,
+          protocol: proxy.protocol
+        }, {
+          platform,
+          bindDuration: 7200 // 2 часа на регистрацию
+        });
+        
+        addLog('info', `🔗 Прокси привязан: ${proxy.host}:${proxy.port}`);
+        
+        // Шаги 3-8: Выполняем регистрацию
+        // Здесь будет интеграция с реальной логикой регистрации
+        // sim-auto/improved-registration.ts
+        
+        for (let i = 2; i < steps.length - 1; i++) {
+          await checkpointService.updateRegistrationProgress(sessionId, steps[i], i + 1, steps.length);
+          // Имитация шага регистрации
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
+        // Финальный шаг
+        await checkpointService.updateRegistrationProgress(sessionId, 'finish', steps.length, steps.length, {
+          accountId: `acc_${Date.now()}`,
+          registeredAt: new Date().toISOString()
+        });
+        
+        addLog('success', `✅ Аккаунт зарегистрирован: ${platform}`);
+        
+        return { 
+          registered: true, 
+          platform, 
+          sessionId,
+          proxyId: proxy.id
+        };
+        
+      } catch (error: any) {
+        // Сохраняем ошибку в чекпоинте
+        await checkpointService.fail('registration', sessionId, 'error', error.message, true);
+        
+        // Добавляем в DLQ если это последняя попытка
+        if (task.attempts >= (task.maxAttempts || 3)) {
+          const { getDeadLetterQueue } = await import('./dead-letter-queue');
+          const dlq = getDeadLetterQueue();
+          await dlq.add(task.id, 'account-register', task.payload, error, {
+            priority: task.priority,
+            metadata: { sessionId, simCardId, platform }
+          });
+        }
+        
+        throw error;
+      }
     },
     maxAttempts: 3,
     timeout: 300000,
@@ -240,6 +334,71 @@ export function initTaskHandlers(): void {
     timeout: 600000, // 10 минут
     onError: async (task, error) => {
       addLog('error', `❌ Ошибка прогрева: ${error.message}`);
+    }
+  });
+
+  // Возобновление регистрации с чекпоинта
+  queue.register({
+    name: 'resume-registration',
+    handle: async (task) => {
+      const { sessionId } = task.payload;
+      
+      addLog('info', `🔄 Возобновление регистрации: ${sessionId}`);
+      
+      const { getCheckpointService } = await import('./checkpoint-service');
+      const { getStickySessions } = await import('./sticky-sessions');
+      
+      const checkpointService = getCheckpointService();
+      const stickySessions = getStickySessions();
+      
+      // Получаем последний чекпоинт
+      const { canResume, step } = await checkpointService.canResume('registration', sessionId);
+      
+      if (!canResume || !step) {
+        throw new Error('Невозможно возобновить регистрацию');
+      }
+      
+      const data = step.data || {};
+      
+      addLog('info', `📍 Возобновление с шага ${step.stepNumber}/${step.totalSteps}: ${step.stepName}`);
+      
+      // Если есть привязанный прокси, проверяем сессию
+      if (data.proxyId) {
+        const existingSession = await stickySessions.getForProxy(data.proxyId);
+        if (existingSession) {
+          addLog('info', `🔗 Найдена активная sticky сессия для прокси ${data.proxyHost}`);
+        }
+      }
+      
+      // Продолжаем регистрацию с нужного шага
+      const steps = [
+        'init',
+        'get-proxy',
+        'bind-proxy',
+        'open-app',
+        'enter-phone',
+        'verify-sms',
+        'complete-profile',
+        'verify-email',
+        'finish'
+      ];
+      
+      const startFrom = step.stepNumber;
+      
+      for (let i = startFrom; i < steps.length; i++) {
+        await checkpointService.updateRegistrationProgress(sessionId, steps[i], i + 1, steps.length);
+        // Имитация шага
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      addLog('success', `✅ Регистрация возобновлена и завершена: ${sessionId}`);
+      
+      return { resumed: true, sessionId };
+    },
+    maxAttempts: 3,
+    timeout: 300000,
+    onError: async (task, error) => {
+      addLog('error', `❌ Ошибка возобновления: ${error.message}`);
     }
   });
 

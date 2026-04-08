@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface SystemStatus {
   initialized: boolean;
@@ -34,10 +35,37 @@ interface ProxyStats {
   lastRefresh: string | null;
 }
 
+interface DLQStats {
+  total: number;
+  unresolved: number;
+  resolved: number;
+  byType: Record<string, number>;
+  recentErrors: number;
+}
+
+interface CheckpointStats {
+  total: number;
+  inProgress: number;
+  completed: number;
+  failed: number;
+  byType: Record<string, number>;
+}
+
+interface StickyStats {
+  total: number;
+  active: number;
+  expired: number;
+  released: number;
+  byPlatform: Record<string, number>;
+}
+
 export default function SystemDashboard() {
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [taskStats, setTaskStats] = useState<TaskStats | null>(null);
   const [proxyStats, setProxyStats] = useState<ProxyStats | null>(null);
+  const [dlqStats, setDlqStats] = useState<DLQStats | null>(null);
+  const [checkpointStats, setCheckpointStats] = useState<CheckpointStats | null>(null);
+  const [stickyStats, setStickyStats] = useState<StickyStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
 
@@ -48,7 +76,14 @@ export default function SystemDashboard() {
   }, []);
 
   const fetchAll = async () => {
-    await Promise.all([fetchSystemStatus(), fetchTaskStats(), fetchProxyStats()]);
+    await Promise.all([
+      fetchSystemStatus(),
+      fetchTaskStats(),
+      fetchProxyStats(),
+      fetchDLQStats(),
+      fetchCheckpointStats(),
+      fetchStickyStats()
+    ]);
   };
 
   const fetchSystemStatus = async () => {
@@ -72,6 +107,30 @@ export default function SystemDashboard() {
       const res = await fetch('/api/sim-auto/proxy?action=stats');
       const data = await res.json();
       if (data.success) setProxyStats(data.data.stats);
+    } catch (e) {}
+  };
+
+  const fetchDLQStats = async () => {
+    try {
+      const res = await fetch('/api/dlq?action=stats');
+      const data = await res.json();
+      if (data.success) setDlqStats(data.stats);
+    } catch (e) {}
+  };
+
+  const fetchCheckpointStats = async () => {
+    try {
+      const res = await fetch('/api/checkpoints?action=stats');
+      const data = await res.json();
+      if (data.success) setCheckpointStats(data.stats);
+    } catch (e) {}
+  };
+
+  const fetchStickyStats = async () => {
+    try {
+      const res = await fetch('/api/sticky-sessions?action=stats');
+      const data = await res.json();
+      if (data.success) setStickyStats(data.stats);
     } catch (e) {}
   };
 
@@ -224,11 +283,123 @@ export default function SystemDashboard() {
           </CardHeader>
           <CardContent className="space-y-2">
             <Button className="w-full" variant="outline" asChild>
+              <a href="/autonomous" target="_blank">🤖 Автономная работа 24/365</a>
+            </Button>
+            <Button className="w-full" variant="outline" asChild>
               <a href="/proxy-manager" target="_blank">🔐 Менеджер прокси</a>
             </Button>
             <Button className="w-full" variant="outline" asChild>
               <a href="/logs" target="_blank">📋 Логи</a>
             </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Автономность - DLQ, Checkpoints, Sticky Sessions */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Dead Letter Queue */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">💀 Dead Letter Queue</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {dlqStats ? (
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Всего ошибок:</span>
+                  <Badge>{dlqStats.total}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span>Не решённых:</span>
+                  <Badge className={dlqStats.unresolved > 0 ? 'bg-red-500' : 'bg-green-500'}>
+                    {dlqStats.unresolved}
+                  </Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span>За 24 часа:</span>
+                  <Badge className="bg-yellow-500">{dlqStats.recentErrors}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span>Решённых:</span>
+                  <Badge className="bg-green-500">{dlqStats.resolved}</Badge>
+                </div>
+                <Button size="sm" className="w-full mt-2" variant="outline" asChild>
+                  <a href="/api/dlq?action=stats" target="_blank">📊 Детали</a>
+                </Button>
+              </div>
+            ) : (
+              <div className="text-gray-500">Загрузка...</div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Checkpoints */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">📍 Checkpoints</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {checkpointStats ? (
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Всего:</span>
+                  <Badge>{checkpointStats.total}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span>В процессе:</span>
+                  <Badge className="bg-blue-500">{checkpointStats.inProgress}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span>Завершено:</span>
+                  <Badge className="bg-green-500">{checkpointStats.completed}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span>Ошибок:</span>
+                  <Badge className={checkpointStats.failed > 0 ? 'bg-red-500' : 'bg-gray-500'}>
+                    {checkpointStats.failed}
+                  </Badge>
+                </div>
+                <Button size="sm" className="w-full mt-2" variant="outline" asChild>
+                  <a href="/api/checkpoints?action=stats" target="_blank">📊 Детали</a>
+                </Button>
+              </div>
+            ) : (
+              <div className="text-gray-500">Загрузка...</div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Sticky Sessions */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">🔗 Sticky Sessions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stickyStats ? (
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Всего:</span>
+                  <Badge>{stickyStats.total}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span>Активных:</span>
+                  <Badge className="bg-green-500">{stickyStats.active}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span>Истекших:</span>
+                  <Badge className="bg-yellow-500">{stickyStats.expired}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span>Освобождено:</span>
+                  <Badge>{stickyStats.released}</Badge>
+                </div>
+                <Button size="sm" className="w-full mt-2" variant="outline" asChild>
+                  <a href="/api/sticky-sessions?action=stats" target="_blank">📊 Детали</a>
+                </Button>
+              </div>
+            ) : (
+              <div className="text-gray-500">Загрузка...</div>
+            )}
           </CardContent>
         </Card>
       </div>
