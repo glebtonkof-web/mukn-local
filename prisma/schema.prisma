@@ -4924,3 +4924,303 @@ model ContentGenerationWorker {
   @@index([status])
   @@index([lastHeartbeat])
 }
+
+// ==========================================
+// PROVIDER BYPASS SYSTEM
+// Система обхода ограничений провайдеров
+// ==========================================
+
+// Аккаунты провайдеров (multi-account pool)
+model ProviderAccount {
+  id                  String    @id
+  
+  // Провайдер
+  provider            String    // openrouter, gemini, groq, deepseek, cerebras, etc.
+  
+  // Учетные данные
+  apiKey              String?
+  email               String?
+  password            String?
+  sessionData         String?   // JSON с cookies, tokens и т.д.
+  cookies             String?
+  
+  // Proxy настройки
+  proxyId             String?
+  proxyHost           String?
+  proxyPort           Int?
+  proxyUsername       String?
+  proxyPassword       String?
+  proxyType           String?   // http, https, socks4, socks5
+  proxyStickySession  Boolean   @default(false)
+  
+  // Статус
+  isActive            Boolean   @default(true)
+  status              String    @default("active") // active, cooldown, exhausted, banned, error
+  
+  // Приоритет
+  priority            Int       @default(1)
+  
+  // Лимиты
+  hourlyLimit         Int?
+  hourlyUsed          Int       @default(0)
+  dailyLimit          Int?
+  dailyUsed           Int       @default(0)
+  monthlyLimit        Int?
+  monthlyUsed         Int       @default(0)
+  
+  // Статистика
+  totalRequests       Int       @default(0)
+  successfulRequests  Int       @default(0)
+  failedRequests      Int       @default(0)
+  consecutiveErrors   Int       @default(0)
+  
+  // Ошибки и восстановление
+  lastError           String?
+  lastErrorAt         DateTime?
+  lastUsedAt          DateTime?
+  cooldownUntil       DateTime?
+  
+  // Блокировка
+  bannedAt            DateTime?
+  banReason           String?
+  
+  // Время
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @default(now())
+  
+  // Связи
+  userId              String?
+  
+  @@unique([provider, email])
+  @@index([provider])
+  @@index([status])
+  @@index([isActive])
+  @@index([priority])
+  @@index([userId])
+}
+
+// Логи обхода ограничений
+model BypassLog {
+  id                  String    @id
+  
+  // Провайдер
+  provider            String
+  accountId           String?
+  
+  // Стратегия обхода
+  strategy            String    // account_rotation, provider_fallback, proxy_rotation, etc.
+  
+  // Результат
+  success             Boolean   @default(false)
+  
+  // Детали
+  originalProvider    String?
+  fallbackProvider    String?
+  errorType           String?
+  errorMessage        String?
+  
+  // Задержки
+  waitMs              Int?
+  totalAttempts       Int?
+  
+  // Время
+  duration            Int?
+  
+  createdAt           DateTime  @default(now())
+  
+  @@index([provider])
+  @@index([strategy])
+  @@index([success])
+  @@index([createdAt])
+}
+
+// Динамические лимиты провайдеров
+model ProviderDynamicLimit {
+  id                  String    @id
+  
+  // Провайдер
+  provider            String
+  
+  // Тип лимита
+  limitType           String    // minute, hour, day, concurrent, tokens
+  
+  // Значения
+  currentValue        Int
+  maxValue            Int
+  
+  // Сброс
+  resetAt             DateTime
+  
+  // Источник
+  source              String    @default("api") // api, header, error, manual
+  
+  // Время
+  detectedAt          DateTime  @default(now())
+  updatedAt           DateTime  @default(now())
+  
+  @@unique([provider, limitType])
+  @@index([provider])
+  @@index([resetAt])
+}
+
+// Статистика использования провайдеров
+model ProviderUsageMetrics {
+  id                  String    @id
+  
+  // Период
+  date                DateTime
+  hour                Int?
+  provider            String
+  accountId           String?
+  
+  // Запросы
+  totalRequests       Int       @default(0)
+  successfulRequests  Int       @default(0)
+  failedRequests      Int       @default(0)
+  rateLimitedRequests Int       @default(0)
+  
+  // Токены
+  tokensIn            Int       @default(0)
+  tokensOut           Int       @default(0)
+  
+  // Время
+  avgResponseTime     Float     @default(0)
+  minResponseTime     Int?
+  maxResponseTime     Int?
+  
+  // Стоимость
+  estimatedCost       Float     @default(0)
+  
+  // Стратегии обхода
+  bypassesUsed        String?   // JSON с количеством использований каждой стратегии
+  
+  createdAt           DateTime  @default(now())
+  
+  @@unique([date, hour, provider, accountId])
+  @@index([date])
+  @@index([provider])
+}
+
+// Конфигурация обхода для пользователя
+model BypassConfiguration {
+  id                  String    @id
+  userId              String    @unique
+  
+  // Включенные стратегии
+  enabledStrategies   String?   // JSON array
+  
+  // Fallback цепочка
+  fallbackChain       String?   // JSON array
+  
+  // Ретраи
+  maxRetries          Int       @default(5)
+  retryDelayMs        Int       @default(1000)
+  retryBackoff        Float     @default(2.0)
+  
+  // Timeouts
+  requestTimeoutMs    Int       @default(60000)
+  totalTimeoutMs      Int       @default(300000)
+  
+  // Лимиты стоимости
+  maxCostPerRequest   Float     @default(1.0)
+  dailyCostLimit      Float     @default(100)
+  monthlyCostLimit    Float?
+  
+  // Адаптивная скорость
+  adaptiveRateEnabled Boolean   @default(true)
+  initialRate         Int       @default(10)
+  minRate             Int       @default(1)
+  maxRate             Int       @default(100)
+  
+  // Proxy
+  rotateProxyOnLimit  Boolean   @default(true)
+  stickyProxySession  Boolean   @default(false)
+  
+  // Уведомления
+  notifyOnLimit       Boolean   @default(true)
+  notifyOnExhaustion  Boolean   @default(true)
+  notifyOnBanned      Boolean   @default(true)
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @default(now())
+  
+  @@index([userId])
+}
+
+// Пул прокси для обхода
+model BypassProxyPool {
+  id                  String    @id
+  
+  // Прокси
+  host                String
+  port                Int
+  username            String?
+  password            String?
+  type                String    @default("http")
+  
+  // Геолокация
+  country             String?
+  city                String?
+  isp                 String?
+  
+  // Статус
+  isActive            Boolean   @default(true)
+  status              String    @default("available") // available, in_use, cooldown, banned
+  
+  // Sticky session
+  stickySession       Boolean   @default(false)
+  sessionId           String?
+  sessionExpiresAt    DateTime?
+  
+  // Использование
+  assignedToProvider  String?
+  assignedToAccount   String?
+  assignedAt          DateTime?
+  totalRequests       Int       @default(0)
+  successfulRequests  Int       @default(0)
+  
+  // Проверка
+  lastCheckAt         DateTime?
+  lastCheckStatus     String?
+  lastCheckLatency    Int?
+  
+  // Лимиты
+  maxRequestsPerHour  Int?
+  hourlyRequests      Int       @default(0)
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @default(now())
+  
+  @@unique([host, port])
+  @@index([isActive])
+  @@index([status])
+  @@index([country])
+}
+
+// Job для непрерывной генерации (24/365 режим)
+model InfiniteGenerationJob {
+  id                  String    @id
+  
+  // Статус
+  status              String    @default("running")  // running, paused, completed, error
+  totalGenerated      Int       @default(0)
+  
+  // Конфигурация
+  config              String    // JSON
+  
+  // Время
+  startedAt           DateTime  @default(now())
+  pausedAt            DateTime?
+  completedAt         DateTime?
+  lastGeneratedAt     DateTime?
+  
+  // Ошибки
+  lastError           String?
+  errorCount          Int       @default(0)
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @default(now())
+
+  @@index([status])
+  @@index([startedAt])
+}
