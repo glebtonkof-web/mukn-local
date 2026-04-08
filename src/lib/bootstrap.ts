@@ -5,12 +5,15 @@
  * - Очередь задач
  * - Cron планировщик
  * - Обработчики задач
- * - Мониторинг
+ * - Watchdog мониторинг
+ * - Alert система
  */
 
 import { startTaskSystem } from './task-handlers';
 import { getEmailService } from './email-notifications';
 import { initCaptchaSolver } from './captcha-solver';
+import { getSystemWatchdog } from './system-watchdog';
+import { getAlertService } from './alert-service';
 import { addLog } from '@/app/api/sim-auto/logs/route';
 
 let isInitialized = false;
@@ -52,7 +55,21 @@ export async function initializeSystem(): Promise<void> {
     await startTaskSystem();
     addLog('success', '📋 Система задач запущена');
 
-    // 4. Proxy Manager инициализация (ленивая, при первом использовании)
+    // 4. Alert Service
+    const alertService = getAlertService();
+    addLog('success', '🔔 Alert сервис инициализирован');
+
+    // 5. System Watchdog
+    const watchdog = getSystemWatchdog({
+      checkIntervalMs: 60000, // Каждую минуту
+      alertOnDegraded: true,
+      alertOnCritical: true,
+      autoRecover: true
+    });
+    watchdog.start();
+    addLog('success', '🐕 System Watchdog запущен');
+
+    // 6. Proxy Manager инициализация (ленивая, при первом использовании)
     addLog('info', '🌐 Прокси менеджер готов к работе');
 
     isInitialized = true;
@@ -63,9 +80,19 @@ export async function initializeSystem(): Promise<void> {
 
     addLog('success', '🚀 МУКН полностью инициализирован и готов к работе');
 
+    // Отправляем startup алерт
+    await alertService.info('system', 'Система запущена', 'МУКН успешно инициализирован');
+
   } catch (error: any) {
     console.error('❌ Ошибка инициализации:', error);
     addLog('error', `❌ Ошибка инициализации: ${error.message}`);
+
+    // Пытаемся отправить алерт об ошибке
+    try {
+      const alertService = getAlertService();
+      await alertService.critical('system', 'Ошибка инициализации', error.message);
+    } catch {}
+
     throw error;
   }
 }

@@ -4430,3 +4430,21 @@ model RegistrationSession {
   @@index([status])
   @@index([expiresAt])
 }
+
+model AlertLog {
+  id             String    @id
+  severity       String
+  category       String
+  title          String
+  message        String
+  details        String?
+  acknowledged    Boolean   @default(false)
+  acknowledgedBy  String?
+  acknowledgedAt  DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([severity])
+  @@index([category])
+  @@index([acknowledged])
+  @@index([createdAt])
+}

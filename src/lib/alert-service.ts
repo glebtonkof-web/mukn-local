@@ -1,179 +1,289 @@
 /**
- * МУКН | Трафик - Alert Service
- * Централизованная система уведомлений и алертов
+ * Alert Service
+ * 
+ * Система уведомлений о критических событиях для автономной работы 24/365.
+ * Поддерживает: Telegram, Email, Webhook, логирование.
  */
 
-import { logger } from './logger';
-import { db } from './db';
-
-// ==================== ТИПЫ ====================
+import prisma from './prisma';
 
 export type AlertSeverity = 'info' | 'warning' | 'error' | 'critical';
-export type AlertChannel = 'telegram' | 'webhook' | 'email' | 'database';
-
-export interface AlertConfig {
-  enabled: boolean;
-  channels: AlertChannel[];
-  telegram?: {
-    botToken: string;
-    chatId: string;
-  };
-  webhook?: {
-    url: string;
-    headers?: Record<string, string>;
-  };
-  email?: {
-    smtp: string;
-    from: string;
-    to: string[];
-  };
-  cooldown: number; // ms между одинаковыми алертами
-  rateLimit: number; // максимум алертов в час
-}
+export type AlertCategory = 
+  | 'system' 
+  | 'registration' 
+  | 'proxy' 
+  | 'account' 
+  | 'captcha' 
+  | 'database'
+  | 'queue'
+  | 'security';
 
 export interface Alert {
   id: string;
   severity: AlertSeverity;
+  category: AlertCategory;
   title: string;
   message: string;
-  source: string;
+  details?: Record<string, any>;
   timestamp: Date;
-  createdAt?: Date;
-  metadata?: Record<string, any>;
   acknowledged: boolean;
-  acknowledgedAt?: Date;
   acknowledgedBy?: string;
+  acknowledgedAt?: Date;
 }
 
-// Database Alert type (matches Prisma schema)
-interface DbAlert {
-  id: string;
-  severity: string;
-  title: string;
-  message: string;
-  source: string;
-  metadata: string | null;
-  acknowledged: boolean;
-  acknowledgedAt: Date | null;
-  acknowledgedBy: string | null;
-  createdAt: Date;
+export interface AlertConfig {
+  telegramEnabled: boolean;
+  telegramBotToken?: string;
+  telegramChatId?: string;
+  emailEnabled: boolean;
+  emailRecipients?: string[];
+  webhookEnabled: boolean;
+  webhookUrl?: string;
+  minSeverity: AlertSeverity;
+  cooldownMinutes: number;
 }
 
-// ==================== СЕРВИС АЛЕРТОВ ====================
+const SEVERITY_LEVELS: Record<AlertSeverity, number> = {
+  info: 0,
+  warning: 1,
+  error: 2,
+  critical: 3
+};
+
+const DEFAULT_CONFIG: AlertConfig = {
+  telegramEnabled: true,
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
+  telegramChatId: process.env.TELEGRAM_CHAT_ID,
+  emailEnabled: false,
+  webhookEnabled: false,
+  minSeverity: 'warning',
+  cooldownMinutes: 5
+};
 
 class AlertService {
   private config: AlertConfig;
-  private recentAlerts: Map<string, number> = new Map();
-  private alertCount: number = 0;
-  private lastHourReset: number = Date.now();
+  private lastAlerts: Map<string, Date> = new Map();
 
   constructor(config: Partial<AlertConfig> = {}) {
-    this.config = {
-      enabled: true,
-      channels: ['database'],
-      cooldown: 300000, // 5 минут
-      rateLimit: 100, // 100 алертов в час
-      ...config,
-    };
-
-    // Загружаем конфигурацию из переменных окружения
-    if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
-      this.config.telegram = {
-        botToken: process.env.TELEGRAM_BOT_TOKEN,
-        chatId: process.env.TELEGRAM_CHAT_ID,
-      };
-      if (!this.config.channels.includes('telegram')) {
-        this.config.channels.push('telegram');
-      }
-    }
-
-    if (process.env.ALERT_WEBHOOK_URL) {
-      this.config.webhook = {
-        url: process.env.ALERT_WEBHOOK_URL,
-      };
-      if (!this.config.channels.includes('webhook')) {
-        this.config.channels.push('webhook');
-      }
-    }
+    this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
   /**
-   * Отправить алерт
+   * Создать алерт
    */
-  async send(
+  async alert(
     severity: AlertSeverity,
+    category: AlertCategory,
     title: string,
     message: string,
-    source: string = 'system',
-    metadata?: Record<string, any>
-  ): Promise<boolean> {
-    if (!this.config.enabled) {
-      return false;
+    details?: Record<string, any>
+  ): Promise<Alert> {
+    const alertId = this.generateId();
+
+    // Проверяем cooldown для одинаковых алертов
+    const alertKey = `${category}:${title}`;
+    const lastAlert = this.lastAlerts.get(alertKey);
+    if (lastAlert) {
+      const minutesSince = (Date.now() - lastAlert.getTime()) / (1000 * 60);
+      if (minutesSince < this.config.cooldownMinutes) {
+        console.log(`🔇 [Alert] Пропущен (cooldown): ${title}`);
+        // Возвращаем "тихий" алерт
+        return {
+          id: alertId,
+          severity,
+          category,
+          title,
+          message,
+          details,
+          timestamp: new Date(),
+          acknowledged: true // Не требует внимания
+        };
+      }
     }
 
-    // Проверяем rate limit
-    if (!this.checkRateLimit()) {
-      logger.warn('Alert rate limit exceeded');
-      return false;
-    }
-
-    // Проверяем cooldown для похожих алертов
-    const alertKey = `${source}:${title}`;
-    if (!this.checkCooldown(alertKey)) {
-      logger.debug('Alert cooldown active', { alertKey });
-      return false;
-    }
+    this.lastAlerts.set(alertKey, new Date());
 
     const alert: Alert = {
-      id: this.generateId(),
+      id: alertId,
       severity,
+      category,
       title,
       message,
-      source,
+      details,
       timestamp: new Date(),
-      metadata,
-      acknowledged: false,
+      acknowledged: false
     };
 
-    // Отправляем по всем каналам
-    const results = await Promise.allSettled([
-      this.sendToDatabase(alert),
-      this.config.channels.includes('telegram') && this.config.telegram
-        ? this.sendToTelegram(alert)
-        : Promise.resolve(),
-      this.config.channels.includes('webhook') && this.config.webhook
-        ? this.sendToWebhook(alert)
-        : Promise.resolve(),
-    ]);
+    // Логируем
+    this.logAlert(alert);
 
-    // Логируем результат
-    const failures = results.filter(r => r.status === 'rejected');
-    if (failures.length > 0) {
-      logger.warn('Some alert channels failed', { failures });
-    } else {
-      logger.info('Alert sent successfully', { alertId: alert.id, severity, title });
+    // Проверяем минимальный уровень
+    if (SEVERITY_LEVELS[severity] >= SEVERITY_LEVELS[this.config.minSeverity]) {
+      // Отправляем уведомления параллельно
+      await Promise.allSettled([
+        this.sendTelegram(alert),
+        this.sendEmail(alert),
+        this.sendWebhook(alert)
+      ]);
     }
 
-    return true;
+    // Сохраняем в БД
+    await this.saveAlert(alert);
+
+    return alert;
   }
 
   /**
-   * Быстрые методы для разных типов алертов
+   * Быстрые методы для разных уровней
    */
-  async info(title: string, message: string, source?: string, metadata?: Record<string, any>) {
-    return this.send('info', title, message, source, metadata);
+  async info(category: AlertCategory, title: string, message: string, details?: any) {
+    return this.alert('info', category, title, message, details);
   }
 
-  async warning(title: string, message: string, source?: string, metadata?: Record<string, any>) {
-    return this.send('warning', title, message, source, metadata);
+  async warning(category: AlertCategory, title: string, message: string, details?: any) {
+    return this.alert('warning', category, title, message, details);
   }
 
-  async error(title: string, message: string, source?: string, metadata?: Record<string, any>) {
-    return this.send('error', title, message, source, metadata);
+  async error(category: AlertCategory, title: string, message: string, details?: any) {
+    return this.alert('error', category, title, message, details);
   }
 
-  async critical(title: string, message: string, source?: string, metadata?: Record<string, any>) {
-    return this.send('critical', title, message, source, metadata);
+  async critical(category: AlertCategory, title: string, message: string, details?: any) {
+    return this.alert('critical', category, title, message, details);
+  }
+
+  /**
+   * Отправить в Telegram
+   */
+  private async sendTelegram(alert: Alert): Promise<void> {
+    if (!this.config.telegramEnabled || !this.config.telegramBotToken || !this.config.telegramChatId) {
+      return;
+    }
+
+    const emoji = this.getSeverityEmoji(alert.severity);
+    const text = `
+${emoji} *${alert.title}*
+
+📍 Категория: ${alert.category}
+⚠️ Уровень: ${alert.severity.toUpperCase()}
+
+${alert.message}
+
+🕐 ${alert.timestamp.toLocaleString('ru-RU')}
+    `.trim();
+
+    try {
+      const response = await fetch(
+        `https://api.telegram.org/bot${this.config.telegramBotToken}/sendMessage`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: this.config.telegramChatId,
+            text,
+            parse_mode: 'Markdown'
+          })
+        }
+      );
+
+      if (!response.ok) {
+        console.error('❌ [Alert] Telegram error:', await response.text());
+      }
+    } catch (error: any) {
+      console.error('❌ [Alert] Telegram failed:', error.message);
+    }
+  }
+
+  /**
+   * Отправить Email
+   */
+  private async sendEmail(alert: Alert): Promise<void> {
+    if (!this.config.emailEnabled || !this.config.emailRecipients?.length) {
+      return;
+    }
+
+    try {
+      const { getEmailService } = await import('./email-notifications');
+      const emailService = getEmailService();
+
+      const subject = `[МУКН ${alert.severity.toUpperCase()}] ${alert.title}`;
+
+      for (const recipient of this.config.emailRecipients) {
+        await emailService.send({
+          to: recipient,
+          subject,
+          html: `
+            <h2>${this.getSeverityEmoji(alert.severity)} ${alert.title}</h2>
+            <p><strong>Категория:</strong> ${alert.category}</p>
+            <p><strong>Уровень:</strong> ${alert.severity}</p>
+            <p><strong>Сообщение:</strong> ${alert.message}</p>
+            <p><strong>Время:</strong> ${alert.timestamp.toLocaleString('ru-RU')}</p>
+            ${alert.details ? `<pre>${JSON.stringify(alert.details, null, 2)}</pre>` : ''}
+          `
+        });
+      }
+    } catch (error: any) {
+      console.error('❌ [Alert] Email failed:', error.message);
+    }
+  }
+
+  /**
+   * Отправить Webhook
+   */
+  private async sendWebhook(alert: Alert): Promise<void> {
+    if (!this.config.webhookEnabled || !this.config.webhookUrl) {
+      return;
+    }
+
+    try {
+      await fetch(this.config.webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...alert,
+          source: 'mukn-autonomous',
+          timestamp: alert.timestamp.toISOString()
+        })
+      });
+    } catch (error: any) {
+      console.error('❌ [Alert] Webhook failed:', error.message);
+    }
+  }
+
+  /**
+   * Логирование алерта
+   */
+  private logAlert(alert: Alert): void {
+    const logFn = {
+      info: console.log,
+      warning: console.warn,
+      error: console.error,
+      critical: console.error
+    }[alert.severity];
+
+    const emoji = this.getSeverityEmoji(alert.severity);
+    logFn(`${emoji} [Alert] [${alert.category}] ${alert.title}: ${alert.message}`);
+  }
+
+  /**
+   * Сохранение в БД
+   */
+  private async saveAlert(alert: Alert): Promise<void> {
+    try {
+      await prisma.alertLog.create({
+        data: {
+          id: alert.id,
+          severity: alert.severity,
+          category: alert.category,
+          title: alert.title,
+          message: alert.message,
+          details: alert.details ? JSON.stringify(alert.details) : null,
+          acknowledged: alert.acknowledged
+        }
+      });
+    } catch (error: any) {
+      console.error('❌ [Alert] Failed to save:', error.message);
+    }
   }
 
   /**
@@ -181,199 +291,114 @@ class AlertService {
    */
   async acknowledge(alertId: string, acknowledgedBy: string): Promise<boolean> {
     try {
-      await db.alert.update({
+      await prisma.alertLog.update({
         where: { id: alertId },
         data: {
           acknowledged: true,
-          acknowledgedAt: new Date(),
           acknowledgedBy,
-        },
+          acknowledgedAt: new Date()
+        }
       });
       return true;
-    } catch (error) {
-      logger.error('Failed to acknowledge alert', error as Error);
+    } catch {
       return false;
     }
   }
 
   /**
-   * Получить неподавленные алерты
+   * Получить непросмотренные алерты
    */
   async getUnacknowledged(limit: number = 50): Promise<Alert[]> {
-    try {
-      const dbAlerts = await db.alert.findMany({
-        where: { acknowledged: false },
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-      }) as DbAlert[];
-      // Convert DB alerts to Alert interface
-      return dbAlerts.map(dbAlert => ({
-        id: dbAlert.id,
-        severity: dbAlert.severity as AlertSeverity,
-        title: dbAlert.title,
-        message: dbAlert.message,
-        source: dbAlert.source,
-        timestamp: dbAlert.createdAt,
-        createdAt: dbAlert.createdAt,
-        metadata: dbAlert.metadata ? JSON.parse(dbAlert.metadata) : undefined,
-        acknowledged: dbAlert.acknowledged,
-        acknowledgedAt: dbAlert.acknowledgedAt || undefined,
-        acknowledgedBy: dbAlert.acknowledgedBy || undefined,
-      }));
-    } catch (error) {
-      logger.error('Failed to get unacknowledged alerts', error as Error);
-      return [];
-    }
+    const logs = await prisma.alertLog.findMany({
+      where: { acknowledged: false },
+      orderBy: { createdAt: 'desc' },
+      take: limit
+    });
+
+    return logs.map(log => ({
+      id: log.id,
+      severity: log.severity as AlertSeverity,
+      category: log.category as AlertCategory,
+      title: log.title,
+      message: log.message,
+      details: log.details ? JSON.parse(log.details) : undefined,
+      timestamp: log.createdAt,
+      acknowledged: log.acknowledged,
+      acknowledgedBy: log.acknowledgedBy || undefined,
+      acknowledgedAt: log.acknowledgedAt || undefined
+    }));
   }
 
-  // ==================== ПРИВАТНЫЕ МЕТОДЫ ====================
+  /**
+   * Получить статистику алертов
+   */
+  async getStats(hours: number = 24): Promise<{
+    total: number;
+    bySeverity: Record<AlertSeverity, number>;
+    byCategory: Record<AlertCategory, number>;
+    unacknowledged: number;
+  }> {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
-  private checkRateLimit(): boolean {
-    const now = Date.now();
-    
-    // Сброс счётчика каждый час
-    if (now - this.lastHourReset > 3600000) {
-      this.alertCount = 0;
-      this.lastHourReset = now;
-    }
+    const [total, bySeverity, byCategory, unacknowledged] = await Promise.all([
+      prisma.alertLog.count({ where: { createdAt: { gte: since } } }),
+      this.groupBy('severity', since),
+      this.groupBy('category', since),
+      prisma.alertLog.count({ where: { acknowledged: false } })
+    ]);
 
-    return ++this.alertCount <= this.config.rateLimit;
+    return {
+      total,
+      bySeverity: bySeverity as Record<AlertSeverity, number>,
+      byCategory: byCategory as Record<AlertCategory, number>,
+      unacknowledged
+    };
   }
 
-  private checkCooldown(alertKey: string): boolean {
-    const now = Date.now();
-    const lastSent = this.recentAlerts.get(alertKey);
+  private async groupBy(field: string, since: Date): Promise<Record<string, number>> {
+    const logs = await prisma.alertLog.groupBy({
+      by: [field as any],
+      where: { createdAt: { gte: since } },
+      _count: { [field]: true }
+    });
 
-    if (lastSent && now - lastSent < this.config.cooldown) {
-      return false;
+    const result: Record<string, number> = {};
+    for (const log of logs) {
+      result[log[field as keyof typeof log] as string] = log._count[field as keyof typeof log._count];
     }
+    return result;
+  }
 
-    this.recentAlerts.set(alertKey, now);
-    return true;
+  private getSeverityEmoji(severity: AlertSeverity): string {
+    const emojis = {
+      info: 'ℹ️',
+      warning: '⚠️',
+      error: '❌',
+      critical: '🚨'
+    };
+    return emojis[severity];
   }
 
   private generateId(): string {
     return `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  private async sendToDatabase(alert: Alert): Promise<void> {
-    try {
-      await db.alert.create({
-        data: {
-          id: alert.id,
-          severity: alert.severity,
-          title: alert.title,
-          message: alert.message,
-          source: alert.source,
-          metadata: alert.metadata ? JSON.stringify(alert.metadata) : null,
-          acknowledged: false,
-        },
-      });
-    } catch (error) {
-      logger.error('Failed to save alert to database', error as Error);
-      throw error;
-    }
-  }
-
-  private async sendToTelegram(alert: Alert): Promise<void> {
-    if (!this.config.telegram) return;
-
-    const emoji = this.getEmoji(alert.severity);
-    const text = `${emoji} *${this.escapeMarkdown(alert.title)}*\n\n${this.escapeMarkdown(alert.message)}\n\n_Источник: ${alert.source}_\n_Время: ${alert.timestamp.toISOString()}_`;
-
-    try {
-      const response = await fetch(
-        `https://api.telegram.org/bot${this.config.telegram.botToken}/sendMessage`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: this.config.telegram.chatId,
-            text,
-            parse_mode: 'MarkdownV2',
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Telegram API error: ${response.status}`);
-      }
-    } catch (error) {
-      logger.error('Failed to send Telegram alert', error as Error);
-      throw error;
-    }
-  }
-
-  private async sendToWebhook(alert: Alert): Promise<void> {
-    if (!this.config.webhook) return;
-
-    try {
-      const response = await fetch(this.config.webhook.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...this.config.webhook.headers,
-        },
-        body: JSON.stringify({
-          id: alert.id,
-          severity: alert.severity,
-          title: alert.title,
-          message: alert.message,
-          source: alert.source,
-          timestamp: alert.timestamp.toISOString(),
-          metadata: alert.metadata,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Webhook error: ${response.status}`);
-      }
-    } catch (error) {
-      logger.error('Failed to send webhook alert', error as Error);
-      throw error;
-    }
-  }
-
-  private getEmoji(severity: AlertSeverity): string {
-    switch (severity) {
-      case 'info': return 'ℹ️';
-      case 'warning': return '⚠️';
-      case 'error': return '🔴';
-      case 'critical': return '🚨';
-    }
-  }
-
-  private escapeMarkdown(text: string): string {
-    return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
+  /**
+   * Обновить конфигурацию
+   */
+  updateConfig(config: Partial<AlertConfig>): void {
+    this.config = { ...this.config, ...config };
   }
 }
 
-// ==================== SINGLETON ====================
-
-let alertServiceInstance: AlertService | null = null;
+// Singleton
+let alertInstance: AlertService | null = null;
 
 export function getAlertService(config?: Partial<AlertConfig>): AlertService {
-  if (!alertServiceInstance) {
-    alertServiceInstance = new AlertService(config);
+  if (!alertInstance) {
+    alertInstance = new AlertService(config);
   }
-  return alertServiceInstance;
+  return alertInstance;
 }
 
-export const alerts = {
-  send: (severity: AlertSeverity, title: string, message: string, source?: string, metadata?: Record<string, any>) =>
-    getAlertService().send(severity, title, message, source, metadata),
-  info: (title: string, message: string, source?: string, metadata?: Record<string, any>) =>
-    getAlertService().info(title, message, source, metadata),
-  warning: (title: string, message: string, source?: string, metadata?: Record<string, any>) =>
-    getAlertService().warning(title, message, source, metadata),
-  error: (title: string, message: string, source?: string, metadata?: Record<string, any>) =>
-    getAlertService().error(title, message, source, metadata),
-  critical: (title: string, message: string, source?: string, metadata?: Record<string, any>) =>
-    getAlertService().critical(title, message, source, metadata),
-  acknowledge: (alertId: string, acknowledgedBy: string) =>
-    getAlertService().acknowledge(alertId, acknowledgedBy),
-  getUnacknowledged: (limit?: number) =>
-    getAlertService().getUnacknowledged(limit),
-};
-
-export default AlertService;
+export { AlertService };
