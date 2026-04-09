@@ -857,6 +857,22 @@ export class InfiniteGenerationManager {
     const ZAI = (await import('z-ai-web-dev-sdk')).default;
     const zai = await ZAI.create();
 
+    // Для видео используем video generation API
+    if (config.contentType === 'video') {
+      return this.generateVideo(prompt, config, zai);
+    }
+
+    // Для изображений используем image generation API
+    if (config.contentType === 'image') {
+      return this.generateImage(prompt, config, zai);
+    }
+
+    // Для аудио используем TTS API
+    if (config.contentType === 'audio') {
+      return this.generateAudio(prompt, config, zai);
+    }
+
+    // Для текста используем chat completions
     const completion = await zai.chat.completions.create({
       messages: [
         ...(config.style ? [{ role: 'system' as const, content: config.style }] : []),
@@ -872,6 +888,129 @@ export class InfiniteGenerationManager {
       tokensUsed,
       cost: 0,
     };
+  }
+
+  /**
+   * Генерация видео
+   */
+  private async generateVideo(
+    prompt: string,
+    config: InfiniteGenerationConfig,
+    zai: any
+  ): Promise<{ content: string; tokensUsed: number; cost: number }> {
+    try {
+      // Создаём задачу на генерацию видео
+      const videoTask = await zai.video.generations.create({
+        prompt: `${prompt}, ${config.style || 'cinematic'} style, high quality`,
+        quality: 'quality',
+        size: '1920x1080',
+        duration: 5,
+        fps: 30,
+        with_audio: false,
+      });
+
+      console.log(`[InfiniteGeneration] Video task created: ${videoTask.id}`);
+
+      // Ждём завершения генерации (максимум 5 минут)
+      const maxPolls = 60;
+      const pollInterval = 5000;
+
+      for (let i = 0; i < maxPolls; i++) {
+        await this.delay(pollInterval);
+
+        const result = await zai.async.result.query(videoTask.id);
+
+        if (result.task_status === 'SUCCESS') {
+          const videoUrl = result.video_result?.[0]?.url ||
+                          result.video_url ||
+                          result.url ||
+                          result.video;
+
+          if (videoUrl) {
+            return {
+              content: videoUrl,
+              tokensUsed: 0,
+              cost: 0,
+            };
+          }
+        }
+
+        if (result.task_status === 'FAIL') {
+          throw new Error('Video generation failed');
+        }
+      }
+
+      throw new Error('Video generation timeout');
+
+    } catch (error) {
+      console.error('[InfiniteGeneration] Video generation error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Генерация изображения
+   */
+  private async generateImage(
+    prompt: string,
+    config: InfiniteGenerationConfig,
+    zai: any
+  ): Promise<{ content: string; tokensUsed: number; cost: number }> {
+    try {
+      const response = await zai.images.generations.create({
+        prompt: `${prompt}, ${config.style || 'professional'} style, high quality`,
+        size: '1024x1024',
+      });
+
+      const imageBase64 = response.data[0]?.base64;
+      
+      if (imageBase64) {
+        // Сохраняем изображение и возвращаем URL
+        const imageUrl = `data:image/png;base64,${imageBase64}`;
+        return {
+          content: imageUrl,
+          tokensUsed: 0,
+          cost: 0,
+        };
+      }
+
+      throw new Error('No image generated');
+
+    } catch (error) {
+      console.error('[InfiniteGeneration] Image generation error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Генерация аудио (TTS)
+   */
+  private async generateAudio(
+    prompt: string,
+    config: InfiniteGenerationConfig,
+    zai: any
+  ): Promise<{ content: string; tokensUsed: number; cost: number }> {
+    try {
+      const response = await zai.audio.speech.create({
+        input: prompt,
+        voice: 'alloy',
+        model: 'tts-1',
+      });
+
+      // Получаем base64 аудио
+      const audioBuffer = await response.arrayBuffer();
+      const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+      
+      return {
+        content: `data:audio/mp3;base64,${audioBase64}`,
+        tokensUsed: prompt.length, // Примерно
+        cost: 0,
+      };
+
+    } catch (error) {
+      console.error('[InfiniteGeneration] Audio generation error:', error);
+      throw error;
+    }
   }
 
   /**
