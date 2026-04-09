@@ -40,6 +40,7 @@ import { NotificationsSheet } from '@/components/notifications/notifications-she
 
 import { UnifiedAutoEarnWizard } from '@/components/auto-earn/unified-auto-earn-wizard';
 import { AutoEarnDashboard } from '@/components/auto-earn/auto-earn-dashboard';
+import { AutoKeysPanel } from '@/components/auto-keys/auto-keys-panel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -339,6 +340,8 @@ export default function Page() {
         return <ProxiesView />;
       case 'sim-cards':
         return <SimCardsView />;
+      case 'auto-keys':
+        return <AutoKeysPanel />;
       case 'settings':
         return <SettingsView />;
       default:

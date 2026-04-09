@@ -36,6 +36,7 @@ import {
   Flame,
   ArrowUpRight,
   Monitor,
+  Key,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -112,6 +113,7 @@ const navSections = [
   {
     title: 'Система',
     items: [
+      { id: 'auto-keys', label: 'Авто-ключи', icon: Key, badge: 'NEW' },
       { id: 'settings', label: 'Настройки', icon: Settings },
     ]
   },
