@@ -5224,3 +5224,201 @@ model InfiniteGenerationJob {
   @@index([status])
   @@index([startedAt])
 }
+
+// ==========================================
+// AUTO API KEY MANAGEMENT
+// Автоматическое управление API ключами
+// ==========================================
+
+// Регистрация API ключа провайдера
+model ProviderApiKey {
+  id                  String    @id
+  
+  // Провайдер
+  provider            String    // openrouter, gemini, groq, deepseek, cerebras, kling, luma, etc.
+  
+  // Ключ
+  apiKey              String
+  apiSecret           String?
+  
+  // Метаданные ключа
+  keyName             String?   // Название/описание ключа
+  keyType             String    @default("official") // official, free_tier, trial, custom
+  
+  // Владелец (если ключ привязан к аккаунту)
+  accountEmail        String?
+  accountId           String?
+  
+  // Статус
+  isActive            Boolean   @default(true)
+  status              String    @default("active") // active, exhausted, expired, invalid, banned
+  
+  // Лимиты
+  dailyLimit          Int?
+  dailyUsed           Int       @default(0)
+  hourlyLimit         Int?
+  hourlyUsed          Int       @default(0)
+  monthlyLimit        Int?
+  monthlyUsed         Int       @default(0)
+  
+  // Баланс (для платных провайдеров)
+  balance             Float?
+  balanceCurrency     String?
+  balanceUpdatedAt    DateTime?
+  
+  // Квоты (для free tier)
+  freeQuotaDaily      Int?
+  freeQuotaMonthly    Int?
+  freeQuotaUsed       Int       @default(0)
+  
+  // Валидация
+  isValidated         Boolean   @default(false)
+  lastValidatedAt     DateTime?
+  validationError     String?
+  
+  // Статистика
+  totalRequests       Int       @default(0)
+  successfulRequests  Int       @default(0)
+  failedRequests      Int       @default(0)
+  totalTokensIn       Int       @default(0)
+  totalTokensOut      Int       @default(0)
+  totalCost           Float     @default(0)
+  
+  // Последнее использование
+  lastUsedAt          DateTime?
+  lastErrorAt         DateTime?
+  lastError           String?
+  consecutiveErrors   Int       @default(0)
+  
+  // Восстановление
+  cooldownUntil       DateTime?
+  
+  // Приоритет
+  priority            Int       @default(1)
+  
+  // Автоматическое управление
+  autoRegistered      Boolean   @default(false)
+  autoRefreshEnabled  Boolean   @default(true)
+  expiresAt           DateTime?
+  
+  // Связи
+  userId              String?
+  
+  // Время
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @default(now())
+  
+  @@unique([provider, apiKey])
+  @@index([provider])
+  @@index([status])
+  @@index([isActive])
+  @@index([priority])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// Очередь автоматической регистрации ключей
+model ApiKeyRegistrationQueue {
+  id                  String    @id
+  
+  // Провайдер
+  provider            String
+  
+  // Статус
+  status              String    @default("pending") // pending, processing, completed, failed
+  
+  // Данные регистрации
+  registrationData    String?   // JSON с данными для регистрации
+  
+  // Результат
+  resultKeyId         String?
+  resultApiKey        String?
+  resultAccountEmail  String?
+  
+  // Ошибки
+  error               String?
+  retryCount          Int       @default(0)
+  maxRetries          Int       @default(3)
+  
+  // Приоритет
+  priority            Int       @default(5)
+  
+  // Время
+  scheduledAt         DateTime  @default(now())
+  startedAt           DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @default(now())
+  
+  @@index([status])
+  @@index([provider])
+  @@index([scheduledAt])
+}
+
+// Настройки автоматического управления ключами
+model AutoApiKeySettings {
+  id                      String    @id
+  userId                  String    @unique
+  
+  // Основные настройки
+  autoRegisterEnabled     Boolean   @default(true)
+  autoValidateEnabled     Boolean   @default(true)
+  autoRotateEnabled       Boolean   @default(true)
+  autoRemoveInvalid       Boolean   @default(true)
+  
+  // Провайдеры для автоматической регистрации
+  autoRegisterProviders   String?   // JSON array: ["cerebras", "groq", "gemini"]
+  
+  // Лимиты ключей
+  minKeysPerProvider      Int       @default(1)
+  maxKeysPerProvider      Int       @default(10)
+  
+  // Валидация
+  validateIntervalHours   Int       @default(24)
+  validateOnStartup       Boolean   @default(true)
+  
+  // Ротация
+  rotateOnLimit           Boolean   @default(true)
+  rotateOnError           Boolean   @default(true)
+  errorThreshold          Int       @default(3)
+  
+  // Уведомления
+  notifyOnNewKey          Boolean   @default(true)
+  notifyOnExhausted       Boolean   @default(true)
+  notifyOnInvalid         Boolean   @default(true)
+  
+  // Proxy для регистрации
+  useProxyForRegistration Boolean   @default(true)
+  proxyCountry            String?   // Предпочтительная страна для proxy
+  
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @default(now())
+  
+  @@index([userId])
+}
+
+// Лог валидации ключей
+model ApiKeyValidationLog {
+  id                  String    @id
+  
+  // Ключ
+  keyId               String
+  provider            String
+  
+  // Результат
+  isValid             Boolean
+  validationType      String    // startup, scheduled, on_error, manual
+  
+  // Детали
+  responseTime        Int?
+  balance             Float?
+  remainingQuota      Int?
+  errorMessage        String?
+  
+  // Время
+  validatedAt         DateTime  @default(now())
+  
+  @@index([keyId])
+  @@index([provider])
+  @@index([validatedAt])
+}

@@ -3,6 +3,8 @@
  * 
  * Интеграция системы обхода ограничений с Content Studio
  * Для 24/365 генерации контента
+ * 
+ * Включает автоматическое управление API ключами провайдеров
  */
 
 import { 
@@ -11,6 +13,7 @@ import {
   ProviderType,
   ContentType,
 } from '@/lib/provider-bypass';
+import { getAutoApiKeyManager } from './auto-api-key-manager';
 import { db } from '@/lib/db';
 import { nanoid } from 'nanoid';
 
@@ -72,6 +75,7 @@ export interface GenerationConfig {
 export class ContentStudioWithBypass {
   private engine = getBypassStrategyEngine();
   private registry = getProviderLimitRegistry();
+  private keyManager = getAutoApiKeyManager();
   
   /**
    * Генерация контента с обходом ограничений
@@ -131,12 +135,12 @@ export class ContentStudioWithBypass {
       });
       
       // Сохраняем результат
-      if (result.success && result.result) {
+      if (result.success && result.content) {
         await this.saveGeneratedContent({
           id,
           contentType: config.contentType,
           prompt: config.prompt,
-          content: result.result,
+          content: result.content,
           provider: result.provider,
           accountId: result.accountId,
           campaignId: config.campaignId,
@@ -153,7 +157,7 @@ export class ContentStudioWithBypass {
         id,
         success: result.success,
         contentType: config.contentType,
-        content: result.result,
+        content: result.content,
         provider: result.provider,
         accountId: result.accountId,
         bypassStrategies: result.strategies,
@@ -441,10 +445,62 @@ export class ContentStudioWithBypass {
     proxy: { host: string; port: number; username?: string; password?: string; type: string } | undefined,
     config: GenerationConfig
   ): Promise<{ content: string; tokensUsed: number }> {
-    // Здесь должна быть реальная логика вызова провайдера
-    // Для демонстрации возвращаем заглушку
+    // Пытаемся получить API ключ из менеджера ключей
+    let apiKey = account.apiKey;
     
-    // Импортируем соответствующий модуль провайдера
+    if (!apiKey) {
+      // Если ключ не передан в account, получаем лучший ключ из менеджера
+      const bestKey = await this.keyManager.getBestKey(provider);
+      if (bestKey) {
+        apiKey = bestKey.apiKey;
+        // Записываем использование для отслеживания квоты
+        const startTime = Date.now();
+        try {
+          const result = await this.executeProviderCall(provider, apiKey, config);
+          await this.keyManager.recordUsage(bestKey.id, {
+            tokensIn: result.tokensUsed,
+            success: true,
+          });
+          return result;
+        } catch (error) {
+          await this.keyManager.recordUsage(bestKey.id, {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
+          throw error;
+        }
+      }
+    }
+    
+    // Если ключ есть в account или не нашли в менеджере, используем SDK
+    return this.executeProviderCall(provider, apiKey, config);
+  }
+
+  /**
+   * Выполнить вызов провайдера с API ключом
+   */
+  private async executeProviderCall(
+    provider: ProviderType,
+    apiKey: string | undefined,
+    config: GenerationConfig
+  ): Promise<{ content: string; tokensUsed: number }> {
+    // Если есть API ключ, используем прямой вызов провайдера
+    if (apiKey) {
+      switch (provider) {
+        case 'cerebras':
+          return this.callCerebras(apiKey, config);
+        case 'groq':
+          return this.callGroq(apiKey, config);
+        case 'gemini':
+          return this.callGemini(apiKey, config);
+        case 'deepseek':
+          return this.callDeepSeek(apiKey, config);
+        case 'openrouter':
+          return this.callOpenRouter(apiKey, config);
+      }
+    }
+    
+    // Fallback на AI Provider Manager или SDK
     switch (provider) {
       case 'cerebras':
       case 'groq':
@@ -484,6 +540,172 @@ export class ContentStudioWithBypass {
           tokensUsed: (completion.usage?.prompt_tokens || 0) + (completion.usage?.completion_tokens || 0),
         };
     }
+  }
+
+  /**
+   * Прямой вызов Cerebras API
+   */
+  private async callCerebras(apiKey: string, config: GenerationConfig): Promise<{ content: string; tokensUsed: number }> {
+    const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b',
+        messages: [
+          ...(config.style ? [{ role: 'system', content: `Style: ${config.style}` }] : []),
+          { role: 'user', content: config.prompt },
+        ],
+        temperature: config.temperature ?? 0.7,
+        max_tokens: config.maxTokens ?? 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(`Cerebras error: ${response.status} - ${JSON.stringify(error)}`);
+    }
+
+    const data = await response.json();
+    return {
+      content: data.choices[0]?.message?.content || '',
+      tokensUsed: (data.usage?.prompt_tokens || 0) + (data.usage?.completion_tokens || 0),
+    };
+  }
+
+  /**
+   * Прямой вызов Groq API
+   */
+  private async callGroq(apiKey: string, config: GenerationConfig): Promise<{ content: string; tokensUsed: number }> {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          ...(config.style ? [{ role: 'system', content: `Style: ${config.style}` }] : []),
+          { role: 'user', content: config.prompt },
+        ],
+        temperature: config.temperature ?? 0.7,
+        max_tokens: config.maxTokens ?? 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(`Groq error: ${response.status} - ${JSON.stringify(error)}`);
+    }
+
+    const data = await response.json();
+    return {
+      content: data.choices[0]?.message?.content || '',
+      tokensUsed: (data.usage?.prompt_tokens || 0) + (data.usage?.completion_tokens || 0),
+    };
+  }
+
+  /**
+   * Прямой вызов Gemini API
+   */
+  private async callGemini(apiKey: string, config: GenerationConfig): Promise<{ content: string; tokensUsed: number }> {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: config.prompt }] }],
+          ...(config.style ? { systemInstruction: { parts: [{ text: `Style: ${config.style}` }] } } : {}),
+          generationConfig: {
+            temperature: config.temperature ?? 0.7,
+            maxOutputTokens: config.maxTokens ?? 2000,
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(`Gemini error: ${response.status} - ${JSON.stringify(error)}`);
+    }
+
+    const data = await response.json();
+    return {
+      content: data.candidates?.[0]?.content?.parts?.[0]?.text || '',
+      tokensUsed: (data.usageMetadata?.promptTokenCount || 0) + (data.usageMetadata?.candidatesTokenCount || 0),
+    };
+  }
+
+  /**
+   * Прямой вызов DeepSeek API
+   */
+  private async callDeepSeek(apiKey: string, config: GenerationConfig): Promise<{ content: string; tokensUsed: number }> {
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          ...(config.style ? [{ role: 'system', content: `Style: ${config.style}` }] : []),
+          { role: 'user', content: config.prompt },
+        ],
+        temperature: config.temperature ?? 0.7,
+        max_tokens: config.maxTokens ?? 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(`DeepSeek error: ${response.status} - ${JSON.stringify(error)}`);
+    }
+
+    const data = await response.json();
+    return {
+      content: data.choices[0]?.message?.content || '',
+      tokensUsed: (data.usage?.prompt_tokens || 0) + (data.usage?.completion_tokens || 0),
+    };
+  }
+
+  /**
+   * Прямой вызов OpenRouter API
+   */
+  private async callOpenRouter(apiKey: string, config: GenerationConfig): Promise<{ content: string; tokensUsed: number }> {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+        'X-Title': 'МУКН Content Studio',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.0-flash-exp:free',
+        messages: [
+          ...(config.style ? [{ role: 'system', content: `Style: ${config.style}` }] : []),
+          { role: 'user', content: config.prompt },
+        ],
+        temperature: config.temperature ?? 0.7,
+        max_tokens: config.maxTokens ?? 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(`OpenRouter error: ${response.status} - ${JSON.stringify(error)}`);
+    }
+
+    const data = await response.json();
+    return {
+      content: data.choices[0]?.message?.content || '',
+      tokensUsed: (data.usage?.prompt_tokens || 0) + (data.usage?.completion_tokens || 0),
+    };
   }
   
   private async saveGeneratedContent(data: {
