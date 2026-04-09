@@ -49,6 +49,61 @@ export {
   type StudioContentType,
 } from './content-studio-integration';
 
+// Infinite Generation Manager (24/365)
+export {
+  InfiniteGenerationManager,
+  getInfiniteGenerationManager,
+  type InfiniteGenerationConfig,
+  type GenerationStats,
+  type GeneratorState,
+  type GenerationStatus,
+  type ContentType as InfiniteContentType,
+} from './infinite-generation-manager';
+
+// Auto Registration Service
+export {
+  AutoRegistrationService,
+  getAutoRegistrationService,
+  PROVIDER_REGISTRATION_CONFIGS,
+  type ProviderRegistrationConfig,
+  type RegistrationStatus,
+  type ProviderCategory,
+} from './auto-registration-service';
+
+// Proxy Pool Manager
+export {
+  ProxyPoolManager,
+  getProxyPoolManager,
+  PROXY_PROVIDER_CONFIGS,
+  type ProxyConfig,
+  type ProxyType,
+  type ProxyStatus,
+  type ProxyProvider,
+  type ProxyProviderConfig,
+} from './proxy-pool-manager';
+
+// Health Monitor Service
+export {
+  HealthMonitorService,
+  getHealthMonitor,
+  type HealthStatus,
+  type ComponentType,
+  type AlertSeverity,
+  type HealthCheckResult,
+  type SystemHealth,
+  type SystemMetrics,
+  type Alert,
+} from './health-monitor-service';
+
+// Auto API Key Manager
+export {
+  AutoApiKeyManager,
+  getAutoApiKeyManager,
+  FREE_PROVIDER_CONFIGS,
+  type KeyStatus,
+  type KeyType,
+} from './auto-api-key-manager';
+
 // Convenience function for quick access
 import { getBypassStrategyEngine } from './bypass-strategy-engine';
 import { getProviderLimitRegistry } from './provider-limit-registry';
