@@ -854,8 +854,8 @@ export class InfiniteGenerationManager {
     prompt: string,
     config: InfiniteGenerationConfig
   ): Promise<{ content: string; tokensUsed: number; cost: number }> {
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const { getZAI } = await import('@/lib/z-ai');
+    const zai = await getZAI();
 
     // Для видео используем video generation API
     if (config.contentType === 'video') {

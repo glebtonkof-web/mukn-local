@@ -524,8 +524,8 @@ export class ContentStudioWithBypass {
         
       default:
         // Для других провайдеров используем SDK
-        const ZAI = (await import('z-ai-web-dev-sdk')).default;
-        const zai = await ZAI.create();
+        const { getZAI } = await import('@/lib/z-ai');
+        const zai = await getZAI();
         
         const completion = await zai.chat.completions.create({
           messages: [

@@ -127,8 +127,8 @@ export class StepByStepGenerator extends EventEmitter {
     config: StepConfig,
     stepIndex: number
   ): Promise<StepResult> {
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const { getZAI } = await import('@/lib/z-ai');
+    const zai = await getZAI();
 
     let content = '';
     let metadata: Record<string, any> = {};

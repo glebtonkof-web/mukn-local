@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 
 // Типы для генерации
 type GenerationType = 'post' | 'comment' | 'dm' | 'story' | 'style' | 'bio' | 'name' | 'greeting';
@@ -289,7 +289,7 @@ export async function POST(request: NextRequest) {
       // Fallback на SDK
       console.log('[AI Generate] AI Manager failed, using SDK fallback:', managerError);
       
-      const zai = await ZAI.create();
+      const zai = await getZAI();
       const completion = await zai.chat.completions.create({
         messages: [
           { role: 'system', content: systemPrompt },

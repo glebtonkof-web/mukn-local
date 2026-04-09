@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 
 // GET /api/ofm/stories - List stories
 export async function GET(request: NextRequest) {
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     // Generate text with AI if not provided
     if (!storyText && body.generate !== false) {
       try {
-        const zai = await ZAI.create();
+        const zai = await getZAI();
 
         const systemPrompt = profile.storyPrompt || 
           `You are a ${profile.style} ${profile.niche} content creator. Generate engaging story content.`;

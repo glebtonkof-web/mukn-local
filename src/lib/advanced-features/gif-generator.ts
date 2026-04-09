@@ -92,8 +92,8 @@ class GIFGeneratorService {
 
   // Генерация кадров
   private async generateFrames(prompt: string, frameCount: number): Promise<string[]> {
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const { getZAI } = await import('@/lib/z-ai');
+    const zai = await getZAI();
 
     const frames: string[] = [];
     const batchSize = 5;

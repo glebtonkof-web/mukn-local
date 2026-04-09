@@ -5,6 +5,7 @@
 import { db } from './db';
 import { AIContextCache, getAICache, CacheEntry } from './ai-cache';
 import { nanoid } from 'nanoid';
+import { getZAI } from './z-ai';
 
 // Типы провайдеров
 export type ProviderName = 'openrouter' | 'gemini' | 'groq' | 'deepseek' | 'cerebras';
@@ -688,8 +689,7 @@ export class AIProviderManager {
   ): Promise<GenerationResult> {
     const startTime = Date.now();
 
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const zai = await getZAI();
 
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
 

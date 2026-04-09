@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { db } from './db';
 import { nanoid } from 'nanoid';
+import { getZAI } from './z-ai';
 
 // Playwright types (optional - for type hints only)
 type Browser = any;
@@ -138,8 +139,7 @@ export class HunyuanFreeAutomation {
       });
 
       // Используем z-ai-web-dev-sdk как fallback
-      const ZAI = (await import('z-ai-web-dev-sdk')).default;
-      const zai = await ZAI.create();
+      const zai = await getZAI();
 
       const response = await zai.images.generations.create({
         prompt: `${options.prompt}${options.style ? `, ${options.style} style` : ''}`,
@@ -212,8 +212,7 @@ export class HunyuanFreeAutomation {
       // Генерируем изображение аватара
       const avatarPrompt = `Portrait of ${options.avatar}, professional photo, looking at camera, neutral background, high quality, photorealistic`;
       
-      const ZAI = (await import('z-ai-web-dev-sdk')).default;
-      const zai = await ZAI.create();
+      const zai = await getZAI();
 
       const avatarResponse = await zai.images.generations.create({
         prompt: avatarPrompt,
@@ -313,8 +312,7 @@ export class HunyuanFreeAutomation {
       // Генерируем новое изображение с учётом команды
       const editPrompt = `Edit this image: ${options.command}. Maintain the original composition and style while applying the requested changes.`;
 
-      const ZAI = (await import('z-ai-web-dev-sdk')).default;
-      const zai = await ZAI.create();
+      const zai = await getZAI();
 
       const response = await zai.images.generations.create({
         prompt: editPrompt,
@@ -396,8 +394,7 @@ export class HunyuanFreeAutomation {
         },
       });
 
-      const ZAI = (await import('z-ai-web-dev-sdk')).default;
-      const zai = await ZAI.create();
+      const zai = await getZAI();
 
       // Check if TTS is available
       const zaiWithTTS = zai as any;

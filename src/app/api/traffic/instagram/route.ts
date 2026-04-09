@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { nanoid } from 'nanoid';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 
 // Instagram Traffic Methods Configuration
 export const INSTAGRAM_METHODS = [
@@ -77,7 +77,7 @@ interface MethodConfig {
 
 // AI generation functions for each method
 async function generateReelsComment(config: MethodConfig): Promise<{ comment: string; style: string }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -104,7 +104,7 @@ async function generateMassFollowSettings(config: MethodConfig): Promise<{
   followLimit: number;
   unfollowDelay: number;
 }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -133,7 +133,7 @@ async function generateInteractiveStory(config: MethodConfig): Promise<{
   options?: string[];
   cta: string;
 }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const storyType = config.settings?.storyType || 'poll';
   const completion = await zai.chat.completions.create({
     messages: [
@@ -161,7 +161,7 @@ async function generateInteractiveStory(config: MethodConfig): Promise<{
 }
 
 async function generateDirectMessage(config: MethodConfig): Promise<{ message: string; followUp?: string }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -187,7 +187,7 @@ async function generateDirectMessage(config: MethodConfig): Promise<{ message: s
 }
 
 async function generateEmojiComment(config: MethodConfig): Promise<{ comment: string; emojiSequence: string }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -216,7 +216,7 @@ async function generateStoryRepost(config: MethodConfig): Promise<{
   stickers: string[];
   cta: string;
 }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -246,7 +246,7 @@ async function generateCollaboration(config: MethodConfig): Promise<{
   contentIdeas: string[];
   benefits: string[];
 }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const partners = config.settings?.collaborationPartners || [];
   const completion = await zai.chat.completions.create({
     messages: [

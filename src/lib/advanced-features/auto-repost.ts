@@ -54,8 +54,8 @@ class AutoRepostService {
     newKeywords?: string[];
     platform?: string;
   } = {}): Promise<string> {
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const { getZAI } = await import('@/lib/z-ai');
+    const zai = await getZAI();
 
     const prompt = `Rewrite this viral social media post to make it unique while preserving its engaging qualities:
 
@@ -84,8 +84,8 @@ Return only the rewritten post text.`;
 
   // Сгенерировать новое изображение
   async generateNewImage(originalPrompt: string): Promise<string> {
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const { getZAI } = await import('@/lib/z-ai');
+    const zai = await getZAI();
 
     const response = await zai.images.generations.create({
       prompt: `${originalPrompt}, modern style, high quality, social media optimized`,

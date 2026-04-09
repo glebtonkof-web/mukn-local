@@ -27,8 +27,8 @@ class InteractivePollsService {
     options: PollOption[];
     aiPrompt: string;
   }> {
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const { getZAI } = await import('@/lib/z-ai');
+    const zai = await getZAI();
 
     const optionsCount = config.optionsCount || 4;
 

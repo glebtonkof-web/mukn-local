@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { nanoid } from 'nanoid';
 
 // GET /api/ofm/auto-story - Get auto-story rules
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate text with AI
-    const zai = await ZAI.create();
+    const zai = await getZAI();
 
     // Use template or generate new
     if (rule.storyTemplate) {

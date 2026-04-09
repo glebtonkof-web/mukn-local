@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { nanoid } from 'nanoid';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 
 // ============================================================================
 // TIKTOK V2 TRAFFIC METHODS API - 14 методов (18-23, 56-63, 106-115)
@@ -460,7 +460,7 @@ async function generateContentWithDeepSeek(
   methodName: TikTokV2MethodName,
   config: MethodConfig
 ): Promise<Record<string, unknown>> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   
   const promptTemplate = DEEPSEEK_PROMPTS[methodName];
   if (!promptTemplate) {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { nanoid } from 'nanoid';
 
 // HTML шаблоны для лендингов
@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate content with DeepSeek
-    const zai = await ZAI.create();
+    const zai = await getZAI();
     
     const prompt = `Создай контент для лендинга:
 Тип: ${template}

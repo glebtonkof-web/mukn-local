@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { db } from '@/lib/db';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       sourceMediaUrl = content.mediaUrl;
     }
     
-    const zai = await ZAI.create();
+    const zai = await getZAI();
     
     if (type === 'image') {
       // Редактирование изображения

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 
 /**
  * Real Translation API
@@ -30,16 +30,6 @@ const SUPPORTED_LANGUAGES: Record<string, { name: string; nativeName: string }> 
   nl: { name: 'Dutch', nativeName: 'Nederlands' },
   sv: { name: 'Swedish', nativeName: 'Svenska' },
 };
-
-// Global ZAI instance for reuse
-let zaiInstance: Awaited<ReturnType<typeof ZAI.create>> | null = null;
-
-async function getZAI() {
-  if (!zaiInstance) {
-    zaiInstance = await ZAI.create();
-  }
-  return zaiInstance;
-}
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();

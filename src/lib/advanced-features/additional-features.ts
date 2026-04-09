@@ -40,8 +40,8 @@ class TrendAdapterService {
     const trend = await db.trendingTopic.findUnique({ where: { id: trendId } });
     if (!trend) throw new Error('Trend not found');
 
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const { getZAI } = await import('@/lib/z-ai');
+    const zai = await getZAI();
 
     const response = await zai.chat.completions.create({
       messages: [
@@ -74,8 +74,8 @@ Suggest 5 specific content ideas that leverage this trend for social media engag
   async getTrendBasedContentIdeas(niche: string): Promise<string[]> {
     const trends = await this.getTrendingTopics(niche, 5);
     
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const { getZAI } = await import('@/lib/z-ai');
+    const zai = await getZAI();
 
     const trendsList = trends.map(t => t.topic).join(', ');
 
@@ -122,8 +122,8 @@ class FailureAnalyzerService {
       take: 10,
     });
 
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const { getZAI } = await import('@/lib/z-ai');
+    const zai = await getZAI();
 
     const analysisPrompt = `Analyze why this social media post underperformed:
 
@@ -236,8 +236,8 @@ Respond in JSON:
 
 class ContentIdeasGeneratorService {
   async generateWeeklyIdeas(niche: string, platform: string, count: number = 7): Promise<any[]> {
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const { getZAI } = await import('@/lib/z-ai');
+    const zai = await getZAI();
 
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const today = new Date();
@@ -537,8 +537,8 @@ class AudienceEmotionAnalyzerService {
       take: 100,
     });
 
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const { getZAI } = await import('@/lib/z-ai');
+    const zai = await getZAI();
 
     const commentsText = comments.map(c => c.content).join('\n---\n');
 

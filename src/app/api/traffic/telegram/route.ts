@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { nanoid } from 'nanoid';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 
 // Telegram Traffic Methods Configuration
 export const TELEGRAM_METHODS = [
@@ -88,7 +88,7 @@ interface MethodConfig {
 
 // AI generation functions for each method
 async function generateCommentStories(config: MethodConfig): Promise<{ content: string; style: string }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -111,7 +111,7 @@ async function generateCommentStories(config: MethodConfig): Promise<{ content: 
 }
 
 async function generateReactionTrigger(config: MethodConfig): Promise<{ reaction: string; comment: string }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -134,7 +134,7 @@ async function generateReactionTrigger(config: MethodConfig): Promise<{ reaction
 }
 
 async function generateRepostContent(config: MethodConfig): Promise<{ title: string; content: string }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -159,7 +159,7 @@ async function generateRepostContent(config: MethodConfig): Promise<{ title: str
 }
 
 async function generateVoiceCommentText(config: MethodConfig): Promise<string> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -178,7 +178,7 @@ async function generateVoiceCommentText(config: MethodConfig): Promise<string> {
 }
 
 async function generatePollQuestion(config: MethodConfig): Promise<{ question: string; options: string[] }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -202,7 +202,7 @@ async function generatePollQuestion(config: MethodConfig): Promise<{ question: s
 }
 
 async function generateCompetitorReply(config: MethodConfig): Promise<string> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -221,7 +221,7 @@ async function generateCompetitorReply(config: MethodConfig): Promise<string> {
 }
 
 async function generateTopCommentIntercept(config: MethodConfig): Promise<string> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -240,7 +240,7 @@ async function generateTopCommentIntercept(config: MethodConfig): Promise<string
 }
 
 async function generateStickerSuggestion(config: MethodConfig): Promise<{ description: string; context: string }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -264,7 +264,7 @@ async function generateStickerSuggestion(config: MethodConfig): Promise<{ descri
 }
 
 async function generateFakeNews(config: MethodConfig): Promise<{ headline: string; content: string; cta: string }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {

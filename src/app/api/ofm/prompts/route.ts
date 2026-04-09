@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { logger } from '@/lib/logger';
 
 // Pre-defined OFM prompts for different niches
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const zai = await ZAI.create();
+    const zai = await getZAI();
 
     // Use custom prompt if available, otherwise use default
     const basePrompt = customPromptsStore[niche] || promptData.prompt;

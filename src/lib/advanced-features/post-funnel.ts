@@ -69,8 +69,8 @@ class PostFunnelService {
 
   // Генерация сценария воронки
   private async generateFunnelScript(config: FunnelConfig, stagesCount: number): Promise<FunnelStage[]> {
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const { getZAI } = await import('@/lib/z-ai');
+    const zai = await getZAI();
 
     const stageTypes: FunnelStage['type'][] = ['awareness', 'interest', 'desire', 'action'];
     const defaultDelays = { awareness: 24, interest: 48, desire: 24, action: 4 };

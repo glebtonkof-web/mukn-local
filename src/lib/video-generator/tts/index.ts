@@ -7,7 +7,7 @@ import { writeFile, mkdir, access } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import { ParsedScene, VoiceInfo, EDGE_TTS_VOICES } from '../types';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 
 const execAsync = promisify(exec);
 
@@ -89,7 +89,7 @@ async function generateZAITTS(
   voice: string,
   outputPath: string
 ): Promise<{ duration: number }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   
   // Маппинг голосов edge-tts на голоса zai
   const voiceMap: Record<string, string> = {

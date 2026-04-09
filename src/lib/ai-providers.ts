@@ -3,6 +3,7 @@
 
 import { db } from './db';
 import { nanoid } from 'nanoid';
+import { getZAI } from './z-ai';
 
 // Типы провайдеров
 export type ProviderName = 'openrouter' | 'gemini' | 'groq' | 'deepseek';
@@ -442,9 +443,7 @@ export class AIManager {
   private async generateWithSDK(prompt: string, options: GenerationOptions): Promise<GenerationResult> {
     const startTime = Date.now();
 
-    // Динамический импорт SDK
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const zai = await getZAI();
 
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
     

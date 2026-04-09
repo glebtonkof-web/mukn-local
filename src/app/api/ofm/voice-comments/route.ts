@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       targetChannel,
     } = body;
 
-    const zai = await ZAI.create();
+    const zai = await getZAI();
 
     // Step 1: Generate short comment text (3-5 words) using DeepSeek
     const systemPrompt = `Ты — девушка 23 лет, ведущая Telegram-канал.

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 
 // POST /api/hunyuan/video - Генерация видео
 export async function POST(request: NextRequest) {
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Используем z-ai-web-dev-sdk для генерации видео
-    const zai = await ZAI.create();
+    const zai = await getZAI();
 
     // Добавляем стиль к промпту
     const stylePrompts: Record<string, string> = {

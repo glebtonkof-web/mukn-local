@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { nanoid } from 'nanoid';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 
 // ==================== 25 TELEGRAM METHODS DEFINITION ====================
 
@@ -293,7 +293,7 @@ async function generateContentWithDeepSeek(
   methodName: string,
   config: MethodConfig
 ): Promise<{ content: string; prompt: string; aiModel: string }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
 
   // Get prompt template
   let promptTemplate = DEEPSEEK_PROMPTS[methodName];

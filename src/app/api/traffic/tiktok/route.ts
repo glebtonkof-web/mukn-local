@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { nanoid } from 'nanoid';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 
 // TikTok Traffic Methods Configuration
 export const TIKTOK_METHODS = [
@@ -72,7 +72,7 @@ interface MethodConfig {
 
 // AI generation functions for each method
 async function generateViralComment(config: MethodConfig): Promise<{ comment: string; style: string }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -99,7 +99,7 @@ async function generateTelegramBridge(config: MethodConfig): Promise<{
   commentHint: string;
   storyText: string;
 }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -130,7 +130,7 @@ async function generateFakeDuet(config: MethodConfig): Promise<{
   reaction: string;
   hashtags: string[];
 }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const duetType = config.settings?.duetType || 'duet';
   const completion = await zai.chat.completions.create({
     messages: [
@@ -162,7 +162,7 @@ async function generateAutoLikeSettings(config: MethodConfig): Promise<{
   saveQuota: number;
   bestTimes: string[];
 }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -192,7 +192,7 @@ async function generateAuthorReply(config: MethodConfig): Promise<{
   style: string;
   includeQuestion: boolean;
 }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const replyStyle = config.settings?.replyStyle || 'question';
   const completion = await zai.chat.completions.create({
     messages: [
@@ -222,7 +222,7 @@ async function generateSoundSpam(config: MethodConfig): Promise<{
   contentIdea: string;
   hashtags: string[];
 }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const soundCategory = config.settings?.soundCategory || 'trending';
   const completion = await zai.chat.completions.create({
     messages: [

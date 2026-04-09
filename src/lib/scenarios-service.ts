@@ -145,8 +145,8 @@ class ScenariosService extends EventEmitter {
     // Generate content
     this.registerHandler('generate_content', async (params) => {
       // Вызов AI для генерации
-      const ZAI = (await import('z-ai-web-dev-sdk')).default;
-      const zai = await ZAI.create();
+      const { getZAI } = await import('@/lib/z-ai');
+      const zai = await getZAI();
       
       const response = await zai.chat.completions.create({
         messages: [

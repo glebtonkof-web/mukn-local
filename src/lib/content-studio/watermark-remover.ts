@@ -15,7 +15,7 @@ import { writeFile, readFile, unlink } from 'fs/promises';
 import { existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import { nanoid } from 'nanoid';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import {
   WatermarkRemovalOptions,
   WatermarkRemovalResult,
@@ -50,7 +50,7 @@ export class WatermarkRemover {
 
   private async initZai() {
     if (!this.zai) {
-      this.zai = await ZAI.create();
+      this.zai = await getZAI();
     }
     return this.zai;
   }

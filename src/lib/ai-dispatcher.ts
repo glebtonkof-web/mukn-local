@@ -3,6 +3,7 @@
 
 import { db } from './db';
 import { AIBudgetManager, getAIBudgetManager } from './ai-budget-manager';
+import { getZAI } from './z-ai';
 
 // Типы провайдеров
 export type ProviderName = 'cerebras' | 'gemini' | 'groq' | 'openrouter' | 'deepseek';
@@ -465,8 +466,7 @@ export class AIDispatcher {
   private async generateWithSDK(prompt: string, options: GenerationOptions): Promise<GenerationResult> {
     const startTime = Date.now();
     
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const zai = await getZAI();
     
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
     

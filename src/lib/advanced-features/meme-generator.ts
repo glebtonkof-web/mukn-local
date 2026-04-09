@@ -130,8 +130,8 @@ class MemeGeneratorService {
 
   // Генерация текста для мема
   private async generateMemeText(topic: string): Promise<{ topText: string; bottomText: string }> {
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const { getZAI } = await import('@/lib/z-ai');
+    const zai = await getZAI();
 
     const prompt = `Create a funny meme about "${topic}".
 
@@ -179,8 +179,8 @@ Respond in JSON:
     topic?: string
   ): Promise<string> {
     // Используем AI для генерации изображения в стиле мема
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const { getZAI } = await import('@/lib/z-ai');
+    const zai = await getZAI();
 
     const prompt = `Meme image, ${topic || 'funny situation'} theme, 
 ${topText ? `with text "${topText}" at top,` : ''} 

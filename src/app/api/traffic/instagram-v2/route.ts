@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { nanoid } from 'nanoid';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 
 // ==================== 17 INSTAGRAM METHODS ====================
 
@@ -200,7 +200,7 @@ async function generateWithDeepSeek(
   methodName: InstagramMethodName,
   config: MethodConfig
 ): Promise<{ content: string; strategy: Record<string, unknown> }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   
   let prompt = DEEPSEEK_PROMPTS[methodName] || DEEPSEEK_PROMPTS.reels_comment;
   

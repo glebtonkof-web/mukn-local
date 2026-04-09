@@ -3,7 +3,7 @@
  * TTS, Music, and Sound Effects generation
  */
 
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { nanoid } from 'nanoid';
 import {
   AudioGenerationOptions,
@@ -56,7 +56,7 @@ export class AudioGenerator {
 
   private async init() {
     if (!this.zai) {
-      this.zai = await ZAI.create();
+      this.zai = await getZAI();
     }
     return this.zai;
   }

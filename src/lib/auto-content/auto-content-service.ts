@@ -4,7 +4,7 @@
 
 import { nanoid } from 'nanoid';
 import { PrismaClient } from '@prisma/client';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import {
   ContentType,
   CampaignStatus,
@@ -48,7 +48,7 @@ export class AutoContentService {
     if (this.isInitialized) return;
 
     try {
-      this.zai = await ZAI.create();
+      this.zai = await getZAI();
       await this.variator.initialize();
       this.isInitialized = true;
 
@@ -583,7 +583,7 @@ export class AutoContentService {
   ): Promise<GenerationResult> {
     try {
       if (!this.zai) {
-        this.zai = await ZAI.create();
+        this.zai = await getZAI();
       }
 
       const response = await this.zai.images.generations.create({
@@ -630,7 +630,7 @@ export class AutoContentService {
   ): Promise<GenerationResult> {
     try {
       if (!this.zai) {
-        this.zai = await ZAI.create();
+        this.zai = await getZAI();
       }
 
       // Используем video generation API
@@ -678,7 +678,7 @@ export class AutoContentService {
   ): Promise<GenerationResult> {
     try {
       if (!this.zai) {
-        this.zai = await ZAI.create();
+        this.zai = await getZAI();
       }
 
       const completion = await this.zai.chat.completions.create({
@@ -728,7 +728,7 @@ export class AutoContentService {
   ): Promise<GenerationResult> {
     try {
       if (!this.zai) {
-        this.zai = await ZAI.create();
+        this.zai = await getZAI();
       }
 
       // TTS или генерация музыки

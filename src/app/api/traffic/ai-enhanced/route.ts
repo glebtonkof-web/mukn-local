@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { nanoid } from 'nanoid';
 
 // ==================== AI-ENHANCED TRAFFIC METHODS ====================
@@ -542,7 +542,7 @@ export async function POST(request: NextRequest) {
     const [methodKey, method] = methodEntry;
 
     // Инициализация AI
-    const zai = await ZAI.create();
+    const zai = await getZAI();
 
     // Подготовка промпта
     let prompt = method.prompt;
@@ -749,7 +749,7 @@ async function generateTelegramMethodContent(
   method: { id: number; name: string; description: string; prompt: string; riskLevel: string },
   params: Record<string, string | number | undefined>
 ) {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
 
   let prompt = method.prompt;
   const replacements: Record<string, string> = {

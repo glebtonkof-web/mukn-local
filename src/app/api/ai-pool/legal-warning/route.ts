@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { db } from '@/lib/db';
 import { nanoid } from 'nanoid';
 
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 ${sampleText ? `ПРИМЕР ТЕКСТА: "${sampleText}"` : ''}`;
     
     // Вызываем DeepSeek R1 (обязательно для юридических задач)
-    const zai = await ZAI.create();
+    const zai = await getZAI();
     const completion = await zai.chat.completions.create({
       messages: [
         { role: 'system', content: LEGAL_SYSTEM_PROMPT },

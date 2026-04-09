@@ -6,6 +6,7 @@ import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { nanoid } from 'nanoid';
+import { getZAI } from './z-ai';
 
 // Типы контента
 export type ContentType = 'image' | 'video' | 'audio' | 'avatar';
@@ -90,8 +91,7 @@ export class HunyuanService {
     
     try {
       // Используем z-ai-web-dev-sdk для генерации изображений
-      const ZAI = (await import('z-ai-web-dev-sdk')).default;
-      const zai = await ZAI.create();
+      const zai = await getZAI();
 
       const response = await zai.images.generations.create({
         prompt: `${prompt}${options.style ? `, ${options.style} style` : ''}`,

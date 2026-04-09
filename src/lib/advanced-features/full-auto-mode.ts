@@ -222,8 +222,8 @@ class FullAutoModeService extends EventEmitter {
 
   // Генерация контента
   private async generateContent(type: string, mode: any): Promise<any> {
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const { getZAI } = await import('@/lib/z-ai');
+    const zai = await getZAI();
 
     const platforms = JSON.parse(mode.platforms || '[]');
     const platform = platforms[0] || 'telegram';

@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAIProviderManager, TaskType } from '@/lib/ai-provider-manager';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { nanoid } from 'nanoid';
 
 // Типы контента
@@ -698,7 +698,7 @@ function buildImagePrompt(content: string, niche: NicheType, theme?: string): st
  * Генерация изображения через z-ai-web-dev-sdk
  */
 async function generateImageFromPrompt(prompt: string): Promise<string> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   
   const response = await zai.images.generations.create({
     prompt,

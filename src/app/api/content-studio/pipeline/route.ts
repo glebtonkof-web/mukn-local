@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 
 /**
  * Content Pipeline API
@@ -65,16 +65,6 @@ const PIPELINE_TEMPLATES: Record<string, {
     estimated_time_minutes: 6,
   },
 };
-
-// Global ZAI instance for reuse
-let zaiInstance: Awaited<ReturnType<typeof ZAI.create>> | null = null;
-
-async function getZAI() {
-  if (!zaiInstance) {
-    zaiInstance = await ZAI.create();
-  }
-  return zaiInstance;
-}
 
 // Global pipeline executions store
 declare global {

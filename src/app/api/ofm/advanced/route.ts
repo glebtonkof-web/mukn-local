@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { nanoid } from 'nanoid';
 
 // Предустановленные промпты для разных ниш
@@ -299,7 +299,7 @@ ${examples.map((e: string) => `- "${e}"`).join('\n')}
 Гео: ${body.geo || 'RU'}`;
 
     // Generate with DeepSeek
-    const zai = await ZAI.create();
+    const zai = await getZAI();
     const completion = await zai.chat.completions.create({
       messages: [
         { role: 'system', content: fullSystemPrompt },

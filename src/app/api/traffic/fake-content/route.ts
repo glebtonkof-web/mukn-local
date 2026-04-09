@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { getZAI } from '@/lib/z-ai';
 import { nanoid } from 'nanoid';
-import ZAI from 'z-ai-web-dev-sdk';
 
 // Типы фейкового контента
 export const FAKE_CONTENT_TYPES = {
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const zai = await ZAI.create();
+    const zai = await getZAI();
     let result: Record<string, unknown> = {};
 
     switch (contentType) {

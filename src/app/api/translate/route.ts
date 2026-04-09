@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { db } from '@/lib/db';
 import { nanoid } from 'nanoid';
 
@@ -36,7 +36,7 @@ interface BatchTranslateRequest {
 // Language detection using AI
 async function detectLanguage(text: string): Promise<string> {
   try {
-    const zai = await ZAI.create();
+    const zai = await getZAI();
     const completion = await zai.chat.completions.create({
       messages: [
         {
@@ -70,7 +70,7 @@ async function translateWithAI(
   targetLanguage: string,
   context?: string
 ): Promise<{ translatedText: string; qualityScore: number }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
 
   const languageNames: Record<string, string> = {
     ru: 'Russian',

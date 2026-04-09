@@ -1,20 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 
 /**
  * Content Studio API - Real Video Generation
  * NO STUBS, NO SIMULATIONS - Real AI generation using z-ai-web-dev-sdk
  */
-
-// Global ZAI instance for reuse
-let zaiInstance: Awaited<ReturnType<typeof ZAI.create>> | null = null;
-
-async function getZAI() {
-  if (!zaiInstance) {
-    zaiInstance = await ZAI.create();
-  }
-  return zaiInstance;
-}
 
 // Real provider configurations
 const PROVIDER_CONFIGS = {

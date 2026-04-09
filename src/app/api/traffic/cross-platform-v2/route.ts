@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { nanoid } from 'nanoid';
 
 // ==================== 17 CROSS-PLATFORM METHODS CONFIGURATION ====================
@@ -627,7 +627,7 @@ async function generateContentWithDeepSeek(
     .replace(/{question}/g, config.question || 'general question')
     .replace(/{streamerType}/g, config.streamerType || 'gaming');
 
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {

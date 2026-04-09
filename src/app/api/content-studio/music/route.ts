@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 
 /**
  * Real Music Generation API
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
     const bpm = tempo === 'auto' ? styleConfig.bpm : parseInt(tempo) || styleConfig.bpm;
 
     // Initialize Z-AI
-    const zai = await ZAI.create();
+    const zai = await getZAI();
 
     // Generate unique music ID
     const musicId = `music_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;

@@ -13,7 +13,7 @@
 import { PrismaClient } from '@prisma/client'
 import crypto from 'crypto'
 import { nanoid } from 'nanoid'
-import ZAI from 'z-ai-web-dev-sdk'
+import { getZAI } from '@/lib/z-ai'
 
 const prisma = new PrismaClient()
 
@@ -760,7 +760,7 @@ export class DeepSeekFreeManager {
     // 4. Выполняем запрос через DeepSeek API
     try {
       // Реальный запрос через z-ai-web-dev-sdk
-      const zai = await ZAI.create()
+      const zai = await getZAI()
       
       const systemPrompt = 'Ты — AI-ассистент DeepSeek. Отвечай кратко и по делу на русском языке.'
       

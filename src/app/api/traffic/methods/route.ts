@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { nanoid } from 'nanoid';
 
 // ==================== 130 TRAFFIC METHODS CONFIGURATION ====================
@@ -399,7 +399,7 @@ export async function POST(request: NextRequest) {
       .replace('{salary}', salary || '5000');
 
     // Generate with DeepSeek
-    const zai = await ZAI.create();
+    const zai = await getZAI();
     const completion = await zai.chat.completions.create({
       messages: [
         { role: 'system', content: prompt.system },

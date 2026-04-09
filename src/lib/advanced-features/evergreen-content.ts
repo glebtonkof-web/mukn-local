@@ -61,8 +61,8 @@ class EvergreenContentService {
       throw new Error('Post not found');
     }
 
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const { getZAI } = await import('@/lib/z-ai');
+    const zai = await getZAI();
 
     // Анализируем пост и предлагаем обновления
     const analysisPrompt = `Analyze this social media post and suggest updates to make it relevant for today:

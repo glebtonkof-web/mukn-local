@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { nanoid } from 'nanoid';
 
 // Доступные реакции для AI-выбора
@@ -113,7 +113,7 @@ ${historicalData.map(h => `- ${h.reaction}: ${h.count} использовани�
       : 'Исторических данных пока нет.';
 
     // AI selection of reaction
-    const zai = await ZAI.create();
+    const zai = await getZAI();
     const completion = await zai.chat.completions.create({
       messages: [
         {

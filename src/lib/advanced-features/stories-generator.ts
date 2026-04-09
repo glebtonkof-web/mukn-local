@@ -59,8 +59,8 @@ class StoriesSlidesGenerator {
         // Получаем изображение из стоков или генерируем
         let imageUrl = '';
         try {
-          const ZAI = (await import('z-ai-web-dev-sdk')).default;
-          const zai = await ZAI.create();
+          const { getZAI } = await import('@/lib/z-ai');
+          const zai = await getZAI();
           
           const imageResponse = await zai.images.generations.create({
             prompt: `${content.imagePrompt}, ${config.style || 'modern'} style, vertical format, suitable for stories`,
@@ -130,8 +130,8 @@ class StoriesSlidesGenerator {
     keywords: string[];
     text: string;
   }>> {
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const { getZAI } = await import('@/lib/z-ai');
+    const zai = await getZAI();
 
     const prompt = `Create content for ${count} story slides about "${config.topic}" for ${config.platform}.
     

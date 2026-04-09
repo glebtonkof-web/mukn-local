@@ -1,19 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 
 /**
  * TTS API - Text-to-Speech using z-ai-web-dev-sdk
  */
-
-// Global ZAI instance
-let zaiInstance: Awaited<ReturnType<typeof ZAI.create>> | null = null;
-
-async function getZAI() {
-  if (!zaiInstance) {
-    zaiInstance = await ZAI.create();
-  }
-  return zaiInstance;
-}
 
 // Available voices
 const VOICES = [

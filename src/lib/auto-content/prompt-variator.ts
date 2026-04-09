@@ -2,7 +2,7 @@
  * Prompt Variator - Создание вариаций промтов для разнообразия контента
  */
 
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import {
   PromptConfig,
   PromptVariationConfig,
@@ -60,7 +60,7 @@ export class PromptVariator {
 
   async initialize() {
     if (!this.zai) {
-      this.zai = await ZAI.create();
+      this.zai = await getZAI();
     }
   }
 

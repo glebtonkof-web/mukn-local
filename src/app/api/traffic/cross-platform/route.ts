@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { nanoid } from 'nanoid';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 
 // Cross-Platform Traffic Methods Configuration
 export const CROSS_PLATFORM_METHODS = [
@@ -82,7 +82,7 @@ async function generateTiktokToTelegram(config: MethodConfig): Promise<{
   commentStrategy: string;
   welcomeMessage: string;
 }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -115,7 +115,7 @@ async function generateInstagramToTelegram(config: MethodConfig): Promise<{
   postCaption: string;
   dmTemplate: string;
 }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -148,7 +148,7 @@ async function generateYoutubeToTelegram(config: MethodConfig): Promise<{
   endScreenText: string;
   communityPost: string;
 }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -181,7 +181,7 @@ async function generateTwitterToTelegram(config: MethodConfig): Promise<{
   threadCta: string;
   replyStrategy: string;
 }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -214,7 +214,7 @@ async function generatePinterestToTelegram(config: MethodConfig): Promise<{
   imageText: string;
   profileBio: string;
 }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -247,7 +247,7 @@ async function generateRedditToTelegram(config: MethodConfig): Promise<{
   commentCta: string;
   bioText: string;
 }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {
@@ -280,7 +280,7 @@ async function generateLinkedinToTelegram(config: MethodConfig): Promise<{
   articleCta: string;
   messageTemplate: string;
 }> {
-  const zai = await ZAI.create();
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       {

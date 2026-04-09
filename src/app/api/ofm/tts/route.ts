@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { logger } from '@/lib/logger';
 
 // Available TTS voices for OFM
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     // Validate speed range (0.5 to 2.0)
     const validSpeed = Math.max(0.5, Math.min(2.0, parseFloat(speed) || 1.0));
 
-    const zai = await ZAI.create();
+    const zai = await getZAI();
 
     // Use TTS from z-ai-web-dev-sdk if available, otherwise fallback
     // Note: TTS may not be available in all SDK versions

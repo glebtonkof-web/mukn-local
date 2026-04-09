@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 import { nanoid } from 'nanoid'
 import crypto from 'crypto'
-import ZAI from 'z-ai-web-dev-sdk'
+import { getZAI } from '@/lib/z-ai'
 
 const prisma = new PrismaClient()
 
@@ -43,7 +43,7 @@ class TempMailService {
 
   async init() {
     if (!this.zai) {
-      this.zai = await ZAI.create()
+      this.zai = await getZAI()
     }
     return this.zai
   }
@@ -211,7 +211,7 @@ class DeepSeekRegistrar {
   }
 
   async init() {
-    this.zai = await ZAI.create()
+    this.zai = await getZAI()
     return this.zai
   }
 

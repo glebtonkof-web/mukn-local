@@ -1,7 +1,7 @@
 // AI Comments Engine
 // Главный движок для AI-комментирования
 
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { v4 as uuidv4 } from 'uuid';
 import {
   CommentGenerationConfig,
@@ -28,7 +28,7 @@ import {
 
 export class AICommentsEngine {
   private config: CommentGenerationConfig;
-  private zai: Awaited<ReturnType<typeof ZAI.create>> | null = null;
+  private zai: Awaited<ReturnType<typeof getZAI>> | null = null;
   private userId: string;
 
   constructor(config: Partial<CommentGenerationConfig> = {}, userId: string = 'default-user') {
@@ -39,7 +39,7 @@ export class AICommentsEngine {
   // Инициализация SDK
   private async initSDK() {
     if (!this.zai) {
-      this.zai = await ZAI.create();
+      this.zai = await getZAI();
     }
     return this.zai;
   }

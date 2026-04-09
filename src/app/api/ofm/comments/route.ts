@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 
 // GET /api/ofm/comments - List comments
 export async function GET(request: NextRequest) {
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     // Generate comment with AI if not provided
     if (!commentText && body.generate !== false) {
       try {
-        const zai = await ZAI.create();
+        const zai = await getZAI();
 
         const systemPrompt = profile.commentPrompt || 
           `You are a ${style} person engaging in ${profile.niche} discussions. 

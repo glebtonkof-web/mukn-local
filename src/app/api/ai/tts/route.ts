@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     // Validate speed range (0.5 to 2.0)
     const validSpeed = Math.max(0.5, Math.min(2.0, speed));
 
-    const zai = await ZAI.create();
+    const zai = await getZAI();
 
     // Use TTS from z-ai-web-dev-sdk - correct method is zai.audio.tts.create
     const response = await zai.audio.tts.create({

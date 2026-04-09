@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { hunyuanService } from '@/lib/hunyuan-service';
 import { db } from '@/lib/db';
 
@@ -97,7 +97,7 @@ async function generateText(prompt: string, platform: string, style: string, set
   const startTime = Date.now();
   
   try {
-    const zai = await ZAI.create();
+    const zai = await getZAI();
     
     // Системный промпт в зависимости от платформы и стиля
     const platformPrompts: Record<string, string> = {
@@ -168,7 +168,7 @@ async function generateImage(prompt: string, imageStyle: string) {
   const startTime = Date.now();
   
   try {
-    const zai = await ZAI.create();
+    const zai = await getZAI();
 
     const styleEnhancements: Record<string, string> = {
       realistic: 'photorealistic, high detail, natural lighting, professional photography',
@@ -217,7 +217,7 @@ async function generateVideo(prompt: string, params: any) {
   const startTime = Date.now();
   
   try {
-    const zai = await ZAI.create();
+    const zai = await getZAI();
     
     const style = params.style || 'cinematic';
     const duration = params.duration || 5;

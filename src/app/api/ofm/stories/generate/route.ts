@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { getZAI } from '@/lib/z-ai';
 import { nanoid } from 'nanoid';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
 
     const themeData = STORY_THEMES[theme] || STORY_THEMES.lifestyle;
 
-    const zai = await ZAI.create();
+    const zai = await getZAI();
 
     // Step 1: Generate story text using DeepSeek
     const textSystemPrompt = `Ты — девушка 23-28 лет, ведущая Telegram-канал.
