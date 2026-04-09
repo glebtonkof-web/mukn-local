@@ -16,6 +16,7 @@ export async function GET() {
           email: 'local@mukn.local',
           name: 'Local User',
           role: 'admin',
+          updatedAt: new Date(),
         }
       });
     }
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
           email: 'local@mukn.local',
           name: 'Local User',
           role: 'admin',
+          updatedAt: new Date(),
         }
       });
     }
