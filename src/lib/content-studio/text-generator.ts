@@ -1,10 +1,11 @@
 /**
  * Text Generator Module
  * AI-powered text generation for various content types
+ * Uses DirectAIProvider for API calls
  */
 
-import ZAI from 'z-ai-web-dev-sdk';
 import { nanoid } from 'nanoid';
+import { getDirectAIProvider, generateWithAI, GenerationResult } from '../ai-direct-provider';
 import {
   TextGenerationOptions,
   GeneratedText,
@@ -49,38 +50,28 @@ const TONE_MODIFIERS = {
 };
 
 export class TextGenerator {
-  private zai: any = null;
-
-  private async init() {
-    if (!this.zai) {
-      this.zai = await ZAI.create();
-    }
-    return this.zai;
-  }
+  private lastResult: GenerationResult | null = null;
 
   /**
    * Generate text content
    */
   async generate(options: TextGenerationOptions): Promise<ContentStudioResponse<GeneratedText>> {
     try {
-      const zai = await this.init();
-      
       // Build system prompt
       const systemPrompt = this.buildSystemPrompt(options);
       
       // Build user prompt
       const userPrompt = this.buildUserPrompt(options);
 
-      const response = await zai.chat.completions.create({
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
+      // Use DirectAIProvider
+      const result = await generateWithAI(userPrompt, {
+        systemPrompt,
         temperature: 0.7,
-        max_tokens: this.getMaxTokens(options),
+        maxTokens: this.getMaxTokens(options),
       });
 
-      const content = response.choices[0]?.message?.content || '';
+      this.lastResult = result;
+      const content = result.content;
       
       // Generate suggestions for improvement
       const suggestions = await this.generateSuggestions(content, options);
@@ -104,6 +95,9 @@ export class TextGenerator {
           createdAt: new Date(),
           updatedAt: new Date(),
           prompt: options.prompt?.substring(0, 100),
+          provider: result.provider,
+          model: result.model,
+          tokensUsed: result.tokensIn + result.tokensOut,
         },
       };
     } catch (error: any) {
@@ -148,23 +142,15 @@ export class TextGenerator {
     instructions: string
   ): Promise<ContentStudioResponse<GeneratedText>> {
     try {
-      const zai = await this.init();
+      const result = await generateWithAI(
+        `Original text:\n${existingText}\n\nInstructions: ${instructions}`,
+        {
+          systemPrompt: 'You are an expert text editor. Improve the given text according to instructions.',
+          temperature: 0.5,
+        }
+      );
 
-      const response = await zai.chat.completions.create({
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert text editor. Improve the given text according to instructions.',
-          },
-          {
-            role: 'user',
-            content: `Original text:\n${existingText}\n\nInstructions: ${instructions}`,
-          },
-        ],
-        temperature: 0.5,
-      });
-
-      const content = response.choices[0]?.message?.content || '';
+      const content = result.content;
 
       const text: GeneratedText = {
         id: `text_improved_${nanoid(8)}`,
@@ -195,8 +181,6 @@ export class TextGenerator {
     count: number = 10
   ): Promise<ContentStudioResponse<string[]>> {
     try {
-      const zai = await this.init();
-
       const platformRules: Record<string, string> = {
         instagram: 'Use 20-30 hashtags, mix popular and niche',
         tiktok: 'Use 3-5 trending hashtags',
@@ -204,22 +188,16 @@ export class TextGenerator {
         youtube: 'Use 5-10 relevant tags',
       };
 
-      const response = await zai.chat.completions.create({
-        messages: [
-          {
-            role: 'system',
-            content: 'Generate relevant hashtags for social media content.',
-          },
-          {
-            role: 'user',
-            content: `Content: ${content.substring(0, 500)}\nPlatform: ${platform}\nRules: ${platformRules[platform]}\n\nGenerate ${count} hashtags. Return only hashtags separated by spaces, each starting with #`,
-          },
-        ],
-        temperature: 0.8,
-      });
+      const result = await generateWithAI(
+        `Content: ${content.substring(0, 500)}\nPlatform: ${platform}\nRules: ${platformRules[platform]}\n\nGenerate ${count} hashtags. Return only hashtags separated by spaces, each starting with #`,
+        {
+          systemPrompt: 'Generate relevant hashtags for social media content.',
+          temperature: 0.8,
+        }
+      );
 
-      const content_response = response.choices[0]?.message?.content || '';
-      const hashtags = content_response
+      const responseContent = result.content;
+      const hashtags = responseContent
         .match(/#\w+/g)
         ?.slice(0, count) || [];
 
@@ -330,6 +308,13 @@ ${lengthGuide[options.length || 'medium']}`;
    */
   getTones(): string[] {
     return Object.keys(TONE_MODIFIERS);
+  }
+
+  /**
+   * Get last generation result
+   */
+  getLastResult(): GenerationResult | null {
+    return this.lastResult;
   }
 }
 
